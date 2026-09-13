@@ -1,0 +1,33 @@
+# VotoCheck — Configuração Cloudflare Worker
+# Documentação: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "votocheck-coletor"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Banco D1 — depois de criar com `wrangler d1 create votocheck-db`, cole o database_id retornado aqui.
+[[d1_databases]]
+binding = "DB"
+database_name = "votocheck-db"
+database_id = "1de4bbee-3c8c-4043-91f9-fafd527c2f1f"
+
+# Cron Trigger — dispara a coleta automaticamente.
+# Durante o período eleitoral o TSE atualiza os datasets ~4x/dia.
+# Exemplo abaixo: todos os dias às 06:00, 12:00, 18:00 e 00:00 UTC (ajustar conforme necessidade).
+# Sintaxe: https://developers.cloudflare.com/workers/configuration/cron-triggers/
+#
+# ATENÇÃO — o handler scheduled() em src/index.js roda TODOS os coletores em sequência
+# (candidatos → redes sociais → bens → deputados → senadores → proposições → votações).
+# Isso pode facilmente exceder o limite de CPU time de uma única invocação do Worker
+# (planos pagos: até 30s de CPU time por invocação, configurável até 5 min via
+# `limits.cpu_ms` — ver https://developers.cloudflare.com/workers/platform/limits/).
+# Se o volume de candidatos (todos os cargos, todas as UFs) fizer o cron ultrapassar esse
+# limite, divida em múltiplos Cron Triggers com horários diferentes, cada um chamando só
+# um subconjunto de coletores (ajuste o `if (event.cron === '...')` dentro de scheduled()).
+[triggers]
+crons = ["0 6,12,18,0 * * *"]
+
+# Variáveis de ambiente não-sensíveis (segredos como ADMIN_TOKEN devem ir via
+# `wrangler secret put ADMIN_TOKEN`, nunca aqui em texto plano — regra de segurança do projeto).
+[vars]
+# FALLBACK_BASE_URL = "https://mirror-exemplo.com/tse"  # descomente se precisar de um mirror

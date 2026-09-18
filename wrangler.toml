@@ -12,20 +12,22 @@ database_name = "votocheck-db"
 database_id = "1de4bbee-3c8c-4043-91f9-fafd527c2f1f"
 
 # Cron Trigger — dispara a coleta automaticamente.
-# Durante o período eleitoral o TSE atualiza os datasets ~4x/dia.
-# Exemplo abaixo: todos os dias às 06:00, 12:00, 18:00 e 00:00 UTC (ajustar conforme necessidade).
-# Sintaxe: https://developers.cloudflare.com/workers/configuration/cron-triggers/
 #
-# ATENÇÃO — o handler scheduled() em src/index.js roda TODOS os coletores em sequência
-# (candidatos → redes sociais → bens → deputados → senadores → proposições → votações).
-# Isso pode facilmente exceder o limite de CPU time de uma única invocação do Worker
-# (planos pagos: até 30s de CPU time por invocação, configurável até 5 min via
-# `limits.cpu_ms` — ver https://developers.cloudflare.com/workers/platform/limits/).
-# Se o volume de candidatos (todos os cargos, todas as UFs) fizer o cron ultrapassar esse
-# limite, divida em múltiplos Cron Triggers com horários diferentes, cada um chamando só
-# um subconjunto de coletores (ajuste o `if (event.cron === '...')` dentro de scheduled()).
+# ATUALIZADO em 18/09/2026 (auditoria de continuidade): reduzido de 4x/dia para 1x/dia.
+# Motivos:
+#  1) O plano free do D1 tem teto diário de linhas escritas — rodar a sequência completa
+#     várias vezes ao dia aumenta o risco de estourar a cota no meio de uma coleta (já
+#     aconteceu). Câmara/Senado não mudam rápido o suficiente para justificar mais de 1x/dia.
+#  2) O handler scheduled() agora isola cada coletor em try/catch (ver src/index.js) — uma
+#     falha do TSE não trava mais Câmara/Senado. Ainda assim, menos disparos = menos exposição
+#     ao bloqueio intermitente da Akamai (TSE) e ao teto de subrequests por invocação.
+#  3) O coletor de TSE (candidatos/redes sociais/bens) continua no cron como "melhor esforço",
+#     mas a carga de volume e a atualização de rotina do TSE são feitas manualmente (baixar
+#     ZIP do navegador + aplicar via API no D1) — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md.
+#
+# Horário escolhido: 07:00 UTC (04:00 em São Paulo) — fora do horário de maior uso do site.
 [triggers]
-crons = ["0 6,12,18,0 * * *"]
+crons = ["0 7 * * *"]
 
 # Variáveis de ambiente não-sensíveis (segredos como ADMIN_TOKEN devem ir via
 # `wrangler secret put ADMIN_TOKEN`, nunca aqui em texto plano — regra de segurança do projeto).

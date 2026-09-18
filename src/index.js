@@ -2,7 +2,9 @@
  * VotoCheck — Worker principal
  *
  * Rotas HTTP (para disparo manual/teste — protegidas por ADMIN_TOKEN quando configurado):
- *   GET  /                                     → landing page provisória (pública)
+ *   GET  /                                     → homepage pública (busca de candidato + estatísticas)
+ *   GET  /buscar?q=&cargo=&uf=                  → resultados de busca (pública)
+ *   GET  /candidato/:pessoaId                   → perfil público do candidato/representante
  *   GET  /healthcheck                          → healthcheck JSON (pública)
  *   POST /admin/coletar/tse-candidatos          → coleta candidatos TSE (?ano=2026)
  *   POST /admin/coletar/tse-redes-sociais       → coleta redes sociais dos candidatos (?ano=2026)
@@ -29,7 +31,11 @@ import { coletarDeputados, coletarProposicoes, coletarVotacoes } from './collect
 import { coletarSenadores, coletarVotacoesSenado, cruzarSenadoresComTse } from './collectors/senado.js';
 import { listarPendencias, resolverPendencia } from './lib/curadoria.js';
 import { CURADORIA_HTML } from './lib/curadoria_html.js';
-import { LANDING_HTML } from './lib/landing_html.js';
+import { renderHomepage, renderResultados } from './lib/busca_html.js';
+import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
+
+const ANO_ATUAL = 2026;
+const html = (body) => new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 
 function requireAdminToken(request, env) {
   if (!env.ADMIN_TOKEN) return true; // sem token configurado = sem proteção (apenas dev local)
@@ -63,7 +69,179 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/' && request.method === 'GET') {
-      return new Response(LANDING_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      const db = env.DB;
+      const [totais, ultimaExecucao, porCargoRes] = await Promise.all([
+        db
+          .prepare(
+            `SELECT (SELECT COUNT(*) FROM candidatura WHERE ano_eleicao = ?) as candidaturas,
+                    (SELECT COUNT(*) FROM pessoa) as pessoas`
+          )
+          .bind(ANO_ATUAL)
+          .first(),
+        db
+          .prepare(`SELECT finalizado_em FROM execucao_coletor WHERE status != 'em_execucao' ORDER BY finalizado_em DESC LIMIT 1`)
+          .first(),
+        db
+          .prepare(
+            `SELECT ca.slug, ca.nome, COUNT(*) as qtd
+             FROM candidatura c JOIN cargo ca ON ca.id = c.cargo_id
+             WHERE c.ano_eleicao = ?
+             GROUP BY ca.id
+             ORDER BY ca.abrangencia, ca.nome`
+          )
+          .bind(ANO_ATUAL)
+          .all(),
+      ]);
+      return html(
+        renderHomepage({
+          totalCandidaturas: totais?.candidaturas || 0,
+          totalPessoas: totais?.pessoas || 0,
+          atualizadoEm: ultimaExecucao?.finalizado_em || null,
+          porCargo: porCargoRes?.results || [],
+        })
+      );
+    }
+
+    if (url.pathname === '/buscar' && request.method === 'GET') {
+      const db = env.DB;
+      const q = (url.searchParams.get('q') || '').trim();
+      const cargo = (url.searchParams.get('cargo') || '').trim();
+      const uf = (url.searchParams.get('uf') || '').trim();
+      const ordenarParam = (url.searchParams.get('ordenar') || 'nome').trim();
+      const ordenar = ['nome', 'idade', 'partido'].includes(ordenarParam) ? ordenarParam : 'nome';
+      const porPagina = 30;
+      const paginaAtual = Math.max(1, Number(url.searchParams.get('pagina')) || 1);
+      const offset = (paginaAtual - 1) * porPagina;
+
+      const condicoes = ['c.ano_eleicao = ?'];
+      const params = [ANO_ATUAL];
+      if (q) {
+        condicoes.push('(p.nome_completo LIKE ? OR p.nome_urna_atual LIKE ?)');
+        params.push(`%${q}%`, `%${q}%`);
+      }
+      if (cargo) {
+        condicoes.push('ca.slug = ?');
+        params.push(cargo);
+      }
+      if (uf) {
+        condicoes.push('c.sg_uf = ?');
+        params.push(uf);
+      }
+      const whereSql = condicoes.join(' AND ');
+
+      // Critérios de ordenação isonômicos (nenhum implica "melhor/pior" candidato — ver
+      // ORDENACOES em busca_html.js). "idade": normaliza data_nascimento (formatos mistos
+      // TSE "DD/MM/AAAA" e Senado "AAAA-MM-DD") para ISO antes de ordenar, do mais velho
+      // (data menor) pro mais novo; sem data de nascimento sempre vai por último.
+      const dataIsoExpr = `CASE
+          WHEN p.data_nascimento LIKE '__/__/____' THEN substr(p.data_nascimento,7,4) || '-' || substr(p.data_nascimento,4,2) || '-' || substr(p.data_nascimento,1,2)
+          WHEN p.data_nascimento LIKE '____-__-__%' THEN substr(p.data_nascimento,1,10)
+          ELSE NULL
+        END`;
+      const ORDER_BY = {
+        nome: 'p.nome_urna_atual ASC',
+        idade: `(${dataIsoExpr}) IS NULL, (${dataIsoExpr}) ASC`,
+        partido: '(pa.sigla IS NULL), pa.sigla ASC, p.nome_urna_atual ASC',
+      };
+
+      const [{ results }, contagem] = await Promise.all([
+        db
+          .prepare(
+            `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento,
+                    ca.nome as cargo_nome, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
+                    pa.sigla as partido_sigla
+             FROM candidatura c
+             JOIN pessoa p ON p.id = c.pessoa_id
+             JOIN cargo ca ON ca.id = c.cargo_id
+             LEFT JOIN partido pa ON pa.id = c.partido_id
+             WHERE ${whereSql}
+             ORDER BY ${ORDER_BY[ordenar]}
+             LIMIT ? OFFSET ?`
+          )
+          .bind(...params, porPagina, offset)
+          .all(),
+        db
+          .prepare(
+            `SELECT COUNT(*) as total
+             FROM candidatura c
+             JOIN pessoa p ON p.id = c.pessoa_id
+             JOIN cargo ca ON ca.id = c.cargo_id
+             LEFT JOIN partido pa ON pa.id = c.partido_id
+             WHERE ${whereSql}`
+          )
+          .bind(...params)
+          .first(),
+      ]);
+
+      return html(
+        renderResultados({
+          q,
+          cargo,
+          uf,
+          ordenar,
+          resultados: results || [],
+          totalResultados: contagem?.total || 0,
+          paginaAtual,
+          porPagina,
+        })
+      );
+    }
+
+    const perfilMatch = url.pathname.match(/^\/candidato\/(\d+)$/);
+    if (perfilMatch && request.method === 'GET') {
+      const db = env.DB;
+      const pessoaId = Number(perfilMatch[1]);
+
+      const pessoa = await db.prepare(`SELECT * FROM pessoa WHERE id = ?`).bind(pessoaId).first();
+      if (!pessoa) return new Response(renderNaoEncontrado(), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+
+      const [candidaturasRes, mandatosRes, filiacoesRes] = await Promise.all([
+        db
+          .prepare(
+            `SELECT c.*, ca.nome as cargo_nome, pa.sigla as partido_sigla, pa.nome as partido_nome,
+                    s.codigo as status_codigo, s.descricao as status_descricao,
+                    f.nome as fonte_nome, f.url_base as fonte_url, p.data_nascimento
+             FROM candidatura c
+             JOIN cargo ca ON ca.id = c.cargo_id
+             LEFT JOIN partido pa ON pa.id = c.partido_id
+             JOIN status s ON s.id = c.status_id
+             LEFT JOIN fonte f ON f.id = c.fonte_id
+             JOIN pessoa p ON p.id = c.pessoa_id
+             WHERE c.pessoa_id = ?
+             ORDER BY c.ano_eleicao DESC`
+          )
+          .bind(pessoaId)
+          .all(),
+        db
+          .prepare(
+            `SELECT m.*, ca.nome as cargo_nome, f.nome as fonte_nome
+             FROM mandato m
+             JOIN cargo ca ON ca.id = m.cargo_id
+             LEFT JOIN fonte f ON f.id = m.fonte_id
+             WHERE m.pessoa_id = ?`
+          )
+          .bind(pessoaId)
+          .all(),
+        db
+          .prepare(
+            `SELECT fp.*, pa.sigla, pa.nome
+             FROM filiacao_partidaria fp
+             JOIN partido pa ON pa.id = fp.partido_id
+             WHERE fp.pessoa_id = ?
+             ORDER BY fp.data_inicio DESC`
+          )
+          .bind(pessoaId)
+          .all(),
+      ]);
+
+      return html(
+        renderPerfil({
+          pessoa,
+          candidaturas: candidaturasRes.results || [],
+          mandatos: mandatosRes.results || [],
+          filiacoes: filiacoesRes.results || [],
+        })
+      );
     }
 
     if (url.pathname === '/healthcheck' && request.method === 'GET') {
@@ -120,49 +298,64 @@ export default {
   },
 
   /**
-   * event.cron identifica qual expressão cron disparou (útil quando há múltiplos horários
-   * configurados em wrangler.toml para coletores diferentes). Por padrão, roda a sequência
-   * completa de coleta na ordem que respeita as dependências:
-   *   1) candidatos (base para bens/redes sociais, que fazem JOIN por sq_candidato_tse)
-   *   2) redes sociais + bens (dependem de candidatos já existirem)
-   *   3) deputados + senadores (independentes do TSE)
-   *   4) cruzamento senado↔TSE por nome+UF+data de nascimento (heurístico, conservador —
-   *      só funde pessoa quando há exatamente uma candidatura TSE compatível; ambiguidades
-   *      ficam registradas em historico_alteracao para curadoria manual, nunca fundidas)
-   *   5) proposições + votações (dependem de deputados/senadores já sincronizados para
-   *      resolver o voto individual de cada pessoa_id)
+   * event.cron identifica qual expressão cron disparou.
+   *
+   * ATUALIZADO em 18/09/2026 (auditoria de continuidade) — duas mudanças importantes em
+   * relação à versão original deste handler:
+   *
+   *  1) ISOLAMENTO POR COLETOR: antes, os coletores rodavam em sequência com um único
+   *     try/catch implícito (nenhum) — se coletarCandidatos (TSE) lançasse uma exceção não
+   *     capturada (comum: o CDN do TSE bloqueia parte do tráfego vindo da rede da Cloudflare
+   *     com HTTP 403, de forma intermitente), TODOS os coletores seguintes (Câmara, Senado)
+   *     nunca chegavam a rodar. Isso foi confirmado em produção: o cron nem sequer estava
+   *     registrado na Cloudflare desde o deploy original (bug separado, também corrigido em
+   *     18/09), e as poucas execuções manuais de teste que rodaram TSE primeiro nunca
+   *     chegaram aos coletores de Câmara/Senado. Agora cada coletor roda dentro do seu
+   *     próprio try/catch: uma falha em um nunca impede os demais de rodar.
+   *
+   *  2) TSE tratado como "melhor esforço": candidatos/redes sociais/bens do TSE continuam
+   *     tentando rodar automaticamente (não custa nada tentar), mas a carga inicial de
+   *     volume e as atualizações de rotina do TSE são feitas manualmente (baixar o ZIP do
+   *     navegador + aplicar direto no D1 via API) — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md.
+   *     Isso porque, além do bloqueio intermitente, processar o ZIP nacional inteiro numa
+   *     única invocação do Worker estoura o limite de subrequests/CPU (confirmado: execuções
+   *     ficavam presas em "em_execucao" para sempre). Não vale reengenhar isso agora — o
+   *     caminho manual já comprovou que funciona rápido e sem esses limites.
+   *
+   *  3) CADÊNCIA REDUZIDA: de 4x/dia para 1x/dia (ver wrangler.toml) — o plano free do D1 tem
+   *     um teto diário de linhas escritas, e rodar a sequência completa várias vezes ao dia
+   *     não traz benefício real (os dados de Câmara/Senado não mudam tão rápido) e aumenta o
+   *     risco de estourar a cota no meio de uma coleta importante.
    */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       (async () => {
-        const candidatos = await coletarCandidatos(env, 2026);
-        console.log('coletarCandidatos:', JSON.stringify(candidatos));
+        async function rodar(nome, fn) {
+          try {
+            const resultado = await fn();
+            console.log(`${nome}:`, JSON.stringify(resultado));
+            return resultado;
+          } catch (e) {
+            console.log(`${nome}: ERRO NÃO CAPTURADO —`, String(e?.message || e));
+            return { ok: false, error: String(e?.message || e) };
+          }
+        }
 
-        const redes = await coletarRedesSociais(env, 2026);
-        console.log('coletarRedesSociais:', JSON.stringify(redes));
+        // TSE — melhor esforço; nunca bloqueia os coletores abaixo (ver nota acima).
+        await rodar('coletarCandidatos', () => coletarCandidatos(env, 2026));
+        await rodar('coletarRedesSociais', () => coletarRedesSociais(env, 2026));
+        await rodar('coletarBensCandidatos', () => coletarBensCandidatos(env, 2026));
 
-        const bens = await coletarBensCandidatos(env, 2026);
-        console.log('coletarBensCandidatos:', JSON.stringify(bens));
-
-        const deputados = await coletarDeputados(env, 57);
-        console.log('coletarDeputados:', JSON.stringify(deputados));
-
-        const senadores = await coletarSenadores(env);
-        console.log('coletarSenadores:', JSON.stringify(senadores));
-
-        const cruzamentoSenadoTse = await cruzarSenadoresComTse(env);
-        console.log('cruzarSenadoresComTse:', JSON.stringify(cruzamentoSenadoTse));
-
-        const proposicoes = await coletarProposicoes(env, 2026);
-        console.log('coletarProposicoes:', JSON.stringify(proposicoes));
+        // Câmara + Senado — sem bloqueio conhecido, roda de forma confiável.
+        await rodar('coletarDeputados', () => coletarDeputados(env, 57));
+        await rodar('coletarSenadores', () => coletarSenadores(env));
+        await rodar('cruzarSenadoresComTse', () => cruzarSenadoresComTse(env));
+        await rodar('coletarProposicoes', () => coletarProposicoes(env, 2026));
 
         const fim = ymd(new Date());
         const inicio = ymd(new Date(Date.now() - 3 * 24 * 3600 * 1000));
-        const votacoesCamara = await coletarVotacoes(env, inicio, fim);
-        console.log('coletarVotacoes (Câmara):', JSON.stringify(votacoesCamara));
-
-        const votacoesSenado = await coletarVotacoesSenado(env);
-        console.log('coletarVotacoesSenado:', JSON.stringify(votacoesSenado));
+        await rodar('coletarVotacoes (Câmara)', () => coletarVotacoes(env, inicio, fim));
+        await rodar('coletarVotacoesSenado', () => coletarVotacoesSenado(env));
       })()
     );
   },

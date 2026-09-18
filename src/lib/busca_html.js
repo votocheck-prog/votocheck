@@ -180,7 +180,7 @@ const DESCRICAO_ORDENACAO = {
   partido: 'por partido, em ordem alfabética',
 };
 
-export function renderResultados({ q, cargo, uf, ordenar = 'nome', resultados, totalResultados, paginaAtual = 1, porPagina = 30 }) {
+export function renderResultados({ q, cargo, uf, ordenar = 'nome', resultados, totalResultados, paginaAtual = 1, porPagina = 30, caminho = '/buscar' }) {
   const total = totalResultados ?? resultados.length;
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const lista = resultados.length
@@ -203,6 +203,10 @@ export function renderResultados({ q, cargo, uf, ordenar = 'nome', resultados, t
   return pagina({
     titulo: `Busca: ${q || 'candidatos'} — VotoCheck`,
     descricao: 'Resultados de busca de candidatos no VotoCheck.',
+    caminho,
+    // busca por texto livre e páginas além da 1ª têm pouco valor pra indexação (conteúdo
+    // fino/duplicado) — mas navegação por cargo/UF na página 1 continua indexável.
+    noindex: Boolean(q) || paginaAtual > 1,
     corpo,
   });
 }

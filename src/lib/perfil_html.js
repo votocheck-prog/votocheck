@@ -111,14 +111,17 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes }) {
   return pagina({
     titulo: `${nomeExibicao} — VotoCheck`,
     descricao: `Histórico, candidatura e fontes oficiais sobre ${nomeExibicao} no VotoCheck.`,
+    caminho: `/candidato/${pessoa.id}`,
     corpo,
   });
 }
 
-export function renderNaoEncontrado() {
+export function renderNaoEncontrado(caminho = '/') {
   return pagina({
     titulo: 'Candidato não encontrado — VotoCheck',
     descricao: 'Página não encontrada.',
+    caminho,
+    noindex: true,
     corpo: `<div style="text-align:center; padding:60px 0;">
       <h1>Não encontramos essa pessoa</h1>
       <p style="color:var(--text-muted);">O registro pode ter sido removido ou o link está incorreto.</p>

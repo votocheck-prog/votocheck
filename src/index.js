@@ -3,8 +3,11 @@
  *
  * Rotas HTTP (para disparo manual/teste — protegidas por ADMIN_TOKEN quando configurado):
  *   GET  /                                     → homepage pública (busca de candidato + estatísticas)
- *   GET  /buscar?q=&cargo=&uf=                  → resultados de busca (pública)
+ *   GET  /buscar?q=&cargo=&uf=&ordenar=&pagina= → resultados de busca (pública)
  *   GET  /candidato/:pessoaId                   → perfil público do candidato/representante
+ *   GET  /sobre                                 → página institucional (pública)
+ *   GET  /robots.txt, /sitemap.xml              → SEO (público)
+ *   GET  /favicon.ico, /apple-touch-icon.png, /og-image.png → assets de marca (público)
  *   GET  /healthcheck                          → healthcheck JSON (pública)
  *   POST /admin/coletar/tse-candidatos          → coleta candidatos TSE (?ano=2026)
  *   POST /admin/coletar/tse-redes-sociais       → coleta redes sociais dos candidatos (?ano=2026)
@@ -33,9 +36,23 @@ import { listarPendencias, resolverPendencia } from './lib/curadoria.js';
 import { CURADORIA_HTML } from './lib/curadoria_html.js';
 import { renderHomepage, renderResultados } from './lib/busca_html.js';
 import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
+import { renderSobre } from './lib/sobre_html.js';
+import { render404, SITE_URL } from './lib/estilo_html.js';
+import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 
 const ANO_ATUAL = 2026;
 const html = (body) => new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+const html404 = (body) => new Response(body, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+
+/** Decodifica um PNG embutido em base64 (ver src/lib/assets_data.js) pra servir como Response binária. */
+function imagemPng(base64, { cacheSegundos = 86400 } = {}) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Response(bytes, {
+    headers: { 'Content-Type': 'image/png', 'Cache-Control': `public, max-age=${cacheSegundos}` },
+  });
+}
 
 function requireAdminToken(request, env) {
   if (!env.ADMIN_TOKEN) return true; // sem token configurado = sem proteção (apenas dev local)
@@ -183,8 +200,51 @@ export default {
           totalResultados: contagem?.total || 0,
           paginaAtual,
           porPagina,
+          caminho: url.pathname + url.search,
         })
       );
+    }
+
+    if (url.pathname === '/sobre' && request.method === 'GET') {
+      return html(renderSobre());
+    }
+
+    if (url.pathname === '/robots.txt' && request.method === 'GET') {
+      return new Response(
+        `User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: ${SITE_URL}/sitemap.xml\n`,
+        { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+      );
+    }
+
+    if (url.pathname === '/sitemap.xml' && request.method === 'GET') {
+      // Sitemap com as páginas estáticas + navegação por cargo (estável e de baixo volume).
+      // As ~40 mil páginas individuais de candidato não entram aqui por enquanto — são
+      // descobertas via link a partir dos resultados de busca, não via sitemap (evita gerar
+      // um sitemap de dezenas de milhares de URLs a cada mudança de cobertura).
+      const cargos = ['presidente', 'governador', 'senador', 'deputado_federal', 'deputado_estadual', 'deputado_distrital'];
+      const urls = [
+        { loc: '/', prioridade: '1.0' },
+        { loc: '/sobre', prioridade: '0.6' },
+        { loc: '/buscar', prioridade: '0.8' },
+        ...cargos.map((c) => ({ loc: `/buscar?cargo=${c}`, prioridade: '0.7' })),
+      ];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade}</priority></url>`).join('\n')}
+</urlset>`;
+      return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
+    }
+
+    if (url.pathname === '/favicon.ico' && request.method === 'GET') {
+      return imagemPng(FAVICON_32_B64);
+    }
+
+    if (url.pathname === '/apple-touch-icon.png' && request.method === 'GET') {
+      return imagemPng(FAVICON_180_B64);
+    }
+
+    if (url.pathname === '/og-image.png' && request.method === 'GET') {
+      return imagemPng(OG_IMAGE_B64, { cacheSegundos: 604800 });
     }
 
     const perfilMatch = url.pathname.match(/^\/candidato\/(\d+)$/);
@@ -193,7 +253,7 @@ export default {
       const pessoaId = Number(perfilMatch[1]);
 
       const pessoa = await db.prepare(`SELECT * FROM pessoa WHERE id = ?`).bind(pessoaId).first();
-      if (!pessoa) return new Response(renderNaoEncontrado(), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      if (!pessoa) return html404(renderNaoEncontrado(url.pathname));
 
       const [candidaturasRes, mandatosRes, filiacoesRes] = await Promise.all([
         db
@@ -294,7 +354,7 @@ export default {
       return Response.json(result, { status: result.ok ? 200 : 500 });
     }
 
-    return new Response('Not found', { status: 404 });
+    return html404(render404(url.pathname));
   },
 
   /**

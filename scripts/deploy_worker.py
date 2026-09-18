@@ -23,6 +23,11 @@ MODULES = [
     "lib/curadoria_html.js",
     "lib/landing_html.js",
     "lib/tse_parser.js",
+    "lib/estilo_html.js",
+    "lib/busca_html.js",
+    "lib/perfil_html.js",
+    "lib/sobre_html.js",
+    "lib/assets_data.js",
 ]
 
 metadata = {

@@ -300,4 +300,34 @@ Rodrigo mandou prints de outro produto (Lovable) como referência visual e uma l
 
 **Já commitado no device** — `git add`/`commit`/`push` real continua pendente (mesma pendência acumulada das seções 17 e 18).
 
-**Pendência nova**: decidir com o Rodrigo o nível de profundidade da página `/partidos` (ver item 10 acima) — perguntei a ele diretamente no chat desta sessão em vez de decidir sozinho, dado o risco de erro factual sobre partidos reais.
+**Decisão do Rodrigo (mesma sessão, 20/09)**: perguntei diretamente sobre o nível de profundidade de `/partidos`, dado o risco de erro factual sobre partidos reais. Ele escolheu manter a versão enxuta por ora (família ideológica + histórico curto + representantes reais, com o aviso de verificação visível na página) — aprofundar a árvore genealógica completa fica pra uma rodada futura, com tempo pra checar fonte por fonte. **Não** entrar em "posição em pautas" por partido continua valendo sempre, independente dessa decisão — fere o princípio de nunca posicionar o produto politicamente.
+
+## 20. "Monitore e Cobre — Fase 1": captura de acompanhamento (20/09, continuação da seção 19)
+
+Rodrigo confirmou que a fila do GitHub estava zerada porque ele mesmo já tinha dado push manual dos arquivos das seções 17-19 — ou seja, o remoto já reflete o que foi commitado no device até aqui. E, perguntado sobre prioridade enquanto a cota do D1 não libera, escolheu avançar a Fase 1 de "Monitore e Cobre": **só o schema e a rota de captura (e-mail + até 3 representantes), sem envio de e-mail ainda** (isso depende de escolher provedor, não avaliado).
+
+**O que foi construído nesta rodada:**
+
+**1) `migrations/0002_monitoramento_cobranca.sql` (novo).** Tabela `acompanhamento`: `email`, `pessoa_id` (referencia `pessoa(id)`), `token_cancelamento` (único), `ativo`, `criado_em`, `cancelado_em`, com `UNIQUE(email, pessoa_id)` pra impedir duplicata do mesmo par, mais 3 índices (`email`, `token`, `pessoa_id`). Segue o mesmo princípio de minimização de dado já usado no schema original (comentário sobre `cpf_hash`): só e-mail + qual representante, nada mais.
+
+**2) `src/lib/acompanhamento.js` (novo).** Lógica de negócio isolada do HTTP: `emailValido()`, `criarAcompanhamento(env, {email, pessoaId})` e `cancelarPorToken(env, token)`. Regras: limite de 3 acompanhamentos ativos por e-mail (`MAX_ACOMPANHAMENTOS_POR_EMAIL = 3`); idempotente (pedir de novo o mesmo e-mail+pessoa retorna sucesso sem duplicar); se a pessoa cancelou antes, reativa a linha existente com um token novo em vez de criar outra; cancelamento por token é idempotente (cancelar de novo não é erro). Nunca sugere qual dos 3 é "melhor" — cada acompanhamento é uma escolha independente feita na página do próprio candidato, mantendo a regra de nunca ranquear.
+
+**3) Rotas novas em `src/index.js`**: `POST /acompanhar` (recebe `email` + `pessoa_id` via form, chama `criarAcompanhamento`, redireciona 303 de volta pro perfil com querystring de feedback — `?acompanhar=ok|ja_existia|limite|erro&token=...`) e `GET /acompanhar/cancelar?token=...` (chama `cancelarPorToken`, mostra página de confirmação). Sem JS obrigatório — formulário HTML puro com POST normal.
+
+**4) UI no perfil (`src/lib/perfil_html.js`)**: novo card "Acompanhar este Representante Público" (form de e-mail + botão), inserido antes do card "Sobre estes dados" (que voltou a um estilo neutro, já que o destaque visual passou pro card novo). O card mostra um banner de sucesso (com link "Cancelar este acompanhamento →", já que ainda não existe e-mail periódico pra carregar esse link) ou de erro (limite atingido / e-mail inválido) conforme a querystring `?acompanhar=...`.
+
+**5) Disclosure em `/termos`** (`src/lib/institucional_html.js`): nova seção "7. Dados que coletamos ao acompanhar um Representante Público", explicando que só e-mail + até 3 representantes são guardados, com que finalidade, e como cancelar — antes de "8. Contato" (renumerada).
+
+**Testado localmente, sem tocar D1 de produção**: mock de D1 em memória (`/home/claude/pwtest/test_acompanhamento.mjs`) cobrindo os 9 cenários — e-mail válido/inválido, criação, idempotência (mesmo e-mail normalizado pra minúsculas), bloqueio no 4º acompanhamento, cancelamento por token, reativação após cancelamento, cancelamento de token inexistente. **9/9 passou.** Também validado visualmente via Playwright: screenshots do card em 3 estados (sem interação, sucesso, limite atingido) — layout e cores consistentes com o resto do site.
+
+**Importante — nada disto está no ar, e por um motivo a mais desta vez:**
+
+- **A migration `0002_monitoramento_cobranca.sql` NÃO foi aplicada ao D1 de produção.** Diferente das rotinas anteriores (que só esperavam a cota de leitura liberar), desta vez o bloqueio é estrutural: **esta sessão não tem nenhuma credencial Cloudflare carregada** (`CF_TOKEN`/`CF_ACCOUNT_ID`/`CF_D1_ID` — conferido, vazio). Ou seja, mesmo que a cota estivesse liberada, esta sessão não teria como aplicar a migration de qualquer forma. Alguém com as credenciais (o Rodrigo, ou uma sessão futura que as tenha) precisa rodar essa migration manualmente pela mesma via REST usada na `0001_schema_inicial.sql`, **antes** de qualquer redeploy do Worker fazer sentido — sem a tabela, as rotas novas vão quebrar em produção.
+- As rotas/UI estão prontas no código mas continuam **inativas** até esse redeploy acontecer (que, como sempre, só acontece com confirmação explícita do Rodrigo).
+- A cópia pública do site não foi alterada pra anunciar a feature como disponível — o FAQ ("O que é o Monitore e Cobre?") já dizia "ainda não está disponível", o que continua verdadeiro.
+- **Fase 2 (envio periódico de e-mail) segue bloqueada** por decisão de provedor — não avaliado nesta sessão.
+
+**Arquivos novos:** `migrations/0002_monitoramento_cobranca.sql`, `src/lib/acompanhamento.js`.
+**Arquivos alterados:** `src/index.js` (rotas `/acompanhar` e `/acompanhar/cancelar`), `src/lib/perfil_html.js` (card de captura), `src/lib/institucional_html.js` (seção 7 nos Termos).
+
+**Já commitado no device** (`VotoCheck\Github\votocheck`) via `device_commit_files`, com guarda de `mtimeMs` nos 3 arquivos existentes (`index.js`, `perfil_html.js`, `institucional_html.js`) e sem guarda nos 2 novos. **`git add`/`commit`/`push` real deste lote específico segue pendente** — diferente das seções 17-19 (que o Rodrigo confirmou já ter empurrado manualmente), este lote ainda não foi commitado/enviado ao GitHub.

@@ -62,7 +62,17 @@ export function renderTermos() {
         doador tem influência sobre o conteúdo mostrado.
       </p>
 
-      <h2 style="font-size:19px; margin-top:32px;">7. Contato</h2>
+      <h2 style="font-size:19px; margin-top:32px;">7. Dados que coletamos ao acompanhar um Representante Público</h2>
+      <p>
+        Se você optar por acompanhar um Representante Público, guardamos apenas seu e-mail e
+        qual(is) Representante(s) você escolheu (até 3 por e-mail) — nenhum outro dado pessoal.
+        Isso é usado só pra enviar atualizações sobre a atuação dele; nunca é repassado a
+        terceiros nem usado com outra finalidade. Você pode cancelar a qualquer momento pelo
+        link mostrado no momento da inscrição (e, quando o envio de e-mails periódicos entrar no
+        ar, também pelo rodapé de cada e-mail).
+      </p>
+
+      <h2 style="font-size:19px; margin-top:32px;">8. Contato</h2>
       <p>
         Dúvidas, correções ou sugestões: <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.
       </p>

@@ -59,7 +59,41 @@ function blocoMandato(m) {
   </div>`;
 }
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes }) {
+const MENSAGENS_ACOMPANHAR = {
+  ok: { tipo: 'sucesso', texto: 'Combinado — você está acompanhando este Representante Público. Resumos periódicos por e-mail chegam assim que essa parte estiver pronta (ainda estamos construindo o envio).' },
+  ja_existia: { tipo: 'sucesso', texto: 'Você já estava acompanhando este Representante Público.' },
+  limite: { tipo: 'erro', texto: 'Esse e-mail já está acompanhando o máximo de 3 Representantes Públicos. Cancele um antes de adicionar outro.' },
+  erro: { tipo: 'erro', texto: 'Não deu pra confirmar esse e-mail — confira e tente de novo.' },
+};
+
+/** Card de captura do "Monitore" (Fase 1 — ver acompanhamento.js): só e-mail, sem outro dado. */
+function blocoAcompanhar(pessoaId, acompanhar) {
+  const msg = acompanhar && acompanhar.status ? MENSAGENS_ACOMPANHAR[acompanhar.status] : null;
+  const corBanner = msg?.tipo === 'sucesso' ? 'var(--primary)' : '#B24C1F';
+  const banner = msg
+    ? `<div style="margin-bottom:12px; padding:10px 14px; border:1px solid ${corBanner}; border-radius:8px; color:${corBanner}; font-size:13.5px;">
+        ${escapeHtml(msg.texto)}
+        ${msg.tipo === 'sucesso' && acompanhar.tokenCancelamento ? `<div style="margin-top:6px;"><a href="/acompanhar/cancelar?token=${encodeURIComponent(acompanhar.tokenCancelamento)}" style="font-size:12.5px;">Cancelar este acompanhamento →</a></div>` : ''}
+      </div>`
+    : '';
+
+  return `
+  <div class="card" style="margin-top:16px; border-color:var(--primary); background:var(--primary-soft);">
+    <strong style="font-size:14px;">Acompanhar este Representante Público</strong>
+    <p style="font-size:13px; color:var(--text); margin:6px 0 12px;">
+      Receba atualizações sobre a atuação dele — você pode acompanhar até 3, mesmo sem ter decidido seu voto ainda.
+      Sem spam: só isso, e você cancela quando quiser.
+    </p>
+    ${banner}
+    <form method="POST" action="/acompanhar" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="hidden" name="pessoa_id" value="${pessoaId}" />
+      <input type="email" name="email" required placeholder="seu@email.com" style="flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--border); border-radius:8px;" />
+      <button type="submit" style="padding:10px 20px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Acompanhar</button>
+    </form>
+  </div>`;
+}
+
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, acompanhar }) {
   const nomeExibicao = pessoa.nome_urna_atual || pessoa.nome_completo;
   const idade = calcularIdade(pessoa.data_nascimento);
   const principal = candidaturas[0];
@@ -98,7 +132,9 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes }) {
       </ul>
     ` : ''}
 
-    <div class="card" style="margin-top:32px; background:var(--primary-soft); border-color:var(--primary);">
+    ${blocoAcompanhar(pessoa.id, acompanhar)}
+
+    <div class="card" style="margin-top:16px;">
       <strong style="font-size:14px;">Sobre estes dados</strong>
       <p style="font-size:13px; color:var(--text); margin:8px 0 0;">
         As informações desta página vêm de fontes públicas oficiais e são atualizadas periodicamente.

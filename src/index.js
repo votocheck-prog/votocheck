@@ -5,6 +5,8 @@
  *   GET  /                                     → homepage pública (busca de candidato + estatísticas)
  *   GET  /buscar?q=&cargo=&uf=&ordenar=&pagina= → resultados de busca (pública)
  *   GET  /candidato/:pessoaId                   → perfil público do candidato/representante
+ *   POST /acompanhar                            → captura de "Monitore" (Fase 1 — sem envio de e-mail ainda)
+ *   GET  /acompanhar/cancelar?token=            → cancela um acompanhamento pelo token
  *   GET  /sobre                                 → página institucional (pública)
  *   GET  /termos                                → termos e condições (pública)
  *   GET  /faq                                   → perguntas frequentes (pública)
@@ -46,6 +48,7 @@ import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
 import { renderPartidos, PARTIDOS_INFO } from './lib/partidos_html.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
+import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
 import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 
@@ -434,6 +437,57 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           candidaturas: candidaturasRes.results || [],
           mandatos: mandatosRes.results || [],
           filiacoes: filiacoesRes.results || [],
+          // feedback pós-POST de /acompanhar (ver rota abaixo) — sem JS, redirect com querystring
+          acompanhar: {
+            status: url.searchParams.get('acompanhar'),
+            tokenCancelamento: url.searchParams.get('token'),
+          },
+        })
+      );
+    }
+
+    if (url.pathname === '/acompanhar' && request.method === 'POST') {
+      let form;
+      try {
+        form = await request.formData();
+      } catch (e) {
+        return new Response('Formulário inválido.', { status: 400 });
+      }
+      const email = form.get('email');
+      const pessoaId = Number(form.get('pessoa_id'));
+      const voltarPara = `/candidato/${pessoaId}`;
+      if (!pessoaId) return new Response('Candidato inválido.', { status: 400 });
+
+      const resultado = await criarAcompanhamento(env, { email, pessoaId });
+      const destino = new URL(voltarPara, url.origin);
+      if (resultado.ok) {
+        destino.searchParams.set('acompanhar', resultado.jaExistia ? 'ja_existia' : 'ok');
+        destino.searchParams.set('token', resultado.tokenCancelamento);
+      } else {
+        destino.searchParams.set('acompanhar', resultado.motivo === 'limite_atingido' ? 'limite' : 'erro');
+      }
+      return Response.redirect(destino.toString(), 303);
+    }
+
+    if (url.pathname === '/acompanhar/cancelar' && request.method === 'GET') {
+      const token = url.searchParams.get('token') || '';
+      const resultado = await cancelarPorToken(env, token);
+      return html(
+        pagina({
+          titulo: 'Cancelar acompanhamento — VotoCheck',
+          descricao: 'Cancelamento de acompanhamento de Representante Público no VotoCheck.',
+          caminho: url.pathname,
+          noindex: true,
+          corpo: `
+            <div style="max-width:520px; margin:60px auto; text-align:center;">
+              <h1 style="font-size:24px;">${resultado.ok ? 'Acompanhamento cancelado' : 'Não encontramos esse acompanhamento'}</h1>
+              <p style="color:var(--text-muted);">
+                ${resultado.ok
+                  ? 'Você não vai mais receber atualizações sobre esse Representante Público. Se mudou de ideia, é só acompanhar de novo na página dele.'
+                  : 'O link pode já ter sido usado antes, ou está incorreto.'}
+              </p>
+              <p><a href="/">Voltar para a página inicial</a></p>
+            </div>`,
         })
       );
     }

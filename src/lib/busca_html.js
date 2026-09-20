@@ -10,29 +10,54 @@
  */
 import { pagina, escapeHtml, statusPill } from './estilo_html.js';
 import { renderMapaBrasil } from './mapa_brasil.js';
-import { renderGuiaCargos } from './cargos_guia.js';
+import { renderResumoCargos } from './cargos_guia.js';
 import { renderBanners } from './banners_html.js';
+import { renderJornada, renderObtencaoDados, renderMonitoramentoCobranca, renderCtaApoio, faseEleitoral } from './jornada_html.js';
+import { Icone } from './icones.js';
 
-// Introdução curta da homepage — condensada do Elevator Speech / Manifesto (Especificações).
-// Mantém o essencial: por que o VotoCheck existe, o que ele faz e o que NUNCA faz (ranking).
+// Frase-síntese da hero — resume em 1 frase o que o VotoCheck faz (o "porquê" mais longo vem
+// logo abaixo, no parágrafo de contexto).
+const HERO_HEADLINE = 'Verificação independente de quem te representa — sem ranking, sempre com a fonte.';
+
+// Parágrafo de contexto — condensado do Elevator Speech / Manifesto (Especificações). Mantém o
+// essencial: por que o VotoCheck existe, o que ele faz e o que NUNCA faz (ranking).
 const INTRO_HOMEPAGE = `Escolher um representante não deveria ser um ato de fé — e cobrar quem foi eleito
   não deveria deixar o cidadão de mãos atadas. O VotoCheck reúne histórico, propostas, votações
   e atuação de candidatos e representantes, sempre com a fonte de cada informação à vista.
   Sem ranking, sem nota, sem escolher por você: <strong>você decide o que importa, nós
   organizamos os fatos para você conferir.</strong>`;
 
-// As "quatro bandeiras" do Brand Blueprint — mesmo texto do documento de marca.
+// As "bandeiras" do Brand Blueprint — Informação e Educação fundidas num só pilar (as duas são,
+// na prática, a mesma promessa: dar contexto verificável) — ficam 3 cartões visuais em vez de 4.
 const PILARES = [
-  { titulo: 'Informação', texto: 'dados relevantes, verificáveis e contextualizados.' },
-  { titulo: 'Prioridade', texto: 'você define o que importa; o produto organiza o contexto.' },
-  { titulo: 'Melhores práticas', texto: 'mostramos o que funciona, como e com quais resultados.' },
-  { titulo: 'Educação', texto: 'explicamos competências, orçamento, processo e limites.' },
+  {
+    titulo: 'Informação e Educação',
+    texto: 'Dados relevantes, verificáveis e contextualizados — e explicados: competências, orçamento, processo e limites de cada cargo.',
+    icone: Icone.lampada,
+  },
+  {
+    titulo: 'Prioridade',
+    texto: 'Você escolhe os temas e critérios que pesam pra você. O VotoCheck organiza o contexto em torno disso, sem decidir por você.',
+    icone: Icone.bussola,
+  },
+  {
+    titulo: 'Melhores práticas',
+    texto: 'Mostramos o que já funcionou em mandatos anteriores — o quê, como e com quais resultados — pra comparar promessa com entrega.',
+    icone: Icone.escudoCheck,
+  },
 ];
 
 function renderPilares() {
   return `
     <div class="pilares">
-      ${PILARES.map((p) => `<div class="pilar"><strong>${escapeHtml(p.titulo)}</strong><span>${escapeHtml(p.texto)}</span></div>`).join('')}
+      ${PILARES.map(
+        (p) => `
+        <div class="pilar">
+          <div class="pilar-icone">${p.icone(22)}</div>
+          <strong>${escapeHtml(p.titulo)}</strong>
+          <span>${escapeHtml(p.texto)}</span>
+        </div>`
+      ).join('')}
     </div>`;
 }
 
@@ -89,55 +114,46 @@ function formularioBusca({ q = '', cargo = '', uf = '', ordenar = 'nome' }) {
   </form>`;
 }
 
-function resumoPorCargo(porCargo) {
-  if (!porCargo || !porCargo.length) return '';
-  const linhas = porCargo
-    .map(
-      (c) => `
-      <a href="/buscar?cargo=${encodeURIComponent(c.slug)}" style="display:flex; justify-content:space-between; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--surface); text-decoration:none; color:inherit; font-size:14px;">
-        <span>${escapeHtml(c.nome)}</span>
-        <strong>${Number(c.qtd).toLocaleString('pt-BR')}</strong>
-      </a>`
-    )
-    .join('');
-  return `
-    <h2 style="font-size:15px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em; margin:48px 0 12px; text-align:center;">
-      Cobertura por cargo
-    </h2>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; max-width:720px; margin:0 auto;">
-      ${linhas}
-    </div>`;
-}
-
 export function renderHomepage({ totalCandidaturas, totalPessoas, atualizadoEm, porCargo }) {
-  const corpo = `
+  // Bloco 1 — Definição: o que é, pra que serve, o processo completo (lema + Monitore/Cobre) e
+  // o guia rápido de cargos.
+  const blocoDefinicao = `
     <div style="text-align:center; padding:24px 0 8px;">
-      <span class="hero-eyebrow">Eleições 2026 — MVP em expansão</span>
-      <h1 style="font-size:clamp(28px,5vw,42px); margin:0 0 16px; letter-spacing:-0.01em;">Conheça. Confira. Entenda. Decida.</h1>
+      <h1 style="font-size:clamp(28px,5vw,42px); margin:0 0 16px; letter-spacing:-0.01em;">${HERO_HEADLINE}</h1>
       <p class="hero-intro">${INTRO_HOMEPAGE}</p>
     </div>
     ${renderPilares()}
-    <p style="text-align:center; margin:14px 0 0;">
-      <a href="#guia-cargos-titulo" style="font-size:13px; font-weight:600;">Não sabe o que cada cargo faz? Veja o guia ↓</a>
-    </p>
-    ${renderBanners()}
-    ${formularioBusca({})}
-    <details class="mapa-brasil-toggle">
+    ${renderJornada()}
+    ${renderResumoCargos()}
+  `;
+
+  // Bloco 2 — Obtenção de dados: de onde vêm os dados + as ferramentas de busca (banners logo
+  // acima, como pedido — a publicidade nunca fica entre o usuário e a ferramenta de busca em si).
+  const blocoObtencaoDados = renderObtencaoDados({
+    totalCandidaturas,
+    totalPessoas,
+    atualizadoEm: escapeHtml(atualizadoEm || 'em coleta'),
+    porCargo,
+    buscaHtml: `${renderBanners()}${formularioBusca({})}`,
+    mapaHtml: `<details class="mapa-brasil-toggle">
       <summary>Ou clique num estado no mapa</summary>
       ${renderMapaBrasil()}
-    </details>
-    <div style="display:flex; gap:24px; justify-content:center; margin-top:40px; flex-wrap:wrap; text-align:center;">
-      <div><strong style="font-size:22px;">${totalCandidaturas.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-muted); font-size:13px;">candidaturas 2026</span></div>
-      <div><strong style="font-size:22px;">${totalPessoas.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-muted); font-size:13px;">pessoas cadastradas</span></div>
-    </div>
-    <p style="text-align:center; color:var(--text-muted); font-size:12px; margin-top:12px;">
-      Cobertura em expansão: Presidencial, Governadores, Senadores e Deputados Federais/Estaduais/Distritais.
-      Última atualização de dados: ${escapeHtml(atualizadoEm || 'em coleta')}.
-      Dados de: TSE, Câmara dos Deputados, Senado Federal.
-    </p>
-    ${resumoPorCargo(porCargo)}
-    ${renderGuiaCargos()}
-  `;
+    </details>`,
+  });
+
+  // Bloco 3 — Monitoramento e Cobrança: pré-eleição fica depois da obtenção de dados; a partir
+  // do 1º turno, sobe pra logo abaixo da Definição (ver jornada_html.js:faseEleitoral).
+  const fase = faseEleitoral();
+  const blocoMonitoramento = renderMonitoramentoCobranca(fase);
+
+  // Bloco 4 — CTA de apoio (doação + publicidade), sempre por último.
+  const blocoCta = renderCtaApoio();
+
+  const corpo =
+    fase === 'pos'
+      ? `${blocoDefinicao}${blocoMonitoramento}${blocoObtencaoDados}${blocoCta}`
+      : `${blocoDefinicao}${blocoObtencaoDados}${blocoMonitoramento}${blocoCta}`;
+
   return pagina({
     titulo: 'VotoCheck — Verificação eleitoral independente',
     descricao: 'Busque candidatos e representantes com histórico, propostas e votações verificadas, sempre com a fonte oficial de cada dado.',

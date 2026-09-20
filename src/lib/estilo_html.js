@@ -69,7 +69,7 @@ export const ESTILO_BASE = `
     color: var(--text);
   }
   header.topo .logo img {
-    height: 30px;
+    height: 52px;
     width: auto;
     display: block;
   }
@@ -91,6 +91,7 @@ export const ESTILO_BASE = `
   @media (max-width: 560px) {
     header.topo .tagline { display: none; }
     header.topo { padding: 14px 16px; }
+    header.topo .logo img { height: 38px; }
     main.container { padding: 24px 16px 48px; }
   }
   main.container {
@@ -158,33 +159,45 @@ export const ESTILO_BASE = `
     text-align: left;
   }
 
-  /* ===== Quatro bandeiras (pilares da marca) ===== */
+  /* ===== Três bandeiras (pilares da marca) — cartões visuais com ícone ===== */
   .pilares {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    max-width: 820px;
-    margin: 0 auto 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 860px;
+    margin: 32px auto 8px;
+  }
+  @media (max-width: 720px) {
+    .pilares { grid-template-columns: 1fr; }
   }
   .pilar {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    border-radius: 8px;
-    padding: 12px 14px;
+    border-radius: 12px;
+    padding: 20px;
     text-align: left;
+  }
+  .pilar-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    margin-bottom: 12px;
   }
   .pilar strong {
     display: block;
-    font-size: 13px;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+    font-size: 15px;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
   .pilar span {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-muted);
+    line-height: 1.5;
   }
 
   /* ===== Banners (placeholders — ver banners_html.js) ===== */
@@ -308,6 +321,318 @@ export const ESTILO_BASE = `
   }
   .cargo-guia-titulo--faz { color: var(--primary); }
   .cargo-guia-titulo--nao { color: var(--text-muted); }
+
+  /* ===== Chips + tooltip "Entenda cada cargo" (cargos_guia.js) ===== */
+  .cargo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .cargo-chip-wrap { position: relative; display: inline-block; }
+  .cargo-chip {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  .cargo-chip:hover, .cargo-chip:focus { border-color: var(--primary); }
+  .cargo-tooltip {
+    display: none;
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 260px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(10, 20, 64, 0.12);
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .cargo-tooltip strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  .cargo-tooltip-meta { display: block; color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+  .cargo-tooltip p { margin: 0 0 10px; color: var(--text); }
+  .cargo-tooltip a { font-size: 13px; font-weight: 600; }
+  .cargo-tooltip.aberto { display: block; }
+  @media (hover: hover) {
+    .cargo-chip-wrap:hover .cargo-tooltip { display: block; }
+  }
+
+  /* ===== Página de um cargo (/cargo/:slug) — atuação por tema ===== */
+  .temas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .tema-linha {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .tema-linha--sem-papel { border-left-color: var(--border); }
+  .tema-linha--sem-papel p { color: var(--text-muted); }
+  .tema-linha h4 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .tema-linha p { margin: 0; font-size: 14px; }
+  .cargo-sem-cobertura {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  /* ===== Jornada (CONHEÇA/CONFIRA/ENTENDA/DECIDA/MONITORE/COBRE) — jornada_html.js ===== */
+  .jornada { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--border); text-align: center; }
+  .jornada-lema {
+    font-size: clamp(18px, 3.4vw, 28px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+  }
+  .jornada-lema .seta { color: var(--primary); font-weight: 400; margin: 0 4px; }
+  .jornada-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: start;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .etapa-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: left;
+  }
+  .etapa-card--construcao { background: var(--bg); border-style: dashed; }
+  .etapa-icone { color: var(--primary); margin-bottom: 8px; }
+  .etapa-titulo { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .etapa-texto { margin: 0; font-size: 13.5px; color: var(--text-muted); }
+  .etapa-detalhe { margin-top: 10px; }
+  .etapa-detalhe summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    list-style: none;
+  }
+  .etapa-detalhe summary::-webkit-details-marker { display: none; }
+  .etapa-detalhe summary::after { content: ' ↓'; }
+  .etapa-detalhe[open] summary::after { content: ' ↑'; }
+  .etapa-perguntas { margin: 10px 0 0; padding-left: 18px; font-size: 13px; }
+  .etapa-perguntas li { margin-bottom: 6px; }
+  .etapa-perguntas a { font-weight: 600; }
+  .etapa-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+
+  /* ===== Obtenção de dados — jornada_html.js ===== */
+  .obtencao-dados { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--border); }
+  .fontes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    max-width: 820px;
+    margin: 0 auto 32px;
+  }
+  .fonte-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: left;
+  }
+  .fonte-card strong { display: block; margin: 4px 0 4px; font-size: 14px; }
+  .fonte-card p { margin: 0; font-size: 13px; color: var(--text-muted); }
+  .stats-linha {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 40px;
+    flex-wrap: wrap;
+    text-align: center;
+  }
+  .stats-linha strong { display: block; font-size: 22px; }
+  .stats-linha span { color: var(--text-muted); font-size: 13px; }
+  .stats-nota { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 12px; }
+  .eleicoes-2026 { margin-top: 48px; padding-top: 32px; border-top: 1px dashed var(--border); }
+  .eleicoes-2026-titulo { font-size: 15px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; margin: 0 0 4px; }
+
+  /* ===== Gráfico "Cobertura por cargo" (barras horizontais — skill dataviz) ===== */
+  .grafico-cargos-wrap { max-width: 640px; margin: 40px auto 0; }
+  .grafico-titulo { font-size: 15px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; margin: 0 0 16px; }
+  .grafico-cargos { display: flex; flex-direction: column; gap: 12px; }
+  .grafico-linha {
+    display: grid;
+    grid-template-columns: 170px 1fr 56px;
+    grid-template-areas: "rotulo trilha valor";
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .grafico-rotulo { grid-area: rotulo; font-size: 13px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grafico-trilha { grid-area: trilha; height: 20px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .grafico-barra { display: block; height: 100%; background: var(--primary); border-radius: 4px; min-width: 4px; }
+  .grafico-linha:hover .grafico-barra { background: var(--text); }
+  .grafico-valor { grid-area: valor; font-size: 13px; font-weight: 600; text-align: left; }
+  @media (max-width: 480px) {
+    .grafico-linha {
+      grid-template-columns: 1fr 48px;
+      grid-template-areas: "rotulo rotulo" "trilha valor";
+      row-gap: 4px;
+    }
+    .grafico-rotulo { text-align: left; white-space: normal; overflow: visible; text-overflow: clip; }
+  }
+
+  /* ===== Monitoramento e Cobrança (teaser) — jornada_html.js ===== */
+  .monitoramento {
+    margin-top: 56px;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .monitoramento .etapa-icone { display: flex; justify-content: center; }
+  .monitoramento-texto { font-size: 14px; color: var(--text-muted); max-width: 560px; margin: 0 auto 16px; }
+
+  /* ===== CTA de apoio (doação + publicidade) — jornada_html.js ===== */
+  .cta-apoio {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  .cta-apoio .etapa-icone { display: flex; justify-content: center; color: var(--accent); }
+  .cta-apoio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    max-width: 640px;
+    margin: 24px auto 0;
+  }
+  .cta-apoio-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: left;
+  }
+  .cta-apoio-card strong { display: block; margin-bottom: 6px; }
+  .cta-apoio-card p { margin: 0 0 12px; font-size: 13.5px; color: var(--text-muted); }
+  .pix-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 140px;
+    height: 140px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  /* ===== FAQ (institucional_html.js) ===== */
+  .faq-lista { display: flex; flex-direction: column; gap: 10px; }
+  .faq-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 16px;
+  }
+  .faq-item summary { cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::before { content: '+ '; color: var(--primary); }
+  .faq-item[open] summary::before { content: '− '; }
+  .faq-item p { margin: 0 0 14px; color: var(--text-muted); font-size: 14px; }
+
+  /* ===== Página de Partidos (partidos_html.js) ===== */
+  .partido-lista { display: flex; flex-direction: column; gap: 14px; }
+  .partido-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    text-align: left;
+  }
+  .partido-cabecalho { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .partido-sigla { font-size: 17px; font-weight: 700; }
+  .partido-numero { font-size: 12px; color: var(--text-muted); }
+  .partido-familia {
+    display: inline-block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-left: auto;
+  }
+  .partido-nome { color: var(--text-muted); font-size: 13.5px; margin: 2px 0 10px; }
+  .partido-historico { font-size: 13.5px; margin: 0 0 12px; }
+  .partido-representantes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .partido-representante {
+    font-size: 12.5px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    text-decoration: none;
+  }
+  .partido-representante:hover { border-color: var(--primary); color: var(--primary); }
+  .partido-sem-representante { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+
+  /* ===== Página do Judiciário (judiciario_html.js) ===== */
+  .orgaos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 20px 0 8px;
+  }
+  .orgao-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: left;
+  }
+  .orgao-card strong { display: block; margin-bottom: 4px; font-size: 14.5px; }
+  .orgao-card p { margin: 0; font-size: 13.5px; color: var(--text-muted); }
 `;
 
 /** Converte o código de status (tabela `status`) numa pill visual — nunca usa ✔️. */
@@ -343,7 +668,12 @@ export function rodape() {
   return `<footer class="rodape">
     Dados de fontes públicas oficiais (TSE, Câmara dos Deputados, Senado Federal), com origem e histórico rastreáveis.
     Nenhuma informação aqui é opinião do VotoCheck — veja sempre a fonte de cada dado.
-    <br><a href="/sobre" style="color:var(--text-muted);">Sobre o VotoCheck</a>
+    <br>
+    <a href="/sobre" style="color:var(--text-muted);">Sobre o VotoCheck</a> ·
+    <a href="/partidos" style="color:var(--text-muted);">Partidos Políticos</a> ·
+    <a href="/judiciario" style="color:var(--text-muted);">O Judiciário</a> ·
+    <a href="/termos" style="color:var(--text-muted);">Termos e Condições</a> ·
+    <a href="/faq" style="color:var(--text-muted);">Perguntas Frequentes</a>
     <br>&copy; VotoCheck
   </footer>`;
 }

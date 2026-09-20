@@ -6,6 +6,11 @@
  *   GET  /buscar?q=&cargo=&uf=&ordenar=&pagina= → resultados de busca (pública)
  *   GET  /candidato/:pessoaId                   → perfil público do candidato/representante
  *   GET  /sobre                                 → página institucional (pública)
+ *   GET  /termos                                → termos e condições (pública)
+ *   GET  /faq                                   → perguntas frequentes (pública)
+ *   GET  /judiciario                            → guia institucional do Judiciário (pública)
+ *   GET  /partidos                              → guia de partidos políticos (pública)
+ *   GET  /cargo/:slug                           → guia completo de um cargo eletivo, incl. municipais (pública)
  *   GET  /robots.txt, /sitemap.xml              → SEO (público)
  *   GET  /favicon.ico, /apple-touch-icon.png, /og-image.png → assets de marca (público)
  *   GET  /healthcheck                          → healthcheck JSON (pública)
@@ -37,7 +42,11 @@ import { CURADORIA_HTML } from './lib/curadoria_html.js';
 import { renderHomepage, renderResultados } from './lib/busca_html.js';
 import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
-import { render404, SITE_URL } from './lib/estilo_html.js';
+import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
+import { renderTermos, renderFaq } from './lib/institucional_html.js';
+import { renderPartidos, PARTIDOS_INFO } from './lib/partidos_html.js';
+import { renderJudiciario } from './lib/judiciario_html.js';
+import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 
 const ANO_ATUAL = 2026;
@@ -124,6 +133,56 @@ async function estatisticasHomepageComCache(env, ctx) {
   ctx.waitUntil(cache.put(CACHE_KEY_STATS_HOMEPAGE, resposta));
 
   return resultado;
+}
+
+// Mesmo padrão de cache de 10 min da homepage (ver `estatisticasHomepageComCache`) — essa
+// consulta usa uma window function (ROW_NUMBER) sobre `candidatura` inteira pra pegar até 10
+// candidaturas por partido, o que não é barato, então não deve rodar a cada visita da página
+// de partidos. Nunca foi testada contra o D1 de produção (cota travada nesta sessão — ver
+// CONTINUIDADE_INFRA_UPDATE_2026-09-18.md seção 19); testada só localmente com dados simulados.
+const CACHE_KEY_PARTIDOS = new Request('https://cache.interno.votocheck/partidos-representantes');
+
+/**
+ * Pra cada sigla em PARTIDOS_INFO, busca até 10 candidaturas de 2026 em ordem alfabética
+ * (critério neutro — nunca "principais" no sentido de mérito, ver nota em partidos_html.js).
+ * Retorna um objeto { [sigla]: [{pessoa_id, nome_urna_atual, cargo_nome, sg_uf}, ...] }.
+ */
+async function carregarRepresentantesPorPartido(env, ctx) {
+  const cache = caches.default;
+  const cacheado = await cache.match(CACHE_KEY_PARTIDOS);
+  if (cacheado) return cacheado.json();
+
+  const db = env.DB;
+  const siglas = PARTIDOS_INFO.map((p) => p.sigla);
+  const placeholders = siglas.map(() => '?').join(',');
+  const { results } = await db
+    .prepare(
+      `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
+         SELECT c.pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf, pa.sigla,
+                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY p.nome_urna_atual ASC) as rn
+         FROM candidatura c
+         JOIN pessoa p ON p.id = c.pessoa_id
+         JOIN cargo ca ON ca.id = c.cargo_id
+         JOIN partido pa ON pa.id = c.partido_id
+         WHERE c.ano_eleicao = ? AND pa.sigla IN (${placeholders})
+       ) WHERE rn <= 10
+       ORDER BY sigla, nome_urna_atual`
+    )
+    .bind(ANO_ATUAL, ...siglas)
+    .all();
+
+  const porSigla = {};
+  for (const row of results || []) {
+    if (!porSigla[row.sigla]) porSigla[row.sigla] = [];
+    porSigla[row.sigla].push(row);
+  }
+
+  const resposta = new Response(JSON.stringify(porSigla), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
+  });
+  ctx.waitUntil(cache.put(CACHE_KEY_PARTIDOS, resposta));
+
+  return porSigla;
 }
 
 const ROTAS = {
@@ -241,6 +300,39 @@ export default {
       return html(renderSobre());
     }
 
+    if (url.pathname === '/termos' && request.method === 'GET') {
+      return html(renderTermos());
+    }
+
+    if (url.pathname === '/faq' && request.method === 'GET') {
+      return html(renderFaq());
+    }
+
+    if (url.pathname === '/judiciario' && request.method === 'GET') {
+      return html(renderJudiciario());
+    }
+
+    if (url.pathname === '/partidos' && request.method === 'GET') {
+      const representantesPorSigla = await carregarRepresentantesPorPartido(env, ctx);
+      return html(renderPartidos({ representantesPorSigla }));
+    }
+
+    const cargoMatch = url.pathname.match(/^\/cargo\/([a-z_]+)$/);
+    if (cargoMatch && request.method === 'GET') {
+      const slug = cargoMatch[1];
+      const corpoCargo = renderCargoPagina(slug);
+      if (!corpoCargo) return html404(render404(url.pathname));
+      const cargo = GUIA_CARGOS.find((c) => c.slug === slug);
+      return html(
+        pagina({
+          titulo: `${cargo.nome} — o que pode e não pode fazer — VotoCheck`,
+          descricao: `Entenda o que um(a) ${cargo.nome} pode e não pode fazer, e sua atuação nos principais temas públicos — sempre com base na Constituição e nas leis, sem opinião do VotoCheck.`,
+          caminho: url.pathname,
+          corpo: corpoCargo,
+        })
+      );
+    }
+
     if (url.pathname === '/robots.txt' && request.method === 'GET') {
       return new Response(
         `User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: ${SITE_URL}/sitemap.xml\n`,
@@ -253,12 +345,22 @@ export default {
       // As ~40 mil páginas individuais de candidato não entram aqui por enquanto — são
       // descobertas via link a partir dos resultados de busca, não via sitemap (evita gerar
       // um sitemap de dezenas de milhares de URLs a cada mudança de cobertura).
-      const cargos = ['presidente', 'governador', 'senador', 'deputado_federal', 'deputado_estadual', 'deputado_distrital'];
+      // Cargos com cobertura de candidatura (busca funciona) vs. cargos cobertos só no guia
+      // institucional (prefeito/vereador têm página em /cargo/:slug, mas ainda não têm
+      // candidaturas no banco — ver cargos_guia.js).
+      const cargosComBusca = ['presidente', 'governador', 'senador', 'deputado_federal', 'deputado_estadual', 'deputado_distrital'];
+      const cargosGuiaSomente = ['prefeito', 'vereador'];
       const urls = [
         { loc: '/', prioridade: '1.0' },
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
-        ...cargos.map((c) => ({ loc: `/buscar?cargo=${c}`, prioridade: '0.7' })),
+        { loc: '/partidos', prioridade: '0.6' },
+        { loc: '/judiciario', prioridade: '0.4' },
+        { loc: '/termos', prioridade: '0.3' },
+        { loc: '/faq', prioridade: '0.4' },
+        ...cargosComBusca.map((c) => ({ loc: `/buscar?cargo=${c}`, prioridade: '0.7' })),
+        ...cargosComBusca.map((c) => ({ loc: `/cargo/${c}`, prioridade: '0.5' })),
+        ...cargosGuiaSomente.map((c) => ({ loc: `/cargo/${c}`, prioridade: '0.4' })),
       ];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

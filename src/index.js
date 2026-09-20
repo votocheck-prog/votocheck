@@ -65,6 +65,67 @@ function ymd(date) {
   return date.toISOString().slice(0, 10);
 }
 
+// Chave de cache sintética — não corresponde a uma rota real, só identifica esse dado no
+// Cache API do Workers (por colo/edge, não é um KV global, mas já corta a esmagadora maioria
+// das leituras repetidas no D1 vindas de visitas na homepage).
+const CACHE_KEY_STATS_HOMEPAGE = new Request('https://cache.interno.votocheck/homepage-stats');
+const TTL_CACHE_STATS_SEGUNDOS = 600; // 10 min — homepage não precisa de número em tempo real
+
+/**
+ * Estatísticas da homepage (totais + cobertura por cargo), com cache de 10 min via Cache API
+ * do Workers. Adicionado em 20/09/2026: essas 2 consultas (uma delas com COUNT(*) sobre
+ * `candidatura`/`pessoa`, e um GROUP BY por cargo) rodavam a CADA visita na homepage — a
+ * página de maior tráfego do site — e são a principal suspeita de consumo de cota de LEITURA
+ * do D1 vinda de tráfego real (ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seções 11 e 16).
+ * Isso não elimina o teto do free tier, mas reduz esse consumo de "1 leitura pesada por
+ * visita" para "1 a cada 10 min por região da Cloudflare", o que é uma redução grande sem
+ * custo. Não decide sozinho fazer/adiar o upgrade do D1 — só reduz a pressão enquanto isso é
+ * decidido.
+ */
+async function estatisticasHomepageComCache(env, ctx) {
+  const cache = caches.default;
+  const cacheado = await cache.match(CACHE_KEY_STATS_HOMEPAGE);
+  if (cacheado) return cacheado.json();
+
+  const db = env.DB;
+  const [totais, ultimaExecucao, porCargoRes] = await Promise.all([
+    db
+      .prepare(
+        `SELECT (SELECT COUNT(*) FROM candidatura WHERE ano_eleicao = ?) as candidaturas,
+                (SELECT COUNT(*) FROM pessoa) as pessoas`
+      )
+      .bind(ANO_ATUAL)
+      .first(),
+    db
+      .prepare(`SELECT finalizado_em FROM execucao_coletor WHERE status != 'em_execucao' ORDER BY finalizado_em DESC LIMIT 1`)
+      .first(),
+    db
+      .prepare(
+        `SELECT ca.slug, ca.nome, COUNT(*) as qtd
+         FROM candidatura c JOIN cargo ca ON ca.id = c.cargo_id
+         WHERE c.ano_eleicao = ?
+         GROUP BY ca.id
+         ORDER BY ca.abrangencia, ca.nome`
+      )
+      .bind(ANO_ATUAL)
+      .all(),
+  ]);
+
+  const resultado = {
+    totalCandidaturas: totais?.candidaturas || 0,
+    totalPessoas: totais?.pessoas || 0,
+    atualizadoEm: ultimaExecucao?.finalizado_em || null,
+    porCargo: porCargoRes?.results || [],
+  };
+
+  const resposta = new Response(JSON.stringify(resultado), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
+  });
+  ctx.waitUntil(cache.put(CACHE_KEY_STATS_HOMEPAGE, resposta));
+
+  return resultado;
+}
+
 const ROTAS = {
   'POST /admin/coletar/tse-candidatos': async (req, env, url) => coletarCandidatos(env, Number(url.searchParams.get('ano')) || 2026),
   'POST /admin/coletar/tse-redes-sociais': async (req, env, url) => coletarRedesSociais(env, Number(url.searchParams.get('ano')) || 2026),
@@ -86,37 +147,8 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/' && request.method === 'GET') {
-      const db = env.DB;
-      const [totais, ultimaExecucao, porCargoRes] = await Promise.all([
-        db
-          .prepare(
-            `SELECT (SELECT COUNT(*) FROM candidatura WHERE ano_eleicao = ?) as candidaturas,
-                    (SELECT COUNT(*) FROM pessoa) as pessoas`
-          )
-          .bind(ANO_ATUAL)
-          .first(),
-        db
-          .prepare(`SELECT finalizado_em FROM execucao_coletor WHERE status != 'em_execucao' ORDER BY finalizado_em DESC LIMIT 1`)
-          .first(),
-        db
-          .prepare(
-            `SELECT ca.slug, ca.nome, COUNT(*) as qtd
-             FROM candidatura c JOIN cargo ca ON ca.id = c.cargo_id
-             WHERE c.ano_eleicao = ?
-             GROUP BY ca.id
-             ORDER BY ca.abrangencia, ca.nome`
-          )
-          .bind(ANO_ATUAL)
-          .all(),
-      ]);
-      return html(
-        renderHomepage({
-          totalCandidaturas: totais?.candidaturas || 0,
-          totalPessoas: totais?.pessoas || 0,
-          atualizadoEm: ultimaExecucao?.finalizado_em || null,
-          porCargo: porCargoRes?.results || [],
-        })
-      );
+      const stats = await estatisticasHomepageComCache(env, ctx);
+      return html(renderHomepage(stats));
     }
 
     if (url.pathname === '/buscar' && request.method === 'GET') {

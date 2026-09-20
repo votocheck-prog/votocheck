@@ -50,7 +50,7 @@ Dado que (a) o cron nunca esteve ativo, (b) o Worker trava no TSE mesmo quando n
 ## 5. Pendências que dependem de você
 
 1. ~~Registrar o cron trigger na Cloudflare~~ — **feito**, com sua autorização (seção 6).
-2. **Decidir sobre upgrade do plano D1/Workers** (US$5/mês) — você optou por esperar o reset diário (meia-noite UTC / 21h SP) e seguir com metodologia bootstrap por enquanto. Ver seção 7 sobre como isso foi otimizado.
+2. **Decidir sobre upgrade do plano D1/Workers** (US$5/mês) — você optou por esperar o reset diário (meia-noite UTC / 21h SP) e seguir com metodologia bootstrap por enquanto. Ver seção 7 sobre como isso foi otimizado. **Atualização 19-20/09 (seção 16): a cota estourou de novo, duas vezes em menos de 36h — ver seção 16 antes de decidir.**
 3. **ADMIN_TOKEN do Worker** — segue desconhecido (não está em nenhum arquivo, por segurança). Não foi necessário até agora porque toda a carga de dados foi feita direto no D1 via API (contornando as rotas `/admin/*` do Worker).
 
 ## 6. Atualização — mesmo dia, depois da autorização
@@ -85,6 +85,8 @@ Arquivos alterados: `src/index.js` (rota `/buscar` com paginação + `ordenar`, 
 ## 9. Push pro GitHub — resolvido (mesmo dia, sessão seguinte)
 
 O bloqueio de `add_repo` era só desta sessão específica; numa sessão seguinte o Rodrigo já tinha GitHub Desktop aberto e logado. Publicamos direto por lá. Detalhe importante: a conta logada no GitHub Desktop por padrão era a do outro projeto dele (`filafree-png`, do "Fila Free") — o GitHub Desktop tentou fazer um **fork** do `votocheck-prog/votocheck` pra essa conta errada. Cancelamos, trocamos a conta logada pra uma com acesso de escrita ao `votocheck-prog`, e o push foi feito com sucesso pro clone real em `VotoCheck\Github\votocheck` (a pasta `VotoCheck_implementado\votocheck` usada até aqui NUNCA foi um clone git de verdade — não tem `.git`; é só uma cópia de arquivos. O clone de verdade agora vive em `VotoCheck\Github\votocheck`). **A partir de agora, todo arquivo alterado é gravado nos dois lugares** (compatibilidade com o histórico) mas o que importa pro Git é sempre `VotoCheck\Github\votocheck`.
+
+**Nota da seção 16 (19-20/09): esse espelhamento nos dois lugares não vem sendo mantido na prática** — `VotoCheck_implementado\votocheck\src\collectors\camara.js` e `senado.js` ainda são versões antigas (de antes do fix de timeout da seção 13). A partir desta sessão, alterações de coletores só são gravadas em `VotoCheck\Github\votocheck` (o clone real) — é o que importa pro Git mesmo, mas fica registrado aqui pra não confundir uma sessão futura que abra a pasta errada.
 
 ## 10. Frontend — página /sobre, SEO básico, 404, favicon, responsividade mobile
 
@@ -146,6 +148,8 @@ Sessão seguinte (19/09), a pedido do Rodrigo ("siga sua sugestão"). Antes de c
 
 **Achado incidental corrigido**: no primeiro teste apareceram 16 erros — investiguei e não era bug da otimização, é um comportamento real da API da Câmara: algumas votações retornam todos os votos com `tipoVoto: null` (aparentemente votações sem registro eletrônico individual — por aclamação/liderança). Isso já falhava silenciosamente no código antigo (uma constraint do banco rejeitava cada voto nulo, um por um, sem contar erro). Adicionei um filtro explícito pra pular esses casos antes de tentar gravar, então agora aparece como "0 votos gravados" pra essas votações (correto) em vez de erro.
 
+**IMPORTANTE — correção da seção 16**: essa otimização foi de fato aplicada e testada em `coletarVotacoesSenado`/`senado.js`, mas **não** em `coletarVotacoes`/`camara.js` — o arquivo real no repo (verificado via listagem direta da pasta, não por cópia local) ainda fazia 1 SELECT + 1 INSERT por voto individual, sem mapa pré-carregado e sem filtro de `tipoVoto` nulo. Ou seja, o resultado de "159 votações / 2.721 votos / 0 erros" abaixo saiu correto, mas não pelo motivo (otimização) descrito aqui — o volume da janela de 60 dias era pequeno o bastante pra não estourar nada mesmo sem a otimização. O fix real em `camara.js` só foi aplicado na sessão de 19-20/09 (seção 16), depois de travar a carga de 21 meses.
+
 **Resultado da carga (últimos 60 dias, 22/07 a 19/09/2026)**:
 - Câmara: 159 votações lidas, 159 gravadas, **2.721 votos individuais**, 0 erros.
 - Senado: 81 senadores consultados, 5 votações únicas no período, **401 votos individuais**, 0 erros.
@@ -154,4 +158,67 @@ Sessão seguinte (19/09), a pedido do Rodrigo ("siga sua sugestão"). Antes de c
 
 **Redeploy do fix de timeout (seção 13) ainda pendente**: tentei publicar no Worker em produção e o classificador de segurança automático desta sessão bloqueou a ação (categoria "Production Deploy") — não consegui contornar isso, mesmo com autorização do Rodrigo no chat. Ele vai precisar rodar `python3 scripts/deploy_worker.py` ele mesmo (com `CF_TOKEN` do arquivo de sempre), ou tentar numa sessão futura sem esse bloqueio especifico. Enquanto isso, o site em produção continua funcionando normalmente — só a robustez extra contra travamento de rede em cargas futuras que ainda não foi publicada.
 
-**Para a próxima sessão/chat**: dá pra ampliar o histórico de votações pra além dos últimos 60 dias com segurança agora que o coletor está otimizado (~350 consultas por 60 dias ⇒ o ano inteiro de 2026 giraria em torno de 2-3 mil consultas, tranquilamente dentro da cota). Ainda não decidido com o Rodrigo se vale a pena ampliar agora ou deixar rodando aos poucos via cron (quando o redeploy acontecer). Arquivos alterados: `src/collectors/camara.js`, `src/collectors/senado.js`.
+**Para a próxima sessão/chat**: dá pra ampliar o histórico de votações pra além dos últimos 60 dias com segurança agora que o coletor está otimizado (~350 consultas por 60 dias ⇒ o ano inteiro de 2026 giraria em torno de 2-3 mil consultas, tranquilamente dentro da cota). Arquivos alterados: `src/collectors/camara.js`, `src/collectors/senado.js`.
+
+## 15. Orientações explícitas pra próxima sessão (19/09, decisão do Rodrigo)
+
+**1) Ampliar o histórico de votações pra 21 meses** (decisão do Rodrigo, em vez de ficar só nos últimos 60 dias): carregar de **19/12/2024 até hoje**. A API da Câmara não aceita janela de mais de 3 meses por chamada, então a próxima sessão precisa rodar `coletarVotacoes(env, dataInicio, dataFim)` uma vez pra cada uma destas 7 janelas (cada uma é idempotente, pode rodar em qualquer ordem ou repetir sem duplicar):
+
+- 2024-12-19 a 2025-03-19
+- 2025-03-19 a 2025-06-19
+- 2025-06-19 a 2025-09-19
+- 2025-09-19 a 2025-12-19
+- 2025-12-19 a 2026-03-19
+- 2026-03-19 a 2026-06-19
+- 2026-06-19 a 2026-09-19 (esta janela já foi carregada em 19/09 — vai só confirmar que está tudo lá, não deve gravar nada novo)
+
+Pro Senado, `coletarVotacoesSenado(env, '2024-12-19')` numa chamada só (a API do Senado não tem filtro de data nativo — o coletor já filtra por `dataMinima` depois de buscar, então isso já é o suficiente).
+
+Estimativa de custo: com o coletor otimizado (lote de 30 + mapas pré-carregados), cada janela de 3 meses deve custar bem menos de mil consultas ao D1 — o total das 7 janelas + Senado deve ficar na casa de poucos milhares de consultas, tranquilo pra cota diária. Recomendo rodar uma janela de cada vez e checar `execucao_coletor` entre elas (mesmo padrão usado nas sessões anteriores), só por precaução.
+
+**2) Redeploy do Worker em produção**: o Rodrigo vai rodar isso manualmente (bloqueado pro Claude nesta sessão por um classificador de segurança). Passo a passo deixado pra ele fora deste documento (mensagem direta no chat). Depois que ele confirmar que rodou, a próxima sessão pode verificar o resultado consultando `GET /accounts/{id}/workers/scripts/votocheck-coletor` (campo `modified_on` deve bater com a hora do redeploy) e testando uma rota do site pra confirmar que nada quebrou.
+
+## 16. Sessão 19-20/09 — redeploy confirmado, bug real encontrado no coletor da Câmara, expansão de 21 meses parcialmente bloqueada pela cota do D1
+
+**1) Redeploy confirmado.** `GET /accounts/{id}/workers/scripts` mostra `votocheck-coletor` com `modified_on: 2026-09-20T02:29:04Z` — muito recente (poucos minutos antes desta checagem), então o Rodrigo já rodou `deploy_worker.py`. Conferi o bundle publicado (`GET /workers/scripts/votocheck-coletor`) e o `fetchJson` com timeout de 20s/3 retries (fix da seção 13) já está no ar. Testei `/healthcheck`, `/`, `/buscar?cargo=senador&ordenar=idade` e `/sobre` em produção logo depois — todos 200. Redeploy OK, nada quebrou.
+
+**2) Bug real encontrado em `coletarVotacoes`/`camara.js` — a otimização da seção 14 nunca foi aplicada lá.** Antes de rodar a expansão de 21 meses, comparei o arquivo real (`device_list_dir` direto na pasta `VotoCheck\Github\votocheck`, não cópia local) com o que a seção 14 deste documento afirma ter sido feito. A seção 14 diz que o pré-carregamento de mapa e o lote de 30 votos por INSERT foram aplicados em `camara.js` **e** `senado.js` — só é verdade pro `senado.js`. O `camara.js` real ainda fazia 1 `SELECT` (achar `pessoa_id`) + 1 `INSERT` por voto individual, sem filtro de `tipoVoto` nulo. Isso não deu problema na carga de 60 dias (seção 14) porque o volume era pequeno, mas numa janela de 21 meses teria feito exatamente o que a seção 14 diz que foi evitado: dezenas de milhares de consultas individuais.
+
+Corrigi isso agora, espelhando o padrão já comprovado em `senado.js`: mapa `id_camara → pessoa.id` e `proposicao.id_externo → id` pré-carregados uma vez por chamada, lote de 30 votos por `INSERT`, filtro de `tipoVoto` nulo (aclamação/liderança). Testei numa janela pequena já carregada (2026-08-19 a 2026-09-19, idempotente) antes de confiar na correção: 88 votações, 0 votos novos gravados (todas já existiam, comportamento correto), custo de 181 consultas — sem erros. **Arquivo corrigido já salvo em `VotoCheck\Github\votocheck\src\collectors\camara.js` — falta o `git add`/`commit`/`push`.** Essa correção está só no código-fonte; não foi publicada no Worker (isso exigiria um redeploy, que continua sendo decisão sua).
+
+**3) Expansão de 21 meses — só a 1ª de 7 janelas + Senado completada antes de estourar a cota de novo.**
+
+- Janela 2024-12-19 a 2025-03-19: **149 votações, 10.564 votos individuais, 0 erros**, custo de 668 consultas D1. Rodou limpa com o coletor corrigido.
+- Janela 2025-03-19 a 2025-06-19: **falhou** — `"Your account has exceeded D1's free tier daily row read limit"`. Testei de novo minutos depois (3 tentativas) e o erro persistiu, com a mensagem explícita "wait until tomorrow (midnight UTC)". Ou seja, a cota de leitura estourou de novo, ~2h30 depois do último reset (meia-noite UTC de 20/09), e **o homepage de produção (`/`) voltou a responder 500** enquanto eu verificava — mesmo padrão da seção 11, se repetindo.
+- Janelas 3 a 7 e a chamada do Senado (`coletarVotacoesSenado(env, '2024-12-19')`) **não rodaram** — ficam pendentes pra depois do reset.
+- Uma linha ficou presa em `em_execucao` (`execucao_coletor` id=23, `camara_votacoes`, iniciada 2026-09-20 02:43:54) porque até o `UPDATE` de status='falha' foi bloqueado pela cota. **Vai precisar ser marcada como falha manualmente depois que a cota resetar** (ou vai aparecer como "travada" pra próxima sessão, sem ser — é só a cota, não um travamento real do coletor).
+- Também notei (sem investigar a fundo, fora do escopo desta tarefa) mais **3 execuções antigas presas em `em_execucao`** que não são desta sessão: ids 7, 8 e 9 (`camara_deputados`, 18-19/09) e id 15 (`tse_candidatos`, 19/09 07:00). Vale limpar isso numa próxima sessão de manutenção.
+
+**Recomendação direta, dado que isso já é a segunda vez em ~36h que a cota do D1 free tier derruba rotas de produção**: com 17 dias até o 1º turno e o site já recebendo tráfego real, o plano free do D1 não aguenta nem uma carga histórica pontual, quanto mais o ritmo diário que a campanha vai exigir. O upgrade pro Workers Paid (US$5/mês, seção 2.4) resolve isso de forma definitiva — não é mais uma questão de "se vai estourar", é que já estourou duas vezes em dois dias. Decisão sua, mas eu recomendaria fazer isso antes da próxima carga, não depois.
+
+**Pra próxima sessão**: depois do reset (meia-noite UTC — checar `/healthcheck`/`/buscar` primeiro pra confirmar que voltou), rodar as janelas 2 a 7 restantes (`2025-03-19` até `2026-09-19`) com o `camara.js` já corrigido, mais `coletarVotacoesSenado(env, '2024-12-19')`. Marcar `execucao_coletor` id=23 como `falha` primeiro. O `git commit`/`push` do `camara.js` corrigido continua pendente — sem isso, uma sessão futura que ler direto do GitHub (em vez da pasta local) vai ver a versão antiga com o bug.
+
+## 17. Homepage — polish, mitigação de cota (cache), guia dos cargos, mapa e placeholders de banner (20/09)
+
+A pedido do Rodrigo, enquanto a cota do D1 não reseta (seção 16), trabalhamos na homepage em vez de decidir o upgrade agora. Resumo do que mudou — nada disso foi deployado ainda, só está no código-fonte (mesma regra de sempre: redeploy só com confirmação):
+
+**1) Mitigação de cota sem custo (resposta direta à pergunta "não há alternativa ao upgrade?"):** a homepage rodava 2 consultas pesadas (COUNT(*) de candidatura/pessoa + GROUP BY por cargo) EM TODA VISITA — provável maior fonte de leitura do D1 vinda de tráfego real, não da coleta. Adicionei cache de 10 min via Cache API do Workers (`caches.default`) só para esses números (`estatisticasHomepageComCache` em `src/index.js`). Isso não elimina o teto do free tier — se o tráfego crescer o bastante, ainda vai estourar — mas corta a leitura de "1 vez por visita" para "1 vez a cada 10 min por região da Cloudflare". Reforçando o que já foi dito na seção 16: isso reduz a pressão, não substitui a decisão sobre o upgrade.
+
+**2) Paleta corrigida pra bater com a marca real.** Comparei o teal provisório (`#01696F`) usado até agora com a logo de verdade (`Marca e Logo/LogoVC_RetanguloFT.png`) e não batia — a logo é azul/navy/verde, não teal. Troquei a paleta (`CORES` em `estilo_html.js`) pra usar as cores reais da logo (amostradas por pixel): `--primary` azul `#0059F5`, `--text` navy `#0A1440`, `--accent` verde `#00B495` (só em elementos gráficos — sozinho ele não passa em contraste WCAG AA pra texto, 2.6:1). Testei contraste de todas as combinações nas WCAG (mínimo 4.5:1 pra texto normal) antes de aplicar. Isso muda a cor de botões/links/pills em TODO o site (busca, perfil, sobre), não só na homepage — é uma mudança visível, avisando aqui caso o Rodrigo prefira reverter.
+
+**3) Logo de verdade no cabeçalho.** Até agora o cabeçalho era só texto "VotoCheck" estilizado. Troquei pela logo real (`LogoVC_RetanguloFT.png`, recortada e com paleta reduzida — cerca de 21KB em base64 — mesmo padrão do favicon/og-image em `assets_data.js`, nova constante `LOGO_HEADER_B64`).
+
+**4) Introdução curta + "quatro bandeiras".** Adicionei um parágrafo curto (condensado do Elevator Speech/Manifesto) e as quatro bandeiras do Brand Blueprint (Informação, Prioridade, Melhores Práticas, Educação) como cartões compactos — didático sem virar parede de texto.
+
+**5) Guia dos cargos eletivos — pilar "Educação" (pedido explícito do Rodrigo, conteúdo já previsto na spec mas nunca escrito).** Novo arquivo `src/lib/cargos_guia.js`: para cada um dos 6 cargos do schema (Presidente, Governador, Senador, Dep. Federal, Dep. Estadual, Dep. Distrital), uma seção expansível (`<details>`, funciona sem JS) com "o que pode fazer" e "o que não faz" — conteúdo institucional/constitucional, nunca avaliação de mandato de ninguém. Fica no fim da homepage com heading próprio e borda de separação (`.cargo-guia`), mais um link de atalho logo abaixo da introdução ("Não sabe o que cada cargo faz? Veja o guia ↓") pra dar destaque sem empurrar a busca pra baixo.
+
+**6) Mapa clicável do Brasil — complementa (não substitui) o filtro de UF.** Novo arquivo `src/lib/mapa_brasil.js`: SVG inline com os 27 estados como paths clicáveis, cada um linkando pra `/buscar?uf=XX` — mesmo destino do `<select>` de UF que já existia (mantido). Dados geográficos adaptados do pacote open-source `@svg-maps/brazil` (Victor Cazanave), licença CC BY 4.0 — atribuição visível no rodapé do mapa. Fica dentro de um `<details>` recolhido por padrão ("Ou clique num estado no mapa"), pra não competir visualmente com o formulário de busca.
+
+**7) Placeholders de banner — prontos pra habilitar, desligados por padrão.** Novo arquivo `src/lib/banners_html.js`: dois espaços reservados (um fino, tipo faixa, e um mais largo), controlados por uma constante `ATIVO = false`. Enquanto `false`, não renderiza NADA (nenhum espaço vazio na página). Não depende de nenhuma rede de anúncios específica (nenhuma foi escolhida) — é um slot genérico de imagem+link; o comentário no topo do arquivo explica como habilitar quando o Rodrigo decidir.
+
+**Arquivos novos:** `src/lib/mapa_brasil.js`, `src/lib/cargos_guia.js`, `src/lib/banners_html.js`.
+**Arquivos alterados:** `src/index.js` (cache da homepage), `src/lib/estilo_html.js` (paleta, logo no cabeçalho, CSS dos novos componentes), `src/lib/busca_html.js` (nova estrutura da homepage), `src/lib/assets_data.js` (`LOGO_HEADER_B64`).
+
+**Testado localmente** (fora do Worker, sem tocar o D1 de produção — a cota ainda não resetou): renderizei `renderHomepage`/`renderResultados`/`renderSobre` com dados simulados e tirei screenshot via Playwright/Chromium (desktop e mobile) — mapa, acordeão do guia de cargos, paleta nova e paginação/pills da busca conferidos visualmente. **Não testado contra o D1 real nem contra o Worker publicado** — isso só a próxima sessão (ou o Rodrigo via `deploy_worker.py`) pode fazer, depois do reset da cota e de decidir se quer publicar.
+
+**Pendente:** `git add`/`commit`/`push` de todos os arquivos acima (salvos em `VotoCheck\Github\votocheck`) e, quando o Rodrigo aprovar o resultado, o redeploy do Worker (mesmo bloqueio de sempre: precisa de confirmação explícita ou ele mesmo rodar `deploy_worker.py`).

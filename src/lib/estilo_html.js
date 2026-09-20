@@ -10,18 +10,27 @@
  *   - Assinatura: "Confira antes de decidir."
  */
 
-import { FAVICON_32_B64 } from './assets_data.js';
+import { FAVICON_32_B64, LOGO_HEADER_B64 } from './assets_data.js';
 
 export const SITE_URL = 'https://votocheck.com.br';
 
+// Paleta alinhada à marca real (ver Marca e Logo/LogoVC_RetanguloFT.png) — atualizada em
+// 20/09/2026. Antes disso o site usava um teal provisório que não vinha da logo (nunca tinha
+// sido conferido contra o arquivo de marca real). Cores extraídas por amostragem de pixel da
+// logo e checadas contra WCAG AA (contraste ≥ 4.5:1 pra texto normal):
+//   --primary (azul da logo) sobre branco: 5.6:1 · --text (navy) sobre --bg: 16.6:1 ·
+//   --text-muted sobre --bg: 5.6:1 · --accent (verde) NÃO passa em texto pequeno (2.6:1) —
+//   por isso só é usado em elementos gráficos/decorativos (mapa, faixas), nunca em texto.
 export const CORES = {
-  bg: '#F7F6F2',
-  surface: '#F9F8F5',
-  border: '#D4D1CA',
-  text: '#28251D',
-  textMuted: '#7A7974',
-  primary: '#01696F',
-  primarySoft: '#E4EFEE',
+  bg: '#F6F8FB',
+  surface: '#FFFFFF',
+  border: '#DCE1E8',
+  text: '#0A1440',
+  textMuted: '#5B6478',
+  primary: '#0059F5',
+  primarySoft: '#E3ECFF',
+  accent: '#00B495',
+  accentSoft: '#E1F6F2',
 };
 
 export const ESTILO_BASE = `
@@ -33,6 +42,8 @@ export const ESTILO_BASE = `
     --text-muted: ${CORES.textMuted};
     --primary: ${CORES.primary};
     --primary-soft: ${CORES.primarySoft};
+    --accent: ${CORES.accent};
+    --accent-soft: ${CORES.accentSoft};
   }
   * { box-sizing: border-box; }
   body {
@@ -52,13 +63,16 @@ export const ESTILO_BASE = `
     background: var(--surface);
   }
   header.topo .logo {
-    font-weight: 700;
-    font-size: 18px;
+    display: flex;
+    align-items: center;
     text-decoration: none;
     color: var(--text);
-    letter-spacing: -0.01em;
   }
-  header.topo .logo span { color: var(--primary); }
+  header.topo .logo img {
+    height: 30px;
+    width: auto;
+    display: block;
+  }
   header.topo .nav {
     display: flex;
     align-items: center;
@@ -123,6 +137,177 @@ export const ESTILO_BASE = `
     font-family: inherit;
     font-size: 15px;
   }
+
+  /* ===== Hero / introdução (homepage) ===== */
+  .hero-eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 999px;
+    padding: 4px 14px;
+    margin-bottom: 20px;
+  }
+  .hero-intro {
+    font-size: 16px;
+    color: var(--text-muted);
+    max-width: 620px;
+    margin: 0 auto 28px;
+    text-align: left;
+  }
+
+  /* ===== Quatro bandeiras (pilares da marca) ===== */
+  .pilares {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    max-width: 820px;
+    margin: 0 auto 8px;
+  }
+  .pilar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: left;
+  }
+  .pilar strong {
+    display: block;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .pilar span {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ===== Banners (placeholders — ver banners_html.js) ===== */
+  .banners-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: 32px auto;
+    max-width: 970px;
+  }
+  .banner-slot {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .banner-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .banner-slot--fino { max-height: 90px; }
+  .banner-slot--largo { max-height: 250px; }
+
+  /* ===== Mapa clicável do Brasil (mapa_brasil.js) ===== */
+  .secao-titulo {
+    font-size: 22px;
+    text-align: center;
+    margin: 0 0 6px;
+  }
+  .secao-subtitulo {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 520px;
+    margin: 0 auto 20px;
+  }
+  .mapa-brasil-toggle {
+    display: block;
+    text-align: center;
+    margin: 20px 0 8px;
+  }
+  .mapa-brasil-toggle summary {
+    cursor: pointer;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 14px;
+    list-style: none;
+    display: inline-block;
+  }
+  .mapa-brasil-toggle summary::-webkit-details-marker { display: none; }
+  .mapa-brasil-toggle summary::after { content: ' ▾'; }
+  .mapa-brasil-toggle[open] summary::after { content: ' ▴'; }
+  .mapa-brasil-wrap {
+    text-align: center;
+    max-width: 460px;
+    margin: 16px auto 0;
+  }
+  .mapa-brasil { width: 100%; height: auto; }
+  .uf-path {
+    fill: var(--accent-soft);
+    stroke: var(--surface);
+    stroke-width: 1.2;
+    transition: fill 0.15s ease;
+  }
+  .uf-link:hover .uf-path,
+  .uf-link:focus .uf-path {
+    fill: var(--primary);
+  }
+  .uf-link { cursor: pointer; }
+  .mapa-brasil-credito {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* ===== Guia dos cargos (cargos_guia.js) ===== */
+  .cargo-guia {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+  }
+  .cargo-guia-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 18px;
+    margin-bottom: 10px;
+  }
+  .cargo-guia-item summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 14px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+  .cargo-guia-item summary::-webkit-details-marker { display: none; }
+  .cargo-guia-nome { font-weight: 600; }
+  .cargo-guia-meta { font-size: 13px; color: var(--text-muted); }
+  .cargo-guia-corpo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 0 0 20px;
+  }
+  .cargo-guia-corpo ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .cargo-guia-corpo li { margin-bottom: 6px; }
+  .cargo-guia-titulo {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0;
+  }
+  .cargo-guia-titulo--faz { color: var(--primary); }
+  .cargo-guia-titulo--nao { color: var(--text-muted); }
 `;
 
 /** Converte o código de status (tabela `status`) numa pill visual — nunca usa ✔️. */
@@ -144,7 +329,9 @@ export function escapeHtml(value) {
 
 export function cabecalho() {
   return `<header class="topo">
-    <a class="logo" href="/">Voto<span>Check</span></a>
+    <a class="logo" href="/" aria-label="VotoCheck — página inicial">
+      <img src="data:image/png;base64,${LOGO_HEADER_B64}" alt="VotoCheck" width="204" height="73" />
+    </a>
     <nav class="nav">
       <a class="link-sobre" href="/sobre">Sobre</a>
       <span class="tagline">Confira antes de decidir.</span>

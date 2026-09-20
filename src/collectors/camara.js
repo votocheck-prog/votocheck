@@ -254,14 +254,26 @@ export async function coletarVotacoes(env, dataInicio, dataFim) {
       `${CAMARA_BASE}/votacoes?dataInicio=${dataInicio}&dataFim=${dataFim}&idOrgao=180&itens=100`
     );
 
+    // Pré-carrega uma vez o mapa id_camara -> pessoa.id e proposicao(casa=camara).id_externo -> id,
+    // em vez de 1 SELECT por voto individual e 1 SELECT por votação (mesmo ganho já aplicado em
+    // coletarVotacoesSenado/senado.js — ver comentário lá pro porquê). Sem isso, uma janela de
+    // vários meses com milhares de votos individuais faz 2 consultas ao D1 por voto (sem contar a
+    // votação em si), o que é exatamente o cenário que estourou a cota antes (ver seção 14 do
+    // doc de continuidade).
+    const { results: pessoasCamara } = await db.prepare(`SELECT id, id_camara FROM pessoa WHERE id_camara IS NOT NULL`).all();
+    const pessoaPorIdCamara = new Map(pessoasCamara.map((p) => [String(p.id_camara), p.id]));
+    const { results: propRows } = await db.prepare(`SELECT id, id_externo FROM proposicao WHERE casa='camara'`).all();
+    const proposicaoPorIdExterno = new Map(propRows.map((p) => [String(p.id_externo), p.id]));
+
+    const TAMANHO_LOTE_VOTOS = 30;
+
     for (const vot of votacoes) {
       lidos++;
       try {
         let proposicaoId = null;
         if (vot.uriProposicaoObjeto) {
           const idProp = vot.uriProposicaoObjeto.split('/').pop();
-          const propRow = await db.prepare(`SELECT id FROM proposicao WHERE casa='camara' AND id_externo=?`).bind(idProp).first();
-          proposicaoId = propRow ? propRow.id : null;
+          proposicaoId = proposicaoPorIdExterno.get(String(idProp)) || null;
         }
 
         const votacaoRes = await db
@@ -280,21 +292,29 @@ export async function coletarVotacoes(env, dataInicio, dataFim) {
         const votoJaExiste = await db.prepare(`SELECT id FROM voto_parlamentar WHERE votacao_id = ? LIMIT 1`).bind(votacaoId).first();
         if (!votoJaExiste) {
           const votosResp = await fetchJson(`${CAMARA_BASE}/votacoes/${vot.id}/votos`);
+          const linhas = [];
           for (const v of votosResp.dados || []) {
             const dep = v.deputado_;
-            const pessoaRow = await db.prepare(`SELECT id FROM pessoa WHERE id_camara = ?`).bind(String(dep.id)).first();
-            if (!pessoaRow) continue; // deputado ainda não sincronizado via coletarDeputados
+            const pessoaId = pessoaPorIdCamara.get(String(dep.id));
+            if (!pessoaId) continue; // deputado ainda não sincronizado via coletarDeputados
+            if (!v.tipoVoto) continue; // votação sem registro eletrônico individual (aclamação/liderança) — não é falha
+            linhas.push([votacaoId, pessoaId, v.tipoVoto]);
+          }
+          for (let i = 0; i < linhas.length; i += TAMANHO_LOTE_VOTOS) {
+            const lote = linhas.slice(i, i + TAMANHO_LOTE_VOTOS);
+            const placeholders = lote.map(() => '(?,?,?)').join(',');
             try {
               await db
                 .prepare(
-                  `INSERT INTO voto_parlamentar (votacao_id, pessoa_id, voto) VALUES (?, ?, ?)
+                  `INSERT INTO voto_parlamentar (votacao_id, pessoa_id, voto) VALUES ${placeholders}
                    ON CONFLICT(votacao_id, pessoa_id) DO UPDATE SET voto=excluded.voto`
                 )
-                .bind(votacaoId, pessoaRow.id, v.tipoVoto)
+                .bind(...lote.flat())
                 .run();
-              votosGravados++;
+              votosGravados += lote.length;
             } catch (e) {
-              /* ignora conflito pontual */
+              comErro++;
+              if (erros.length < 20) erros.push(`votacao ${vot.id} lote ${i}: ${e.message}`);
             }
           }
         }

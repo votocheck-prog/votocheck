@@ -9,6 +9,32 @@
  * ou qualquer critério que pareça ranking/pontuação de candidato.
  */
 import { pagina, escapeHtml, statusPill } from './estilo_html.js';
+import { renderMapaBrasil } from './mapa_brasil.js';
+import { renderGuiaCargos } from './cargos_guia.js';
+import { renderBanners } from './banners_html.js';
+
+// Introdução curta da homepage — condensada do Elevator Speech / Manifesto (Especificações).
+// Mantém o essencial: por que o VotoCheck existe, o que ele faz e o que NUNCA faz (ranking).
+const INTRO_HOMEPAGE = `Escolher um representante não deveria ser um ato de fé — e cobrar quem foi eleito
+  não deveria deixar o cidadão de mãos atadas. O VotoCheck reúne histórico, propostas, votações
+  e atuação de candidatos e representantes, sempre com a fonte de cada informação à vista.
+  Sem ranking, sem nota, sem escolher por você: <strong>você decide o que importa, nós
+  organizamos os fatos para você conferir.</strong>`;
+
+// As "quatro bandeiras" do Brand Blueprint — mesmo texto do documento de marca.
+const PILARES = [
+  { titulo: 'Informação', texto: 'dados relevantes, verificáveis e contextualizados.' },
+  { titulo: 'Prioridade', texto: 'você define o que importa; o produto organiza o contexto.' },
+  { titulo: 'Melhores práticas', texto: 'mostramos o que funciona, como e com quais resultados.' },
+  { titulo: 'Educação', texto: 'explicamos competências, orçamento, processo e limites.' },
+];
+
+function renderPilares() {
+  return `
+    <div class="pilares">
+      ${PILARES.map((p) => `<div class="pilar"><strong>${escapeHtml(p.titulo)}</strong><span>${escapeHtml(p.texto)}</span></div>`).join('')}
+    </div>`;
+}
 
 const CARGOS_FILTRO = [
   { slug: '', label: 'Todos os cargos' },
@@ -85,16 +111,21 @@ function resumoPorCargo(porCargo) {
 
 export function renderHomepage({ totalCandidaturas, totalPessoas, atualizadoEm, porCargo }) {
   const corpo = `
-    <div style="text-align:center; padding:24px 0 40px;">
-      <span style="display:inline-block; font-size:12px; letter-spacing:0.04em; text-transform:uppercase; color:var(--primary); border:1px solid var(--primary); border-radius:999px; padding:4px 14px; margin-bottom:20px;">
-        Eleições 2026 — MVP em expansão
-      </span>
-      <h1 style="font-size:clamp(28px,5vw,42px); margin:0 0 12px; letter-spacing:-0.01em;">Conheça. Confira. Entenda. Decida.</h1>
-      <p style="font-size:17px; color:var(--text-muted); max-width:600px; margin:0 auto 32px;">
-        Busque um candidato ou representante e veja histórico, atuação e propostas — sempre com a fonte oficial de cada dado.
-      </p>
+    <div style="text-align:center; padding:24px 0 8px;">
+      <span class="hero-eyebrow">Eleições 2026 — MVP em expansão</span>
+      <h1 style="font-size:clamp(28px,5vw,42px); margin:0 0 16px; letter-spacing:-0.01em;">Conheça. Confira. Entenda. Decida.</h1>
+      <p class="hero-intro">${INTRO_HOMEPAGE}</p>
     </div>
+    ${renderPilares()}
+    <p style="text-align:center; margin:14px 0 0;">
+      <a href="#guia-cargos-titulo" style="font-size:13px; font-weight:600;">Não sabe o que cada cargo faz? Veja o guia ↓</a>
+    </p>
+    ${renderBanners()}
     ${formularioBusca({})}
+    <details class="mapa-brasil-toggle">
+      <summary>Ou clique num estado no mapa</summary>
+      ${renderMapaBrasil()}
+    </details>
     <div style="display:flex; gap:24px; justify-content:center; margin-top:40px; flex-wrap:wrap; text-align:center;">
       <div><strong style="font-size:22px;">${totalCandidaturas.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-muted); font-size:13px;">candidaturas 2026</span></div>
       <div><strong style="font-size:22px;">${totalPessoas.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-muted); font-size:13px;">pessoas cadastradas</span></div>
@@ -105,6 +136,7 @@ export function renderHomepage({ totalCandidaturas, totalPessoas, atualizadoEm, 
       Dados de: TSE, Câmara dos Deputados, Senado Federal.
     </p>
     ${resumoPorCargo(porCargo)}
+    ${renderGuiaCargos()}
   `;
   return pagina({
     titulo: 'VotoCheck — Verificação eleitoral independente',

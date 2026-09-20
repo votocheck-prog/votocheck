@@ -21,10 +21,22 @@
 
 const SENADO_BASE = 'https://legis.senado.leg.br/dadosabertos';
 
-async function fetchJson(url) {
-  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar ${url}`);
-  return resp.json();
+async function fetchJson(url, tentativa = 1) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar ${url}`);
+    return await resp.json();
+  } catch (err) {
+    if (tentativa < 4) {
+      await new Promise((r) => setTimeout(r, 1000 * tentativa));
+      return fetchJson(url, tentativa + 1);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function ensureFonteSenado(db) {
@@ -226,7 +238,12 @@ export async function coletarSenadores(env) {
  * TODOS os presentes na sessão, não só do senador consultado; por isso gravamos todos de uma vez
  * e evitamos reprocessar a mesma votação (id = codigoSessaoVotacao) mais de uma vez.
  */
-export async function coletarVotacoesSenado(env) {
+/**
+ * @param {string|null} dataMinima - "AAAA-MM-DD" opcional. A API do Senado não aceita filtro de
+ *   data (sempre retorna o histórico da sessão legislativa por senador), então o filtro é aplicado
+ *   aqui mesmo, depois de buscar — não reduz o número de chamadas à API, só o que é gravado no D1.
+ */
+export async function coletarVotacoesSenado(env, dataMinima = null) {
   const db = env.DB;
   const execRes = await db.prepare(`INSERT INTO execucao_coletor (coletor, status) VALUES ('senado_votacoes', 'em_execucao')`).run();
   const execucaoId = execRes.meta.last_row_id;
@@ -242,6 +259,15 @@ export async function coletarVotacoesSenado(env) {
     const fonteId = await ensureFonteSenado(db);
     const { results: senadores } = await db.prepare(`SELECT id, id_senado FROM pessoa WHERE id_senado IS NOT NULL`).all();
 
+    // Pré-carrega id_senado -> pessoa.id e proposicao(casa=senado).id_externo -> id uma única vez,
+    // em vez de 1 SELECT por voto individual e 1 SELECT por votação (mesmo ganho aplicado em
+    // coletarVotacoes/camara.js — ver comentário lá pro porquê).
+    const pessoaPorIdSenado = new Map(senadores.map((s) => [String(s.id_senado), s.id]));
+    const { results: propRows } = await db.prepare(`SELECT id, id_externo FROM proposicao WHERE casa='senado'`).all();
+    const proposicaoPorIdExterno = new Map(propRows.map((p) => [String(p.id_externo), p.id]));
+
+    const TAMANHO_LOTE_VOTOS = 30;
+
     for (const senador of senadores) {
       lidos++;
       try {
@@ -250,24 +276,22 @@ export async function coletarVotacoesSenado(env) {
           const idVotacao = String(vot.codigoSessaoVotacao);
           if (votacoesProcessadas.has(idVotacao)) continue;
           votacoesProcessadas.add(idVotacao);
+          if (dataMinima && vot.dataSessao && vot.dataSessao < dataMinima) continue;
 
           let proposicaoId = null;
           if (vot.codigoMateria) {
-            const propRow = await db
-              .prepare(`SELECT id FROM proposicao WHERE casa='senado' AND id_externo=?`)
-              .bind(String(vot.codigoMateria))
-              .first();
-            if (propRow) {
-              proposicaoId = propRow.id;
-            } else {
+            const chave = String(vot.codigoMateria);
+            proposicaoId = proposicaoPorIdExterno.get(chave) || null;
+            if (!proposicaoId) {
               const propRes = await db
                 .prepare(
                   `INSERT INTO proposicao (casa, id_externo, sigla_tipo, numero, ano, ementa, fonte_id)
                    VALUES ('senado', ?, ?, ?, ?, ?, ?) RETURNING id`
                 )
-                .bind(String(vot.codigoMateria), vot.sigla, vot.numero, vot.ano, vot.ementa, fonteId)
+                .bind(chave, vot.sigla, vot.numero, vot.ano, vot.ementa, fonteId)
                 .first();
               proposicaoId = propRes.id;
+              proposicaoPorIdExterno.set(chave, proposicaoId);
             }
           }
 
@@ -286,20 +310,28 @@ export async function coletarVotacoesSenado(env) {
           const votacaoId = votacaoRes.id;
           votacoesGravadas++;
 
+          const linhas = [];
           for (const v of vot.votos || []) {
-            const pessoaRow = await db.prepare(`SELECT id FROM pessoa WHERE id_senado = ?`).bind(String(v.codigoParlamentar)).first();
-            if (!pessoaRow) continue;
+            const pessoaId = pessoaPorIdSenado.get(String(v.codigoParlamentar));
+            if (!pessoaId) continue;
+            if (!v.siglaVotoParlamentar) continue; // mesmo caso do coletor da Câmara — ver comentário lá
+            linhas.push([votacaoId, pessoaId, v.siglaVotoParlamentar]);
+          }
+          for (let i = 0; i < linhas.length; i += TAMANHO_LOTE_VOTOS) {
+            const lote = linhas.slice(i, i + TAMANHO_LOTE_VOTOS);
+            const placeholders = lote.map(() => '(?,?,?)').join(',');
             try {
               await db
                 .prepare(
-                  `INSERT INTO voto_parlamentar (votacao_id, pessoa_id, voto) VALUES (?, ?, ?)
+                  `INSERT INTO voto_parlamentar (votacao_id, pessoa_id, voto) VALUES ${placeholders}
                    ON CONFLICT(votacao_id, pessoa_id) DO UPDATE SET voto=excluded.voto`
                 )
-                .bind(votacaoId, pessoaRow.id, v.siglaVotoParlamentar)
+                .bind(...lote.flat())
                 .run();
-              votosGravados++;
+              votosGravados += lote.length;
             } catch (e) {
-              /* ignora conflito pontual */
+              comErro++;
+              if (erros.length < 20) erros.push(`votacao ${idVotacao} lote ${i}: ${e.message}`);
             }
           }
         }

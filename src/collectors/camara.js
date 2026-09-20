@@ -20,10 +20,22 @@
 
 const CAMARA_BASE = 'https://dadosabertos.camara.leg.br/api/v2';
 
-async function fetchJson(url) {
-  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar ${url}`);
-  return resp.json();
+async function fetchJson(url, tentativa = 1) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar ${url}`);
+    return await resp.json();
+  } catch (err) {
+    if (tentativa < 4) {
+      await new Promise((r) => setTimeout(r, 1000 * tentativa));
+      return fetchJson(url, tentativa + 1);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /** Segue os links de paginação da API da Câmara até esgotar, respeitando um limite de páginas de segurança. */

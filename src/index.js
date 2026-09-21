@@ -5,7 +5,7 @@
  *   GET  /                                     → homepage pública (busca de candidato + estatísticas)
  *   GET  /buscar?q=&cargo=&uf=&ordenar=&pagina= → resultados de busca (pública)
  *   GET  /candidato/:pessoaId                   → perfil público do candidato/representante
- *   POST /acompanhar                            → captura de "Monitore" (Fase 1 — sem envio de e-mail ainda)
+ *   POST /acompanhar                            → captura de "Monitore" + e-mail de confirmação via Resend (Fase 2)
  *   GET  /acompanhar/cancelar?token=            → cancela um acompanhamento pelo token
  *   GET  /sobre                                 → página institucional (pública)
  *   GET  /termos                                → termos e condições (pública)
@@ -49,6 +49,8 @@ import { renderTermos, renderFaq } from './lib/institucional_html.js';
 import { renderPartidos, PARTIDOS_INFO } from './lib/partidos_html.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
 import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
+import { emailConfirmacaoAcompanhamento } from './lib/acompanhamento_email.js';
+import { enviarEmail } from './lib/email.js';
 import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 
@@ -463,6 +465,34 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       if (resultado.ok) {
         destino.searchParams.set('acompanhar', resultado.jaExistia ? 'ja_existia' : 'ok');
         destino.searchParams.set('token', resultado.tokenCancelamento);
+
+        // E-mail de confirmação (Fase 2, via Resend — ver lib/email.js) é best-effort: nunca
+        // atrasa nem quebra o redirect. Se RESEND_API_KEY não estiver configurado (caso desta
+        // sessão) ou o domínio ainda não estiver verificado no Resend, enviarEmail() só falha
+        // silenciosamente — o registro em `acompanhamento` já foi salvo, que é o que importa.
+        ctx.waitUntil(
+          (async () => {
+            const pessoaEmail = await env.DB.prepare(
+              `SELECT p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf
+               FROM pessoa p
+               LEFT JOIN candidatura c ON c.pessoa_id = p.id AND c.ano_eleicao = ?
+               LEFT JOIN cargo ca ON ca.id = c.cargo_id
+               WHERE p.id = ?
+               LIMIT 1`
+            )
+              .bind(ANO_ATUAL, pessoaId)
+              .first();
+            if (!pessoaEmail) return;
+            const { subject, html: corpoHtml, text } = emailConfirmacaoAcompanhamento({
+              nomeRepresentante: pessoaEmail.nome_urna_atual,
+              cargoNome: pessoaEmail.cargo_nome,
+              ufSigla: pessoaEmail.sg_uf,
+              tokenCancelamento: resultado.tokenCancelamento,
+              origem: url.origin,
+            });
+            await enviarEmail(env, { to: email, subject, html: corpoHtml, text });
+          })()
+        );
       } else {
         destino.searchParams.set('acompanhar', resultado.motivo === 'limite_atingido' ? 'limite' : 'erro');
       }

@@ -12,22 +12,22 @@
  * parte do código deveria chamar a API do Resend diretamente. Se um dia for preciso trocar de
  * provedor (Brevo ou outro), é essa função (e só ela) que muda.
  *
- * Requer, em produção: `env.RESEND_API_KEY` (secret do Worker, configurado via API/dashboard —
- * nunca committado) e um domínio de envio verificado no painel do Resend (registros SPF/DKIM/
- * DMARC no DNS de votocheck.com.br). Nenhum dos dois existe ainda nesta sessão — não há
- * credencial Resend carregada, e configurar DNS está fora do alcance de uma sessão sem acesso
- * ao provedor de domínio. Enquanto isso, `enviarEmail()` falha de forma silenciosa e segura:
- * NUNCA deve derrubar o fluxo de quem está se cadastrando — o registro em `acompanhamento` no
- * D1 é a fonte de verdade; o e-mail é só uma cortesia best-effort por cima dele.
+ * Requer, em produção: `env.RESEND_API_KEY` (secret do Worker — já configurado pelo Rodrigo em
+ * 21/09/2026) e um domínio de envio verificado no painel do Resend. O domínio `updates.
+ * votocheck.com.br` foi verificado nessa mesma data (registros SPF/DKIM/DMARC no DNS via
+ * Cloudflare) — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 22. Falta ainda aplicar a
+ * migration `0002_monitoramento_cobranca.sql` (tabela `acompanhamento`) antes de qualquer envio
+ * real fazer sentido em produção — sem redeploy do Worker com este arquivo, nada disso está no
+ * ar de qualquer forma. Enquanto essas peças não estiverem todas no lugar, `enviarEmail()` falha
+ * de forma silenciosa e segura: NUNCA deve derrubar o fluxo de quem está se cadastrando — o
+ * registro em `acompanhamento` no D1 é a fonte de verdade; o e-mail é só uma cortesia
+ * best-effort por cima dele.
  */
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
-/**
- * Remetente padrão — precisa bater com um domínio verificado no Resend. Ajustar aqui quando o
- * domínio real estiver configurado (provavelmente algo em votocheck.com.br).
- */
-export const REMETENTE_PADRAO = 'VotoCheck <naoresponda@votocheck.com.br>';
+/** Remetente padrão — domínio verificado no Resend em 21/09/2026. */
+export const REMETENTE_PADRAO = 'VotoCheck <naoresponda@updates.votocheck.com.br>';
 
 /**
  * Envia um e-mail via Resend. Nunca lança exceção — sempre retorna `{ ok, motivo? }` pra quem

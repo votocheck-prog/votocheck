@@ -331,3 +331,57 @@ Rodrigo confirmou que a fila do GitHub estava zerada porque ele mesmo já tinha 
 **Arquivos alterados:** `src/index.js` (rotas `/acompanhar` e `/acompanhar/cancelar`), `src/lib/perfil_html.js` (card de captura), `src/lib/institucional_html.js` (seção 7 nos Termos).
 
 **Já commitado no device** (`VotoCheck\Github\votocheck`) via `device_commit_files`, com guarda de `mtimeMs` nos 3 arquivos existentes (`index.js`, `perfil_html.js`, `institucional_html.js`) e sem guarda nos 2 novos. **`git add`/`commit`/`push` real deste lote específico segue pendente** — diferente das seções 17-19 (que o Rodrigo confirmou já ter empurrado manualmente), este lote ainda não foi commitado/enviado ao GitHub.
+
+## 21. Provedor de e-mail decidido (Resend) + e-mail de confirmação de acompanhamento (20/09, continuação da seção 20)
+
+Rodrigo perguntou minha opinião sobre provedor pra Fase 2 do "Monitore e Cobre" (envio de e-mail). Comparei Resend, Brevo (que ele já usa em outro projeto dele) e o serviço nativo do Cloudflare (Email Service, ainda em beta e só no plano pago do Workers — descartado por enquanto). Recomendei **Resend**: é a integração que a própria documentação do Cloudflare Workers ensina oficialmente (fetch puro, sem SDK, combina com o resto do projeto que não usa wrangler), cota free (100 e-mails/dia, 3.000/mês) suficiente pro estágio atual, e sem o risco de "vazamento" entre projetos que o Brevo tem numa conta só (lá, o link de descadastro cancela em todos os projetos da mesma conta, não só naquele que a pessoa clicou). Rodrigo perguntou também se dava pra trocar de provedor depois sem dor, e se dava pra reaproveitar uma licença paga entre projetos — expliquei que sim nos dois casos, com a ressalva do Brevo acima, e disse que ia isolar a chamada de envio numa função só pra facilitar troca futura. **Rodrigo confirmou: seguir com Resend.**
+
+Perguntei em seguida qual seria o próximo passo concreto — construir só o e-mail de confirmação de cadastro (escopo pequeno, reaproveita o token que já existe) ou já desenhar o resumo periódico (conteúdo + frequência). Sinalizei que **votação já é coletada no banco** (`collectors/camara.js`, tabela `votacao`) mas ainda não aparece em lugar nenhum do site, nem na página do próprio candidato — então desenhar o conteúdo do resumo periódico envolve decidir se isso deveria virar uma seção da página de perfil primeiro. Rodrigo escolheu o escopo pequeno: **só o e-mail de confirmação por enquanto.**
+
+**O que foi construído:**
+
+**1) `src/lib/email.js` (novo).** Camada de transporte isolada — `enviarEmail(env, {to, subject, html, text, from})` faz o POST pra API do Resend (`https://api.resend.com/emails`) usando `env.RESEND_API_KEY`. Deliberadamente a ÚNICA função que fala com a API do Resend em todo o código — se um dia precisar trocar de provedor, é só essa função que muda. Nunca lança exceção: sem API key configurada, parâmetro inválido, erro HTTP do Resend (ex.: domínio não verificado) ou exceção de rede — tudo vira `{ok: false, motivo}` em vez de derrubar quem chamou. Isso é proposital: o cadastro em `acompanhamento` no D1 é a fonte de verdade, o e-mail é só uma cortesia best-effort por cima.
+
+**2) `src/lib/acompanhamento_email.js` (novo).** Conteúdo do e-mail de confirmação — `emailConfirmacaoAcompanhamento({nomeRepresentante, cargoNome, ufSigla, tokenCancelamento, origem})`, retornando assunto + HTML + texto puro. Tom sóbrio igual ao resto do produto (nunca "parabéns", nunca linguagem que sugira que aquele representante é "melhor"); deixa explícito que o resumo periódico ainda está sendo construído, pra não prometer o que ainda não existe; inclui o link de cancelamento (mesmo token da Fase 1). Trata com segurança os casos de falta de dado (cargo/UF ausentes não geram "undefined" no texto) e escapa o nome do representante contra injeção de HTML.
+
+**3) Rota `POST /acompanhar` em `src/index.js` atualizada**: depois de `criarAcompanhamento` ter sucesso (seja cadastro novo ou reconfirmação de um já existente), dispara o e-mail de confirmação via `ctx.waitUntil(...)` — ou seja, **de forma assíncrona, sem atrasar o redirect** que a pessoa já vê na tela. Busca nome/cargo/UF do representante com uma query simples antes de montar o e-mail.
+
+**Testado localmente, sem chamar a API real do Resend** (nenhuma credencial nesta sessão — nem teria como testar de verdade): mock de `fetch` cobrindo 8 cenários — sem API key, parâmetros inválidos, sucesso simulado (com verificação de headers e remetente padrão), erro HTTP do Resend (ex.: 422 de domínio não verificado), exceção de rede, template com dados completos, template com dados faltando (sem gerar "undefined"), e escape de HTML contra injeção via nome do representante. **8/8 passou.**
+
+**Arquivos novos:** `src/lib/email.js`, `src/lib/acompanhamento_email.js`.
+**Arquivos alterados:** `src/index.js` (rota `/acompanhar` dispara o e-mail via `ctx.waitUntil`).
+
+**Já commitado no device** (`VotoCheck\Github\votocheck`) via `device_commit_files`, com guarda de `mtimeMs` no `index.js` (os 2 arquivos novos não precisam de guarda).
+
+## 22. Credenciais de fato configuradas pelo Rodrigo: RESEND_API_KEY + domínio verificado (21/09)
+
+Depois da seção 21, o Rodrigo resolveu, do lado dele, duas das três pendências que travavam a Fase 2:
+
+- **Criou a conta no Resend, gerou a chave e já salvou como secret do Worker** (`RESEND_API_KEY`) — feito por ele, fora do alcance desta sessão (não temos como configurar secrets de Worker sem credencial Cloudflare).
+- **Verificou o domínio de envio `updates.votocheck.com.br` no Resend** (registros SPF/DKIM/DMARC via DNS na Cloudflare, com proxy desligado nos registros — passei o passo a passo, incluindo os detalhes específicos de Cloudflare: desligar o "orange cloud" e omitir o domínio no campo Name/Host).
+
+Com o domínio confirmado, **atualizei `REMETENTE_PADRAO` em `src/lib/email.js`** de `naoresponda@votocheck.com.br` (placeholder) para `naoresponda@updates.votocheck.com.br` (domínio real verificado) — já commitado no device.
+
+Também expliquei o Console SQL do D1 (dashboard → Workers & Pages → D1 → banco → aba Console) como alternativa ao script `apply_d1.py` pra aplicar a migration `0002` — mais simples, sem precisar de terminal/token, e dei o SQL exato pra colar lá.
+
+**Continua faltando, antes da Fase 2 funcionar de ponta a ponta:**
+- Confirmar que a migration `0002_monitoramento_cobranca.sql` foi de fato aplicada (ele ia rodar via Console do D1 — não tenho confirmação de que já rodou).
+- Redeploy do Worker com os arquivos novos (`email.js`, `acompanhamento_email.js`, `index.js` atualizado) — **precisa de confirmação explícita dele antes de acontecer**, igual sempre. `scripts/deploy_worker.py` existe mas sua lista `MODULES` está desatualizada (não inclui vários arquivos `lib/*_html.js` criados nas seções 17-21) — **precisa ser atualizada antes do próximo redeploy real**, ou o deploy vai subir um Worker quebrado (import de arquivo que não foi enviado).
+
+**Nota à parte**: nesta mesma sessão, notei que este arquivo de continuidade tinha revertido pra uma versão sem a seção 21 (prova: comparei bytes/conteúdo antes de reescrever) — o código-fonte (`index.js`, `acompanhamento_email.js`) não foi afetado, só este `.md`. Suspeita: algum editor com o arquivo aberto salvou por cima com buffer antigo. Reescrevi a seção 21 aqui de novo nesta rodada; vale o Rodrigo fechar/reabrir esse arquivo no editor antes de editá-lo à mão, pra não repetir o problema.
+
+## 23. Auditoria pré-deploy: `icones.js` faltando + `deploy_worker.py` desatualizado + risco de secret sumir (21/09)
+
+Rodrigo confirmou que aplicou a migration `0002` (via Console SQL do D1, mais simples que o script) e pediu pra seguir pro redeploy do Worker. Antes de considerar isso pronto, auditei a árvore real de imports a partir de `index.js` (recursivo, incluindo arquivos que só existem no device — `curadoria.js`, `curadoria_html.js`, `tse_parser.js`, `tse_candidatos.js`, `tse_bens.js`, `vendor_unzipit.js`) contra o que `scripts/deploy_worker.py` ia de fato enviar. Achei dois problemas que teriam quebrado o deploy ou o produto:
+
+**1) `src/lib/icones.js` nunca foi commitado no device.** É importado por `busca_html.js` e `jornada_html.js` (usado nos pilares da home e nos cards da jornada, seções 17-19), existia só na cópia local desta sessão (criado antes de uma compactação de contexto anterior, o commit pro device ficou pra trás). Se o deploy tivesse subido sem esse arquivo, o Worker inteiro quebrava (import de módulo inexistente = erro fatal no load, site inteiro fora do ar). **Corrigido**: commitado agora no device.
+
+**2) A lista `MODULES` de `scripts/deploy_worker.py` estava desatualizada** — não incluía vários `lib/*_html.js` criados nas seções 17-22 (`cargos_guia.js`, `jornada_html.js`, `institucional_html.js`, `partidos_html.js`, `judiciario_html.js`, `mapa_brasil.js`, `banners_html.js`, `icones.js`, `acompanhamento.js`, `acompanhamento_email.js`, `email.js`, `curadoria.js`, `curadoria_html.js`, `tse_parser.js`). **Reescrevi a lista inteira**, auditada 1:1 contra a árvore de imports real (removi também `lib/landing_html.js`, que não é mais importado por ninguém — arquivo morto). Documentei no topo do próprio script o método usado, pra facilitar auditoria semelhante no futuro se mais arquivos forem adicionados.
+
+**3) Risco de secret ser descartado no redeploy.** A API de upload de Worker da Cloudflare tem histórico documentado de descartar bindings existentes (inclusive secrets como `RESEND_API_KEY`, que o Rodrigo acabou de configurar) quando a nova versão do script não os redeclara explicitamente — inclusive com relatos de bug mesmo usando o parâmetro `keep_bindings`, que deveria evitar isso. Não confiei nisso silenciosamente: **`deploy_worker.py` agora aceita `RESEND_API_KEY` como variável de ambiente opcional e, se estiver definida, redeclara esse secret explicitamente a cada deploy** (garantindo que sobrevive, independente do comportamento do `keep_bindings`). Se não estiver definida, o script imprime um aviso claro e recomenda conferir manualmente depois do deploy.
+
+**Ainda não fiz o deploy** — falta o Rodrigo rodar o script (ele tem `CF_TOKEN`, e agora também precisa passar `RESEND_API_KEY` no ambiente pra proteger o secret). Instruções que vou passar a ele: definir as duas variáveis de ambiente e rodar `python3 scripts\deploy_worker.py`, depois conferir o site e testar o fluxo de `/acompanhar` de ponta a ponta (cadastro → e-mail de confirmação chegando) — justamente porque esse é o jeito mais direto de confirmar que o secret sobreviveu ao deploy.
+
+**Nota importante de escopo**: como não há registro de um redeploy bem-sucedido desde pelo menos a seção 13, este próximo deploy vai colocar no ar de uma vez TUDO acumulado desde então — homepage redesenhada (seções 17-19), guia de cargos com páginas próprias, `/partidos`, `/judiciario`, e agora a captura de acompanhamento + e-mail de confirmação (seções 20-22). Vale conferir várias páginas depois, não só a última feature.
+
+**Arquivos alterados**: `scripts/deploy_worker.py` (lista de módulos corrigida + proteção de secret). **Arquivo commitado que faltava**: `src/lib/icones.js`.

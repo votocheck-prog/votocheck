@@ -616,23 +616,154 @@ export const ESTILO_BASE = `
   }
   .partido-representante:hover { border-color: var(--primary); color: var(--primary); }
   .partido-sem-representante { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
-
-  /* ===== Página do Judiciário (judiciario_html.js) ===== */
-  .orgaos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
-    margin: 20px 0 8px;
+  .partido-presidencia {
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 0 0 12px;
   }
-  .orgao-card {
+  .partido-presidencia--nota { color: var(--text-muted); font-style: italic; }
+  .partido-presidencia-fonte { font-size: 11.5px; margin-left: 6px; }
+  .partido-presidencia-alerta {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 11px;
+    color: #B24C1F;
+    cursor: help;
+  }
+
+  /* ===== Diagrama de espectro político (partidos_html.js, 23/09/2026) =====
+     Uma cor só (--primary) pra todos os chips, de propósito — ver nota no topo de
+     partidos_html.js: posição no espectro nunca é codificada por cor neste produto. */
+  .espectro-wrap { margin: 20px 0 32px; }
+  .espectro-eixo {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .espectro-linha {
+    position: absolute;
+    top: 11px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border);
+  }
+  .espectro-coluna {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .espectro-coluna::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    z-index: 1;
+  }
+  .espectro-zona-nome {
+    font-size: 11px;
+    text-align: center;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .espectro-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; min-height: 26px; }
+  .espectro-chip {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border-radius: 999px;
+    padding: 3px 9px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .espectro-chip:hover { background: var(--primary); color: #fff; }
+  .espectro-vazia { font-size: 11px; color: var(--text-muted); }
+  @media (max-width: 640px) {
+    .espectro-eixo { grid-template-columns: repeat(3, 1fr); row-gap: 20px; }
+    .espectro-linha { display: none; }
+  }
+
+  /* ===== Filtro de partidos (partidos_html.js, 23/09/2026) ===== */
+  .partido-filtro-wrap { margin: 0 0 20px; }
+  .partido-filtro-label { display: block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .partido-filtro {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  .partido-filtro:focus { outline: none; border-color: var(--primary); }
+  .partido-filtro-vazio { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
+
+  /* ===== Diagrama de hierarquia do Judiciário (judiciario_html.js, 23/09/2026) =====
+     CNJ fica visualmente separado da árvore de recursos (não é uma instância de julgamento) —
+     ver nota no topo de judiciario_html.js. */
+  .jud-arvore { margin: 20px 0 8px; }
+  .jud-topo { display: flex; flex-direction: column; align-items: center; }
+  .jud-conector {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 0;
+    text-align: center;
+  }
+  .jud-conector--topo { padding-bottom: 8px; }
+  .jud-ramos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .jud-ramo { display: flex; flex-direction: column; align-items: stretch; }
+  .jud-ramo-titulo {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .jud-ramo-base { display: flex; flex-direction: column; gap: 8px; }
+  .jud-nodo {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px;
-    text-align: left;
+    border-radius: 8px;
+    padding: 2px 12px;
   }
-  .orgao-card strong { display: block; margin-bottom: 4px; font-size: 14.5px; }
-  .orgao-card p { margin: 0; font-size: 13.5px; color: var(--text-muted); }
+  .jud-nodo summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 10px 0;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .jud-nodo summary::-webkit-details-marker { display: none; }
+  .jud-nodo summary::after { content: ' ＋'; color: var(--primary); font-weight: 400; }
+  .jud-nodo[open] summary::after { content: ' −'; }
+  .jud-nodo p { margin: 0 0 12px; font-size: 13px; color: var(--text-muted); }
+  .jud-nodo--destaque { border-color: var(--primary); background: var(--primary-soft); }
+  .jud-cnj-linha {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border);
+    text-align: center;
+  }
+  .jud-cnj-rotulo { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+  .jud-cnj-linha .jud-nodo { display: inline-block; max-width: 380px; text-align: left; }
+  @media (max-width: 640px) {
+    .jud-ramos { grid-template-columns: 1fr; gap: 24px; }
+  }
 `;
 
 /** Converte o código de status (tabela `status`) numa pill visual — nunca usa ✔️. */

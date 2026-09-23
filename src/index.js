@@ -190,6 +190,56 @@ async function carregarRepresentantesPorPartido(env, ctx) {
   return porSigla;
 }
 
+/**
+ * Data/hora da última coleta bem-sucedida — usada como "versão dos dados" pra invalidar caches
+ * automaticamente (ver `buscarComCache` abaixo), em vez de depender de um calendário fixo de
+ * atualização. Leitura barata: tabela pequena (uma linha por execução de coletor, não por
+ * candidato), com LIMIT 1 ORDER BY.
+ */
+async function obterVersaoDados(env) {
+  const row = await env.DB
+    .prepare(`SELECT finalizado_em FROM execucao_coletor WHERE status != 'em_execucao' ORDER BY finalizado_em DESC LIMIT 1`)
+    .first();
+  return row?.finalizado_em || 'sem-execucao';
+}
+
+/**
+ * Cache de `/buscar` com invalidação automática por versão dos dados (23/09/2026 — ver
+ * CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 24). Antes, cada visita rodava um `COUNT(*)`
+ * com JOIN de 4 tabelas sem NENHUM cache — incluindo as variantes sem filtro que estão no
+ * sitemap.xml — e foi identificado como o principal suspeito de estourar a cota diária de
+ * leitura do D1.
+ *
+ * A chave do cache inclui a querystring inteira (q/cargo/uf/ordenar/pagina — cada combinação
+ * tem seu próprio cache) MAIS a "versão dos dados" de `obterVersaoDados`. Isso significa: o
+ * TTL de 6 dias abaixo é só uma rede de segurança (caso a versão nunca mude por algum motivo);
+ * o mecanismo real de atualização é automático — assim que uma coleta nova terminar (ex.:
+ * resultado do 1º turno em 04/10, ou uma correção de candidatura indeferida), a versão muda e
+ * TODAS as buscas em cache viram obsoletas na hora, sem precisar de calendário fixo nem de
+ * purga manual. Rodrigo só precisa continuar rodando as coletas quando fizer sentido — o cache
+ * reage sozinho.
+ */
+const TTL_CACHE_BUSCA_SEGUNDOS = 6 * 24 * 3600; // 6 dias — rede de segurança, não o mecanismo principal (ver acima)
+
+async function buscarComCache(env, ctx, { queryString, buscar }) {
+  const versao = await obterVersaoDados(env);
+  const chave = new Request(
+    `https://cache.interno.votocheck/buscar${queryString}${queryString.includes('?') ? '&' : '?'}_v=${encodeURIComponent(versao)}`
+  );
+  const cache = caches.default;
+  const cacheado = await cache.match(chave);
+  if (cacheado) return cacheado.json();
+
+  const resultado = await buscar();
+
+  const resposta = new Response(JSON.stringify(resultado), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_BUSCA_SEGUNDOS}` },
+  });
+  ctx.waitUntil(cache.put(chave, resposta));
+
+  return resultado;
+}
+
 const ROTAS = {
   'POST /admin/coletar/tse-candidatos': async (req, env, url) => coletarCandidatos(env, Number(url.searchParams.get('ano')) || 2026),
   'POST /admin/coletar/tse-redes-sociais': async (req, env, url) => coletarRedesSociais(env, Number(url.searchParams.get('ano')) || 2026),
@@ -206,12 +256,48 @@ const ROTAS = {
   'POST /admin/coletar/senado-cruzamento-tse': async (req, env) => cruzarSenadoresComTse(env),
 };
 
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+/**
+ * Página de erro genérica, branded (23/09/2026 — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md,
+ * seção 25) — usada só como ÚLTIMO recurso pelo `fetch` abaixo, quando alguma rota lança uma
+ * exceção não prevista por nenhum dos try/catch específicos já existentes. Sem isso, qualquer
+ * exceção não tratada vira a página crua "error code: 1101" da própria Cloudflare — sem marca,
+ * sem link de volta, e sem log amigável. Isso NÃO substitui tratar a causa raiz (ex.: cota do
+ * D1) — é uma rede de segurança final, não o mecanismo principal de resiliência.
+ */
+function paginaErroGenerico(caminho) {
+  return pagina({
+    titulo: 'Instabilidade temporária — VotoCheck',
+    descricao: 'Estamos com uma instabilidade temporária. Tente novamente em alguns minutos.',
+    caminho,
+    noindex: true,
+    corpo: `
+      <div style="text-align:center; padding:64px 0;">
+        <h1 style="font-size:28px; margin-bottom:12px;">Instabilidade temporária</h1>
+        <p style="color:var(--text-muted); max-width:480px; margin:0 auto 28px;">
+          Estamos com uma instabilidade temporária nos nossos servidores. Isso não afeta seus
+          dados — tente novamente em alguns minutos.
+        </p>
+        <a href="/" style="display:inline-block; padding:12px 24px; background:var(--primary); color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">
+          Voltar para a página inicial
+        </a>
+      </div>`,
+  });
+}
+
+async function fetchInterno(request, env, ctx) {
+  const url = new URL(request.url);
 
     if (url.pathname === '/' && request.method === 'GET') {
-      const stats = await estatisticasHomepageComCache(env, ctx);
+      // Defensivo (23/09/2026 — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 25): esta era
+      // a única rota de alto tráfego sem nenhuma proteção contra falha do D1 (ex.: cota diária
+      // estourada) — uma falha aqui derrubava a HOMEPAGE inteira com erro cru (1101), não só uma
+      // funcionalidade secundária. Degrada pra estatísticas zeradas em vez de 500.
+      let stats = { totalCandidaturas: 0, totalPessoas: 0, atualizadoEm: null, porCargo: [] };
+      try {
+        stats = await estatisticasHomepageComCache(env, ctx);
+      } catch (e) {
+        console.error('Falha em estatisticasHomepageComCache:', e);
+      }
       return html(renderHomepage(stats));
     }
 
@@ -257,34 +343,58 @@ export default {
         partido: '(pa.sigla IS NULL), pa.sigla ASC, p.nome_urna_atual ASC',
       };
 
-      const [{ results }, contagem] = await Promise.all([
-        db
-          .prepare(
-            `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento,
-                    ca.nome as cargo_nome, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
-                    pa.sigla as partido_sigla
-             FROM candidatura c
-             JOIN pessoa p ON p.id = c.pessoa_id
-             JOIN cargo ca ON ca.id = c.cargo_id
-             LEFT JOIN partido pa ON pa.id = c.partido_id
-             WHERE ${whereSql}
-             ORDER BY ${ORDER_BY[ordenar]}
-             LIMIT ? OFFSET ?`
-          )
-          .bind(...params, porPagina, offset)
-          .all(),
-        db
-          .prepare(
-            `SELECT COUNT(*) as total
-             FROM candidatura c
-             JOIN pessoa p ON p.id = c.pessoa_id
-             JOIN cargo ca ON ca.id = c.cargo_id
-             LEFT JOIN partido pa ON pa.id = c.partido_id
-             WHERE ${whereSql}`
-          )
-          .bind(...params)
-          .first(),
-      ]);
+      const buscarNoD1 = async () => {
+        const [{ results }, contagem] = await Promise.all([
+          db
+            .prepare(
+              `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento,
+                      ca.nome as cargo_nome, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
+                      pa.sigla as partido_sigla
+               FROM candidatura c
+               JOIN pessoa p ON p.id = c.pessoa_id
+               JOIN cargo ca ON ca.id = c.cargo_id
+               LEFT JOIN partido pa ON pa.id = c.partido_id
+               WHERE ${whereSql}
+               ORDER BY ${ORDER_BY[ordenar]}
+               LIMIT ? OFFSET ?`
+            )
+            .bind(...params, porPagina, offset)
+            .all(),
+          db
+            .prepare(
+              `SELECT COUNT(*) as total
+               FROM candidatura c
+               JOIN pessoa p ON p.id = c.pessoa_id
+               JOIN cargo ca ON ca.id = c.cargo_id
+               LEFT JOIN partido pa ON pa.id = c.partido_id
+               WHERE ${whereSql}`
+            )
+            .bind(...params)
+            .first(),
+        ]);
+        return { resultados: results || [], total: contagem?.total || 0 };
+      };
+
+      // Defensivo (23/09/2026 — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 25): uma
+      // falha na CAMADA DE CACHE (ex.: erro ao ler/gravar em `caches.default`, ou na query de
+      // versão em `obterVersaoDados`) não pode derrubar a busca inteira — cai pra rodar a query
+      // direto no D1, sem cache, como antes desta feature existir. Se até isso falhar (ex.: cota
+      // do D1 estourada), degrada pra uma página de resultados vazia com aviso, em vez de 500 cru.
+      let listaResultados = [];
+      let total = 0;
+      try {
+        ({ resultados: listaResultados, total } = await buscarComCache(env, ctx, {
+          queryString: url.search,
+          buscar: buscarNoD1,
+        }));
+      } catch (e) {
+        console.error('Falha em buscarComCache, tentando direto no D1 sem cache:', e);
+        try {
+          ({ resultados: listaResultados, total } = await buscarNoD1());
+        } catch (e2) {
+          console.error('Falha em buscarNoD1 (sem cache também falhou):', e2);
+        }
+      }
 
       return html(
         renderResultados({
@@ -292,8 +402,8 @@ export default {
           cargo,
           uf,
           ordenar,
-          resultados: results || [],
-          totalResultados: contagem?.total || 0,
+          resultados: listaResultados,
+          totalResultados: total,
           paginaAtual,
           porPagina,
           caminho: url.pathname + url.search,
@@ -587,6 +697,23 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     }
 
     return html404(render404(url.pathname));
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      return await fetchInterno(request, env, ctx);
+    } catch (e) {
+      // Rede de segurança final — ver `paginaErroGenerico` acima. Qualquer rota que já tenha
+      // seu próprio try/catch (ex.: `/`, `/buscar`, `/acompanhar`) nunca chega aqui; isso só
+      // pega o que ainda não foi especificamente tratado.
+      console.error('Erro não tratado no fetch:', e);
+      const url = new URL(request.url);
+      return new Response(paginaErroGenerico(url.pathname), {
+        status: 500,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
   },
 
   /**

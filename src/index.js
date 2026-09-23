@@ -460,7 +460,15 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       const voltarPara = `/candidato/${pessoaId}`;
       if (!pessoaId) return new Response('Candidato inválido.', { status: 400 });
 
-      const resultado = await criarAcompanhamento(env, { email, pessoaId });
+      let resultado;
+      try {
+        resultado = await criarAcompanhamento(env, { email, pessoaId });
+      } catch (e) {
+        // Nunca deixa um erro de D1 (tabela ausente, constraint, etc.) virar página de erro crua
+        // pro usuário — loga o suficiente pra depurar depois e volta como "erro" genérico.
+        console.error('Falha em criarAcompanhamento:', e);
+        resultado = { ok: false, motivo: 'excecao_d1' };
+      }
       const destino = new URL(voltarPara, url.origin);
       if (resultado.ok) {
         destino.searchParams.set('acompanhar', resultado.jaExistia ? 'ja_existia' : 'ok');
@@ -501,7 +509,13 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
     if (url.pathname === '/acompanhar/cancelar' && request.method === 'GET') {
       const token = url.searchParams.get('token') || '';
-      const resultado = await cancelarPorToken(env, token);
+      let resultado;
+      try {
+        resultado = await cancelarPorToken(env, token);
+      } catch (e) {
+        console.error('Falha em cancelarPorToken:', e);
+        resultado = { ok: false, motivo: 'excecao_d1' };
+      }
       return html(
         pagina({
           titulo: 'Cancelar acompanhamento — VotoCheck',

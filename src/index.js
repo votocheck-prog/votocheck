@@ -148,8 +148,13 @@ async function estatisticasHomepageComCache(env, ctx) {
 const CACHE_KEY_PARTIDOS = new Request('https://cache.interno.votocheck/partidos-representantes');
 
 /**
- * Pra cada sigla em PARTIDOS_INFO, busca até 10 candidaturas de 2026 em ordem alfabética
- * (critério neutro — nunca "principais" no sentido de mérito, ver nota em partidos_html.js).
+ * Pra cada sigla em PARTIDOS_INFO, busca até 10 candidaturas de 2026, ordenadas por hierarquia
+ * de cargo (maior cargo primeiro — mesma ordem institucional de `cargo`/`cargos_guia.js`:
+ * presidente > governador > senador > dep. federal > dep. estadual > dep. distrital) e, dentro
+ * do mesmo cargo, por nome (critério neutro pra desempate — nunca "principais" no sentido de
+ * mérito, ver nota em partidos_html.js). ATUALIZADO 23/09/2026 a pedido do Rodrigo: antes a
+ * ordem era só alfabética; ele pediu explicitamente que "os principais representantes do
+ * partido devem vir de hierarquia política".
  * Retorna um objeto { [sigla]: [{pessoa_id, nome_urna_atual, cargo_nome, sg_uf}, ...] }.
  */
 async function carregarRepresentantesPorPartido(env, ctx) {
@@ -164,14 +169,14 @@ async function carregarRepresentantesPorPartido(env, ctx) {
     .prepare(
       `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
          SELECT c.pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf, pa.sigla,
-                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY p.nome_urna_atual ASC) as rn
+                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY ca.id ASC, p.nome_urna_atual ASC) as rn
          FROM candidatura c
          JOIN pessoa p ON p.id = c.pessoa_id
          JOIN cargo ca ON ca.id = c.cargo_id
          JOIN partido pa ON pa.id = c.partido_id
          WHERE c.ano_eleicao = ? AND pa.sigla IN (${placeholders})
        ) WHERE rn <= 10
-       ORDER BY sigla, nome_urna_atual`
+       ORDER BY sigla, rn`
     )
     .bind(ANO_ATUAL, ...siglas)
     .all();
@@ -186,6 +191,57 @@ async function carregarRepresentantesPorPartido(env, ctx) {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
   });
   ctx.waitUntil(cache.put(CACHE_KEY_PARTIDOS, resposta));
+
+  return porSigla;
+}
+
+// Adicionado 23/09/2026 a pedido do Rodrigo — ver rationale completo (critério de hierarquia,
+// lacuna de ministro/prefeito/vereador não cobertos pelo schema atual) no cabeçalho de
+// partidos_html.js. Nunca testada contra D1 de produção nesta sessão (cota travada) — só
+// localmente com dados simulados.
+const CACHE_KEY_LIDERANCA_CARGO = new Request('https://cache.interno.votocheck/partidos-lideranca-cargo');
+
+/**
+ * Pra cada sigla em PARTIDOS_INFO, encontra — entre os FILIADOS ATUAIS do partido
+ * (`filiacao_partidaria.data_fim IS NULL`, não `candidatura`) — quem ocupa hoje
+ * (`mandato.data_fim IS NULL`) o cargo de maior hierarquia institucional (presidente > governador
+ * > senador > dep. federal > dep. estadual > dep. distrital, mesma ordem de `cargo.id`).
+ * Retorna um objeto { [sigla]: {pessoa_id, nome_urna_atual, cargo_nome, sg_uf} }, com a sigla
+ * ausente quando nenhum filiado atual tem mandato ativo num dos 6 cargos cobertos.
+ */
+async function carregarLiderancaPorCargoPorPartido(env, ctx) {
+  const cache = caches.default;
+  const cacheado = await cache.match(CACHE_KEY_LIDERANCA_CARGO);
+  if (cacheado) return cacheado.json();
+
+  const db = env.DB;
+  const siglas = PARTIDOS_INFO.map((p) => p.sigla);
+  const placeholders = siglas.map(() => '?').join(',');
+  const { results } = await db
+    .prepare(
+      `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
+         SELECT p.id as pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, m.sg_uf, pa.sigla,
+                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY ca.id ASC, m.data_inicio DESC) as rn
+         FROM filiacao_partidaria fp
+         JOIN pessoa p ON p.id = fp.pessoa_id
+         JOIN mandato m ON m.pessoa_id = p.id AND m.data_fim IS NULL
+         JOIN cargo ca ON ca.id = m.cargo_id
+         JOIN partido pa ON pa.id = fp.partido_id
+         WHERE fp.data_fim IS NULL AND pa.sigla IN (${placeholders})
+       ) WHERE rn = 1`
+    )
+    .bind(...siglas)
+    .all();
+
+  const porSigla = {};
+  for (const row of results || []) {
+    porSigla[row.sigla] = row;
+  }
+
+  const resposta = new Response(JSON.stringify(porSigla), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
+  });
+  ctx.waitUntil(cache.put(CACHE_KEY_LIDERANCA_CARGO, resposta));
 
   return porSigla;
 }
@@ -429,7 +485,15 @@ async function fetchInterno(request, env, ctx) {
 
     if (url.pathname === '/partidos' && request.method === 'GET') {
       const representantesPorSigla = await carregarRepresentantesPorPartido(env, ctx);
-      return html(renderPartidos({ representantesPorSigla }));
+      // Consulta nova (23/09/2026) e ainda não testada contra D1 de produção — falha aqui nunca
+      // pode derrubar a página inteira, só faz o card ficar sem essa linha específica.
+      let liderancaCargoPorSigla = {};
+      try {
+        liderancaCargoPorSigla = await carregarLiderancaPorCargoPorPartido(env, ctx);
+      } catch (e) {
+        console.error('Falha em carregarLiderancaPorCargoPorPartido:', e);
+      }
+      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla }));
     }
 
     const cargoMatch = url.pathname.match(/^\/cargo\/([a-z_]+)$/);

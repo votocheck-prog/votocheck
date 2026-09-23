@@ -579,16 +579,55 @@ export const ESTILO_BASE = `
   .faq-item[open] summary::before { content: '− '; }
   .faq-item p { margin: 0 0 14px; color: var(--text-muted); font-size: 14px; }
 
-  /* ===== Página de Partidos (partidos_html.js) ===== */
+  /* ===== Página de Partidos (partidos_html.js) =====
+     Passe de polish visual em 23/09/2026 (pedido do Rodrigo: "use seus recursos mais avançados
+     para deixar o melhor possível essas páginas de apoio") — cards ganharam hover/transição
+     sutil pra reforçar que a lista é navegável (âncora por sigla, filtro ao vivo), logo + grupo
+     de título reorganizados numa hierarquia visual clara (logo → sigla/número → família), e as
+     duas linhas de liderança (presidência curada vs. maior cargo em exercício) diferenciadas por
+     um acento lateral de cor pra não parecerem a mesma informação repetida. */
   .partido-lista { display: flex; flex-direction: column; gap: 14px; }
   .partido-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 18px 20px;
     text-align: left;
+    scroll-margin-top: 16px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   }
-  .partido-cabecalho { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .partido-card:hover,
+  .partido-card:target {
+    border-color: var(--primary);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
+  }
+  .partido-card:target { transform: translateY(-1px); }
+  .partido-cabecalho { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .partido-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .partido-logo--fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+  }
+  .partido-titulo-grupo { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .partido-sigla { font-size: 17px; font-weight: 700; }
   .partido-numero { font-size: 12px; color: var(--text-muted); }
   .partido-familia {
@@ -602,7 +641,8 @@ export const ESTILO_BASE = `
     padding: 2px 10px;
     margin-left: auto;
   }
-  .partido-nome { color: var(--text-muted); font-size: 13.5px; margin: 2px 0 10px; }
+  .partido-nome { color: var(--text-muted); font-size: 13.5px; margin: 8px 0 10px; }
+  .partido-fundacao { color: var(--text-muted); font-size: 12px; cursor: help; }
   .partido-historico { font-size: 13.5px; margin: 0 0 12px; }
   .partido-representantes { display: flex; flex-wrap: wrap; gap: 6px; }
   .partido-representante {
@@ -613,17 +653,21 @@ export const ESTILO_BASE = `
     border-radius: 999px;
     padding: 4px 10px;
     text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease;
   }
   .partido-representante:hover { border-color: var(--primary); color: var(--primary); }
   .partido-sem-representante { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
-  .partido-presidencia {
+  .partido-presidencia,
+  .partido-lideranca-cargo {
     font-size: 13px;
     color: var(--text);
     background: var(--bg);
     border-radius: 6px;
+    border-left: 3px solid var(--primary);
     padding: 8px 10px;
-    margin: 0 0 12px;
+    margin: 0 0 8px;
   }
+  .partido-lideranca-cargo { border-left-color: var(--text-muted); }
   .partido-presidencia--nota { color: var(--text-muted); font-style: italic; }
   .partido-presidencia-fonte { font-size: 11.5px; margin-left: 6px; }
   .partido-presidencia-alerta {
@@ -633,6 +677,7 @@ export const ESTILO_BASE = `
     color: #B24C1F;
     cursor: help;
   }
+  .partido-representantes { margin-top: 12px; }
 
   /* ===== Diagrama de espectro político (partidos_html.js, 23/09/2026) =====
      Uma cor só (--primary) pra todos os chips, de propósito — ver nota no topo de
@@ -684,6 +729,7 @@ export const ESTILO_BASE = `
     padding: 3px 9px;
     text-decoration: none;
     white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
   }
   .espectro-chip:hover { background: var(--primary); color: #fff; }
   .espectro-vazia { font-size: 11px; color: var(--text-muted); }
@@ -703,7 +749,8 @@ export const ESTILO_BASE = `
     background: var(--surface);
     color: var(--text);
   }
-  .partido-filtro:focus { outline: none; border-color: var(--primary); }
+  .partido-filtro { transition: border-color 0.15s ease; }
+  .partido-filtro:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
   .partido-filtro-vazio { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
 
   /* ===== Diagrama de hierarquia do Judiciário (judiciario_html.js, 23/09/2026) =====
@@ -740,7 +787,9 @@ export const ESTILO_BASE = `
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 2px 12px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
+  .jud-nodo:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
   .jud-nodo summary {
     cursor: pointer;
     list-style: none;
@@ -749,7 +798,7 @@ export const ESTILO_BASE = `
     font-weight: 600;
   }
   .jud-nodo summary::-webkit-details-marker { display: none; }
-  .jud-nodo summary::after { content: ' ＋'; color: var(--primary); font-weight: 400; }
+  .jud-nodo summary::after { content: ' ＋'; color: var(--primary); font-weight: 400; transition: transform 0.15s ease; }
   .jud-nodo[open] summary::after { content: ' −'; }
   .jud-nodo p { margin: 0 0 12px; font-size: 13px; color: var(--text-muted); }
   .jud-nodo--destaque { border-color: var(--primary); background: var(--primary-soft); }

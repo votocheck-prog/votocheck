@@ -137,6 +137,23 @@ export const PARTIDOS_INFO = [
     presidenteNacional: { nome: 'Luís Tibé', fonteUrl: 'https://www.metropoles.com/brasil/eleicoes-2026-presidentes-de-17-dos-30-partidos-do-brasil-tentam-se-eleger' } },
 ];
 
+// ATUALIZAÇÃO 24/09/2026 (pedido do Rodrigo): PARTIDOS_INFO acima está em ordem "como foi
+// digitado" (nenhum critério — coincidência de PT vir primeiro é ruim de imagem, ainda mais em
+// tempo de polarização, mesmo sem intenção nenhuma). Critério escolhido pra exibição:
+// número eleitoral oficial do TSE (o mesmo número da urna) — numérico, oficial, neutro, e é o
+// único critério "natural" que todo brasileiro já reconhece sem precisar de explicação (ao
+// contrário de "ano de fundação", que embutiria uma narrativa de "quem é mais antigo/legítimo",
+// ou "ordem alfabética", que muda a depender de usar a sigla ou o nome completo). A legenda no
+// topo da página deixa esse critério explícito — ver `LEGENDA_ORDENACAO` e seu uso em
+// `renderPartidos`. NUNCA ordenar por número de filiados, de candidatos, ou qualquer métrica de
+// "relevância" — isso sim seria o produto tomando partido.
+export const LEGENDA_ORDENACAO =
+  'Partidos listados em ordem crescente do número eleitoral oficial (o mesmo número usado na urna) — critério numérico e neutro, não é ranking de relevância, tamanho de bancada ou preferência do VotoCheck.';
+
+function partidosOrdenados() {
+  return [...PARTIDOS_INFO].sort((a, b) => a.numero - b.numero);
+}
+
 const ZONAS_ESPECTRO = ['Esquerda', 'Centro-esquerda', 'Centro', 'Centro-direita', 'Direita'];
 
 /** Deriva a faixa [zonaMin, zonaMax] (1–5) direto do texto de `familiaIdeologica`. Ver nota no topo do arquivo. */
@@ -191,7 +208,7 @@ function logoPartidoHtml(sigla) {
 /** Diagrama de espectro: 5 zonas, cada uma com os chips dos partidos cujo centro da faixa cai ali. Sem JS: cada chip é um link `<a href="#partido-...">` comum. */
 function renderDiagramaEspectro() {
   const porZona = ZONAS_ESPECTRO.map(() => []);
-  for (const p of PARTIDOS_INFO) {
+  for (const p of partidosOrdenados()) {
     porZona[zonaPrincipal(p.familiaIdeologica) - 1].push(p);
   }
   const colunas = porZona
@@ -229,7 +246,7 @@ function renderDiagramaEspectro() {
 
 /** Monta o corpo da página a partir de PARTIDOS_INFO + os representantes carregados do D1. */
 export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {} } = {}) {
-  const cards = PARTIDOS_INFO.map((p) => {
+  const cards = partidosOrdenados().map((p) => {
     const reps = representantesPorSigla[p.sigla] || [];
     const repsHtml = reps.length
       ? `<div class="partido-representantes">
@@ -322,6 +339,8 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <input type="text" id="partido-filtro" class="partido-filtro" placeholder="Ex.: PT, União Brasil..." autocomplete="off" />
         <p id="partido-filtro-vazio" class="partido-filtro-vazio" hidden>Nenhum partido encontrado com esse termo.</p>
       </div>
+
+      <p class="cargo-sem-cobertura" style="display:block; margin-bottom:16px;">${escapeHtml(LEGENDA_ORDENACAO)}</p>
 
       <div class="partido-lista" id="partido-lista">${cards}</div>
     </div>

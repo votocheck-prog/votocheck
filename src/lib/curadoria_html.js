@@ -130,7 +130,17 @@ async function chamarApi(path, options) {
   const resp = await fetch(path, Object.assign({}, options, {
     headers: Object.assign({ 'Authorization': 'Bearer ' + ADMIN_TOKEN, 'Content-Type': 'application/json' }, (options && options.headers) || {}),
   }));
-  const json = await resp.json();
+  // Mesmo bug corrigido em divida_ativa_html.js (23/09/2026): 401 vem como texto puro
+  // "Unauthorized", não JSON — resp.json() direto quebrava com um erro de JS ilegível.
+  if (resp.status === 401) {
+    throw new Error('Token incorreto (ou não configurado no Worker). Confira o ADMIN_TOKEN e tente de novo.');
+  }
+  let json;
+  try {
+    json = await resp.json();
+  } catch (e) {
+    throw new Error('Resposta inesperada do servidor (HTTP ' + resp.status + ', não era JSON).');
+  }
   if (!resp.ok || json.ok === false) {
     throw new Error(json.error || ('HTTP ' + resp.status));
   }
@@ -189,6 +199,14 @@ async function carregarPendencias() {
     contagem.textContent = json.total + ' pendência(s) aberta(s)';
   } catch (e) {
     contagem.textContent = 'Erro ao carregar: ' + e.message;
+    if (e.message.indexOf('Token incorreto') === 0) {
+      ADMIN_TOKEN = '';
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('gate').style.display = 'block';
+      document.getElementById('tokenInput').value = '';
+      document.getElementById('tokenInput').focus();
+      mostrarToast('Token incorreto — tente de novo.', 'error');
+    }
   }
 }
 

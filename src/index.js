@@ -46,6 +46,8 @@ import { listarPendencias, resolverPendencia } from './lib/curadoria.js';
 import { CURADORIA_HTML } from './lib/curadoria_html.js';
 import { listarPendenciasDividaAtiva, resolverPendenciaDividaAtiva } from './lib/divida_ativa.js';
 import { DIVIDA_ATIVA_HTML } from './lib/divida_ativa_html.js';
+import { processarClippingsMensais } from './lib/clipping_mensal.js';
+import { emailClippingMensal } from './lib/acompanhamento_email.js';
 import { renderHomepage, renderResultados } from './lib/busca_html.js';
 import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
@@ -887,6 +889,21 @@ export default {
         const inicio = ymd(new Date(Date.now() - 3 * 24 * 3600 * 1000));
         await rodar('coletarVotacoes (Câmara)', () => coletarVotacoes(env, inicio, fim));
         await rodar('coletarVotacoesSenado', () => coletarVotacoesSenado(env));
+
+        // Clipping mensal (seção 33, 24/09/2026) — só tenta processar nos primeiros dias do mês;
+        // a coluna ultimo_clipping_checado já torna isso idempotente, mas restringir a janela evita
+        // rodar essa consulta todo santo dia à toa e deixa o comportamento previsível pro Rodrigo.
+        const diaDoMes = new Date().getUTCDate();
+        if (diaDoMes <= 5) {
+          await rodar('processarClippingsMensais', () =>
+            processarClippingsMensais(env, {
+              origem: 'https://votocheck.com.br',
+              dataAtualIso: fim,
+              enviarEmail,
+              emailClippingMensal,
+            })
+          );
+        }
       })()
     );
   },

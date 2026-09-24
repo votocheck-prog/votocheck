@@ -129,13 +129,13 @@ async function upsertCandidato(db, mapped, fonteId) {
       .prepare(
         `UPDATE candidatura SET turno=?, cargo_id=?, sg_uf=?, numero_urna=?, nome_urna=?, partido_id=?,
          sq_coligacao=?, nome_coligacao=?, composicao_coligacao=?, situacao_candidatura=?,
-         situacao_totalizacao_turno=?, fonte_id=?, updated_at=datetime('now')
+         situacao_totalizacao_turno=?, reeleicao=?, declarou_bens=?, fonte_id=?, updated_at=datetime('now')
          WHERE id=?`
       )
       .bind(
         mapped.turno, cargoId, mapped.sg_uf, mapped.numero_urna, mapped.nome_urna, partidoId,
         mapped.sq_coligacao, mapped.nome_coligacao, mapped.composicao_coligacao, mapped.situacao_candidatura,
-        mapped.situacao_totalizacao_turno, fonteId, candidaturaExistente.id
+        mapped.situacao_totalizacao_turno, mapped.reeleicao, mapped.declarou_bens, fonteId, candidaturaExistente.id
       )
       .run();
     return { skipped: false, action: 'update', pessoaId, candidaturaId: candidaturaExistente.id };
@@ -145,13 +145,13 @@ async function upsertCandidato(db, mapped, fonteId) {
     .prepare(
       `INSERT INTO candidatura (pessoa_id, ano_eleicao, turno, cargo_id, sg_uf, sq_candidato_tse, numero_urna,
        nome_urna, partido_id, sq_coligacao, nome_coligacao, composicao_coligacao, situacao_candidatura,
-       situacao_totalizacao_turno, status_id, fonte_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?)`
+       situacao_totalizacao_turno, reeleicao, declarou_bens, status_id, fonte_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?)`
     )
     .bind(
       pessoaId, mapped.ano_eleicao, mapped.turno, cargoId, mapped.sg_uf, mapped.sq_candidato_tse, mapped.numero_urna,
       mapped.nome_urna, partidoId, mapped.sq_coligacao, mapped.nome_coligacao, mapped.composicao_coligacao,
-      mapped.situacao_candidatura, mapped.situacao_totalizacao_turno, fonteId
+      mapped.situacao_candidatura, mapped.situacao_totalizacao_turno, mapped.reeleicao, mapped.declarou_bens, fonteId
     )
     .run();
 

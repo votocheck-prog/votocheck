@@ -53,11 +53,12 @@ export async function resolverPendenciaDividaAtiva(env, { id, decisao, curador }
   }
 
   if (decisao === 'confirmar') {
-    // O texto gerado por importar_pgfn.mjs é escrito pra fase de REVISÃO ("aguardando
-    // confirmação manual..."). Ao confirmar, troca esse trecho por uma frase que reflete o
-    // estado real — senão a página pública ficaria dizendo "aguardando confirmação" de algo
-    // que já foi confirmado.
-    const avisoRevisao = / AGUARDANDO CONFIRMAÇÃO MANUAL — .*$/s;
+    // O texto gerado por importar_pgfn.mjs é escrito pra fase de REVISÃO — ou "aguardando
+    // confirmação manual..." (match só por nome) ou "CPF CONFERIDO AUTOMATICAMENTE..." (24/09/2026,
+    // quando o cruzamento de CPF via TSE já bateu). Ao confirmar, troca qualquer um dos dois pela
+    // mesma frase de estado confirmado — senão a página pública ficaria com linguagem de "ainda
+    // em revisão" numa coisa que já foi confirmada.
+    const avisoRevisao = / (?:AGUARDANDO CONFIRMAÇÃO MANUAL|CPF CONFERIDO AUTOMATICAMENTE) — .*$/s;
     const valorPublico = row.valor.replace(
       avisoRevisao,
       ' Confirmado manualmente pela equipe do VotoCheck após checagem do CPF completo do candidato via TSE.'

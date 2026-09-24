@@ -2,9 +2,15 @@
 // mas fala com o D1 via API REST HTTP — permite rodar os coletores originais (camara.js,
 // senado.js) sem modificação, fora do Worker, sem os limites de CPU/subrequest do runtime dele.
 
+// ATUALIZADO 24/09/2026 (seção 33): ACCOUNT_ID e DB_ID agora têm o mesmo default de
+// scripts/deploy_worker.py. Sem isso, rodar qualquer script que usa este shim (importar_pgfn.mjs,
+// importar_local.mjs, etc.) sem exportar CF_ACCOUNT_ID/CF_D1_ID manualmente resultava em
+// "Could not route to /client/v4/accounts/undefined/d1/database/undefined/query" — erro real que
+// aconteceu em produção (só CF_TOKEN estava setado). Continuam sobrescrevíveis por env var caso o
+// banco/conta mude no futuro.
 const CF_TOKEN = process.env.CF_TOKEN;
-const ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
-const DB_ID = process.env.CF_D1_ID;
+const ACCOUNT_ID = process.env.CF_ACCOUNT_ID || '22688effbd9ab181498d04ccd2cc8d2e';
+const DB_ID = process.env.CF_D1_ID || '1de4bbee-3c8c-4043-91f9-fafd527c2f1f';
 const URL = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DB_ID}/query`;
 
 let totalQueries = 0;

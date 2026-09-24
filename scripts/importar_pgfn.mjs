@@ -80,10 +80,12 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzip, HTTPRangeReader } from 'unzipit';
+import AdmZip from 'adm-zip';
+import { parseTseCsv, rowsToObjects } from '../src/lib/tse_parser.js';
 import { DB } from './d1_shim.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,6 +103,29 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 const ATRIBUTO_SLUG = 'divida_ativa_uniao_a_confirmar';
 const FONTE_NOME = 'Procuradoria-Geral da Fazenda Nacional (PGFN)';
 const REGRA_URL = 'https://votocheck.com.br/sobre#metodologia-divida-ativa-uniao';
+
+// --- Cruzamento adicional por CPF (24/09/2026) -----------------------------------------------
+// Ideia do Rodrigo: o nome sozinho pode dar homônimo, mas dá pra reduzir isso MUITO sem
+// armazenar CPF em lugar nenhum. O dado aberto do TSE (consulta_cand) publica o CPF COMPLETO
+// de cada candidato (NR_CPF_CANDIDATO) — é informação pública de agente político, diferente do
+// CPF de eleitor comum. A PGFN, por sua vez, publica o CPF parcialmente mascarado no formato
+// "XXX735.623XX" (3 mascarados, 6 dígitos centrais visíveis, 2 mascarados — confirmado lendo a
+// amostra real). Então: pra cada candidato que bateu por NOME, buscamos o CPF completo dele no
+// TSE (nunca gravamos isso em disco/banco/SQL — fica só em memória, descartado ao fim da
+// execução) e conferimos se os 6 dígitos centrais batem com os da PGFN.
+//   - Bate  -> confiança alta, mas AINDA ASSIM entra com status_id=2 (a REGRA DE OURO não mudou:
+//              nenhum match automático publica sozinho). O texto do atributo deixa claro que o
+//              CPF já foi conferido, então o clique de confirmação no painel vira um passo rápido
+//              de auditoria, não a checagem em si.
+//   - Não bate -> quase certamente homônimo (nome igual, pessoa diferente) -> o registro NEM
+//              ENTRA no banco (nunca chega a virar pendência). Isso reduz falso-positivo sem
+//              precisar de nenhuma revisão humana.
+//   - Não deu pra conferir (TSE fora do ar, nome ambíguo pra mais de um CPF, formato de máscara
+//              da PGFN diferente do esperado) -> comportamento antigo, sem mudança: entra como
+//              "a confirmar" pedindo checagem manual de CPF via TSE, igual sempre foi.
+// Rode com --pular-cpf pra desligar essa etapa e voltar ao comportamento só-por-nome de antes.
+const TSE_CDN_BASE = 'https://cdn.tse.jus.br/estatistica/sead/odsele';
+const TSE_ZIP_LOCAL_PATH = path.join(__dirname, 'input', `consulta_cand_${ANO_ELEICAO}.zip`);
 
 // Exige nome+sobrenome (2+ palavras) no índice de candidatos — reduz (não elimina) o risco de
 // colisão com nomes de uma palavra só. A checagem manual de CPF continua sendo a defesa real.
@@ -206,6 +231,103 @@ async function carregarCandidatos() {
   return indice;
 }
 
+/** Baixa (ou usa cache local em scripts/input/) o ZIP de candidatos do TSE — mesmo dataset e
+ *  mesma URL que collectors/tse_candidatos.js e importar_local.mjs já usam em produção. */
+async function obterZipCandidatosTse() {
+  if (existsSync(TSE_ZIP_LOCAL_PATH)) {
+    console.log(`[importar_pgfn] Usando ZIP de candidatos TSE já baixado: ${TSE_ZIP_LOCAL_PATH}`);
+    return readFileSync(TSE_ZIP_LOCAL_PATH);
+  }
+  const url = `${TSE_CDN_BASE}/consulta_cand/consulta_cand_${ANO_ELEICAO}.zip`;
+  console.log(`[importar_pgfn] Baixando dataset de candidatos do TSE (pra conferência de CPF): ${url}`);
+  const resp = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      Accept: 'application/zip,*/*',
+    },
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} ao baixar ${url}`);
+  const buffer = Buffer.from(await resp.arrayBuffer());
+  mkdirSync(path.dirname(TSE_ZIP_LOCAL_PATH), { recursive: true });
+  writeFileSync(TSE_ZIP_LOCAL_PATH, buffer);
+  console.log(`[importar_pgfn] ZIP do TSE salvo em cache local: ${TSE_ZIP_LOCAL_PATH}`);
+  return buffer;
+}
+
+/**
+ * Busca, no dataset aberto do TSE, o CPF completo (NR_CPF_CANDIDATO) de cada nome em
+ * `nomesDesejados` (já normalizados — só os nomes que deram match no PGFN, pra não processar o
+ * Brasil inteiro à toa). NUNCA grava isso em disco/banco — só em memória, descartado ao final
+ * desta função ser usada. Retorna Map(nomeNormalizado -> Set de CPFs em texto puro, só dígitos).
+ * Em caso de falha (TSE fora do ar, bloqueio de rede, etc.) retorna null e AVISA — quem chamou
+ * deve cair de volta pro fluxo manual-only, nunca travar a importação inteira por causa disso.
+ */
+async function carregarCpfsTsePorNome(nomesDesejados) {
+  try {
+    const zipBuffer = await obterZipCandidatosTse();
+    const zip = new AdmZip(zipBuffer);
+    const entradas = zip.getEntries().filter((e) => e.entryName.toLowerCase().endsWith('.csv'));
+    console.log(`[importar_pgfn] ${entradas.length} arquivo(s) CSV de candidatos do TSE — cruzando CPF só dos ${nomesDesejados.size} nome(s) que bateram no PGFN...`);
+
+    const mapa = new Map(); // nomeNormalizado -> Set(cpf só-dígitos)
+    for (const entrada of entradas) {
+      const texto = entrada.getData().toString('latin1');
+      const { header, rows } = parseTseCsv(texto);
+      const objetos = rowsToObjects(header, rows);
+      for (const row of objetos) {
+        const nome = row.NM_CANDIDATO;
+        if (!nome) continue;
+        const chave = normalizarNome(nome);
+        if (!nomesDesejados.has(chave)) continue;
+        const cpfDigitos = String(row.NR_CPF_CANDIDATO || '').replace(/\D/g, '');
+        if (cpfDigitos.length !== 11) continue;
+        if (!mapa.has(chave)) mapa.set(chave, new Set());
+        mapa.get(chave).add(cpfDigitos);
+      }
+    }
+    console.log(`[importar_pgfn] CPF do TSE localizado para ${mapa.size} de ${nomesDesejados.size} nome(s) buscados.`);
+    return mapa;
+  } catch (e) {
+    console.warn(
+      `[importar_pgfn] AVISO: não foi possível baixar/ler o dataset de candidatos do TSE pra conferência ` +
+        `de CPF (${e.message}). Seguindo sem essa conferência — todo mundo cai no fluxo manual-only de ` +
+        `sempre (checagem de CPF via TSE feita por você, no painel).`
+    );
+    return null;
+  }
+}
+
+/** Extrai os 6 dígitos centrais visíveis do CPF mascarado da PGFN (formato confirmado em
+ *  23/09/2026: "XXX735.623XX" — 3 mascarados, 3 dígitos, ponto, 3 dígitos, 2 mascarados).
+ *  Retorna null se o formato vier diferente do esperado (não força — prefere não conferir a
+ *  conferir errado). */
+function digitosVisiveisPgfn(cpfMascarado) {
+  if (!cpfMascarado) return null;
+  const m = String(cpfMascarado)
+    .trim()
+    .match(/^X{3}(\d{3})\.?(\d{3})X{2}$/i);
+  if (!m) return null;
+  return m[1] + m[2];
+}
+
+/**
+ * Confere um candidato específico contra o cruzamento de CPF. Retorna:
+ *   'confere'      -> os 6 dígitos centrais batem (mesma pessoa, confiança alta)
+ *   'nao_confere'  -> os 6 dígitos centrais NÃO batem (quase certamente homônimo)
+ *   'indisponivel' -> não deu pra conferir (sem dado do TSE, nome ambíguo p/ >1 CPF, ou máscara
+ *                     da PGFN em formato inesperado) — cai no fluxo manual-only de sempre
+ */
+function conferirCpf(nomeNormalizado, cpfMascaradoPgfn, cpfsTsePorNome) {
+  if (!cpfsTsePorNome) return 'indisponivel';
+  const digitosPgfn = digitosVisiveisPgfn(cpfMascaradoPgfn);
+  if (!digitosPgfn) return 'indisponivel';
+  const candidatosCpf = cpfsTsePorNome.get(nomeNormalizado);
+  if (!candidatosCpf || candidatosCpf.size !== 1) return 'indisponivel'; // 0 ou >1 CPF pro mesmo nome — ambíguo, não arrisca
+  const [cpfReal] = candidatosCpf;
+  const digitosReais = cpfReal.slice(3, 9);
+  return digitosReais === digitosPgfn ? 'confere' : 'nao_confere';
+}
+
 /** Itera as linhas de um Buffer sem nunca converter o Buffer inteiro em string
  *  (entradas do PGFN passam de 1 GB descomprimidas, acima do limite de string do V8). */
 function* linhasDoBuffer(buffer) {
@@ -280,6 +402,7 @@ function processarBuffer(nomeEntrada, buffer, indiceCandidatos, resultados, esta
       indicadorAjuizado: campos[colIdx.INDICADOR_AJUIZADO],
       valorConsolidado: Number(String(campos[colIdx.VALOR_CONSOLIDADO]).replace(',', '.')) || 0,
       arquivoOrigem: nomeEntrada,
+      cpfMascarado: campos[colIdx.CPF_CNPJ],
     };
 
     for (const candidato of candidatosMatch) {
@@ -291,19 +414,32 @@ function processarBuffer(nomeEntrada, buffer, indiceCandidatos, resultados, esta
   }
 }
 
-function montarValorAtributo(registros) {
+function montarValorAtributo(registros, confiancaCpf) {
   const total = registros.reduce((s, r) => s + r.valorConsolidado, 0);
   const temAjuizado = registros.some((r) => r.indicadorAjuizado === 'SIM');
   const tiposDevedor = [...new Set(registros.map((r) => r.tipoDevedor))];
   const situacoes = [...new Set(registros.map((r) => r.situacaoInscricao))];
   const receitas = [...new Set(registros.map((r) => r.receitaPrincipal))].slice(0, 6);
   const ufs = [...new Set(registros.map((r) => r.ufDevedor))];
-  return (
+  const base =
     `Nome encontrado na Dívida Ativa da União (PGFN), dado aberto trimestral — ` +
     `${registros.length} registro(s) de inscrição, valor consolidado somado R$ ${formatarValorBRL(total)}` +
     `${temAjuizado ? ', com pelo menos uma execução judicial em andamento' : ''}. ` +
     `Natureza da dívida: ${tiposDevedor.join(', ')}. Situação: ${situacoes.join(', ')}. ` +
-    `Tipo(s) de receita: ${receitas.join('; ')}. UF do devedor no registro: ${ufs.join(', ')}. ` +
+    `Tipo(s) de receita: ${receitas.join('; ')}. UF do devedor no registro: ${ufs.join(', ')}. `;
+
+  if (confiancaCpf === 'confere') {
+    return (
+      base +
+      `CPF CONFERIDO AUTOMATICAMENTE — os 6 dígitos centrais do CPF deste candidato (fonte: dado ` +
+      `aberto do TSE, consulta_cand) batem com os dígitos visíveis no registro da PGFN. Confiança ` +
+      `alta de que é a mesma pessoa. Mesmo assim, por regra do VotoCheck, isto só aparece no perfil ` +
+      `público depois de um curador confirmar pelo painel administrativo — aqui a confirmação é uma ` +
+      `auditoria rápida, não a checagem em si (que já foi feita automaticamente).`
+    );
+  }
+  return (
+    base +
     `AGUARDANDO CONFIRMAÇÃO MANUAL — o CPF divulgado pela PGFN vem parcialmente mascarado (LGPD), ` +
     `então este cruzamento é feito só por nome completo e pode ser homônimo. Não publicar como ` +
     `confirmado sem checar o CPF completo do candidato (consulta ao TSE) contra este registro.`
@@ -346,6 +482,38 @@ async function main() {
     `\n[importar_pgfn] Leitura concluída. ${resultados.size} candidatura(s) com possível dívida ativa (a confirmar).`
   );
 
+  // --- Conferência de CPF via TSE (24/09/2026) --- ver comentário no topo do arquivo.
+  const confiancaPorCandidatura = new Map(); // candidatura_id -> 'confere' | 'nao_confere' | 'indisponivel'
+  if (!args['pular-cpf'] && resultados.size > 0) {
+    const nomesParaConferir = new Set(
+      [...resultados.values()].map(({ candidato }) => normalizarNome(candidato.nome_completo))
+    );
+    const cpfsTsePorNome = await carregarCpfsTsePorNome(nomesParaConferir);
+    let nConfere = 0;
+    let nNaoConfere = 0;
+    let nIndisponivel = 0;
+    for (const [candidaturaId, { candidato, registros }] of resultados) {
+      const chave = normalizarNome(candidato.nome_completo);
+      const cpfMascarado = registros.find((r) => r.cpfMascarado)?.cpfMascarado;
+      const resultado = conferirCpf(chave, cpfMascarado, cpfsTsePorNome);
+      confiancaPorCandidatura.set(candidaturaId, resultado);
+      if (resultado === 'confere') nConfere++;
+      else if (resultado === 'nao_confere') nNaoConfere++;
+      else nIndisponivel++;
+    }
+    // Remove da lista quem o CPF contradisse — provável homônimo, nunca devia nem virar pendência.
+    for (const [candidaturaId, resultado] of confiancaPorCandidatura) {
+      if (resultado === 'nao_confere') resultados.delete(candidaturaId);
+    }
+    console.log(
+      `[importar_pgfn] Conferência de CPF via TSE: ${nConfere} confirmado(s) por CPF (alta confiança), ` +
+        `${nNaoConfere} descartado(s) automaticamente por CPF NÃO bater (provável homônimo — nunca chegou a virar pendência), ` +
+        `${nIndisponivel} sem conferência possível (segue fluxo manual de sempre).`
+    );
+  } else if (args['pular-cpf']) {
+    console.log(`[importar_pgfn] --pular-cpf: pulando a conferência de CPF via TSE (comportamento só-por-nome de antes).`);
+  }
+
   const dataColeta = new Date().toISOString().slice(0, 10);
   const sqlLines = [];
   sqlLines.push(`-- Gerado por scripts/importar_pgfn.mjs em ${new Date().toISOString()} — NÃO editar manualmente.`);
@@ -371,7 +539,7 @@ async function main() {
     const localizacao = `${registros.length} registro(s) de inscrição em dívida ativa — números: ${numerosAmostra}${
       registros.length > 10 ? '...' : ''
     }`;
-    const valor = montarValorAtributo(registros);
+    const valor = montarValorAtributo(registros, confiancaPorCandidatura.get(candidaturaId));
 
     sqlLines.push(
       `INSERT INTO evidencia (tipo, fonte_id, url, data_publicacao, id_externo, hash_arquivo, localizacao, status_id)

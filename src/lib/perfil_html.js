@@ -5,6 +5,10 @@
  * de onde veio (fonte oficial) — nunca uma afirmação solta sem origem rastreável.
  */
 import { pagina, escapeHtml, statusPill } from './estilo_html.js';
+// Seção 34 (24/09/2026): CTA de apoio também no fim da página de perfil, por pedido do
+// Rodrigo ("depois de cada página de esclarecimento e na home") — mesmo componente da home,
+// só troca a frase de abertura via `contexto: 'perfil'`.
+import { renderCtaApoio } from './jornada_html.js';
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null;
@@ -172,6 +176,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
         aberto ao próprio candidato e a qualquer cidadão.
       </p>
     </div>
+
+    ${renderCtaApoio({ contexto: 'perfil' })}
   `;
 
   return pagina({

@@ -134,7 +134,18 @@ async function chamarApi(path, options) {
   const resp = await fetch(path, Object.assign({}, options, {
     headers: Object.assign({ 'Authorization': 'Bearer ' + ADMIN_TOKEN, 'Content-Type': 'application/json' }, (options && options.headers) || {}),
   }));
-  const json = await resp.json();
+  // O Worker responde 401 com texto puro "Unauthorized" (não é JSON) quando o token está
+  // errado/ausente — tentar resp.json() direto nesse caso quebrava com um erro de JS ilegível
+  // ("Unexpected token 'U'...") em vez de avisar claramente que o token está errado.
+  if (resp.status === 401) {
+    throw new Error('Token incorreto (ou não configurado no Worker). Confira o ADMIN_TOKEN e tente de novo.');
+  }
+  let json;
+  try {
+    json = await resp.json();
+  } catch (e) {
+    throw new Error('Resposta inesperada do servidor (HTTP ' + resp.status + ', não era JSON).');
+  }
   if (!resp.ok || json.ok === false) {
     throw new Error(json.error || ('HTTP ' + resp.status));
   }
@@ -147,10 +158,14 @@ function escapeHtml(str) {
 
 function renderPendencia(p) {
   const nome = p.nome_completo || p.nome_urna_atual || '(sem nome)';
+  const cpfConferido = String(p.valor || '').indexOf('CPF CONFERIDO AUTOMATICAMENTE') !== -1;
+  const badge = cpfConferido
+    ? ' <span style="display:inline-block; font-size:11px; font-weight:600; color:var(--success); border:1px solid var(--success); border-radius:4px; padding:1px 6px; vertical-align:middle;">CPF conferido</span>'
+    : ' <span style="display:inline-block; font-size:11px; font-weight:600; color:var(--warning); border:1px solid var(--warning); border-radius:4px; padding:1px 6px; vertical-align:middle;">só nome — checar CPF</span>';
   return (
     '<div class="card" data-card="' + p.id + '">' +
       '<div class="card-header">' +
-        '<h3>' + escapeHtml(nome) + (p.nome_urna_atual && p.nome_urna_atual !== p.nome_completo ? ' <span style="color:var(--text-muted); font-weight:400;">(urna: ' + escapeHtml(p.nome_urna_atual) + ')</span>' : '') + '</h3>' +
+        '<h3>' + escapeHtml(nome) + (p.nome_urna_atual && p.nome_urna_atual !== p.nome_completo ? ' <span style="color:var(--text-muted); font-weight:400;">(urna: ' + escapeHtml(p.nome_urna_atual) + ')</span>' : '') + badge + '</h3>' +
         '<span class="meta">' + escapeHtml(p.cargo_nome || '') + ' · ' + escapeHtml(p.sg_uf || '') + (p.partido_sigla ? ' · ' + escapeHtml(p.partido_sigla) : '') + ' · pessoa_id=' + escapeHtml(p.pessoa_id) + '</span>' +
       '</div>' +
       '<div class="valor-texto">' + escapeHtml(p.valor) + '</div>' +
@@ -176,6 +191,16 @@ async function carregarPendencias() {
     contagem.textContent = json.total + ' pendência(s) a confirmar';
   } catch (e) {
     contagem.textContent = 'Erro ao carregar: ' + e.message;
+    if (e.message.indexOf('Token incorreto') === 0) {
+      // Token errado logo de cara — melhor voltar pro portão de entrada do que deixar a tela
+      // "app" travada mostrando erro pra sempre.
+      ADMIN_TOKEN = '';
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('gate').style.display = 'block';
+      document.getElementById('tokenInput').value = '';
+      document.getElementById('tokenInput').focus();
+      mostrarToast('Token incorreto — tente de novo.', 'error');
+    }
   }
 }
 

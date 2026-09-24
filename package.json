@@ -9,7 +9,8 @@
     "d1:create": "wrangler d1 create votocheck-db",
     "d1:migrate:local": "wrangler d1 execute votocheck-db --local --file=migrations/0001_schema_inicial.sql",
     "d1:migrate:remote": "wrangler d1 execute votocheck-db --remote --file=migrations/0001_schema_inicial.sql",
-    "importar:local": "node scripts/importar_local.mjs"
+    "importar:local": "node scripts/importar_local.mjs",
+    "importar:pgfn": "node scripts/importar_pgfn.mjs"
   },
   "devDependencies": {
     "wrangler": "^3.90.0"

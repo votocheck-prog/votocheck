@@ -55,6 +55,31 @@ export function renderSobre() {
         próximas atualizações.
       </p>
 
+      <h2 id="metodologia-divida-ativa-uniao" style="font-size:19px; margin-top:32px;">Metodologia — Dívida Ativa da União</h2>
+      <p>
+        Cruzamos periodicamente os dados abertos da <strong>Dívida Ativa da União</strong>
+        (Procuradoria-Geral da Fazenda Nacional — PGFN, publicados sob a Lei de Acesso à
+        Informação) com o nome completo de cada candidato cadastrado no VotoCheck.
+      </p>
+      <p>
+        Por exigência da LGPD, a própria PGFN divulga o CPF parcialmente oculto (ex.:
+        "XXX735.623XX"). Isso significa que o cruzamento é feito só pelo nome completo — e nome,
+        sozinho, não identifica uma pessoa com certeza: pode haver homônimos.
+      </p>
+      <p>
+        Por isso, todo resultado desse cruzamento entra no VotoCheck com o status
+        <strong>"a confirmar"</strong> e <strong>não aparece publicamente</strong> até que a
+        equipe do VotoCheck confirme manualmente — consultando o CPF completo do candidato
+        junto ao TSE — que o registro realmente pertence àquela pessoa e não a um homônimo. Só
+        depois dessa confirmação manual um dado de dívida ativa passa a ser exibido no perfil do
+        candidato, sempre com a fonte e o número de inscrição correspondentes.
+      </p>
+      <p>
+        Isto é uma aplicação direta do nosso princípio de "passaporte da evidência": nenhuma
+        informação é publicada sem fonte identificada, e nenhum cruzamento automático por nome é
+        publicado como se fosse um fato confirmado.
+      </p>
+
       <h2 style="font-size:19px; margin-top:32px;">Contestação e correção</h2>
       <p>
         Encontrou algo desatualizado, incompleto ou incorreto? Em breve o VotoCheck terá um

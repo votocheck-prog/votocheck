@@ -29,6 +29,9 @@
  *   GET  /admin/curadoria                       → painel web para resolver pendências de cruzamento
  *   GET  /admin/curadoria/pendencias             → lista pendências (JSON)
  *   POST /admin/curadoria/pendencias/:id/resolver → aplica decisão do curador (JSON)
+ *   GET  /admin/divida-ativa                     → painel web pra confirmar/descartar matches da PGFN (ver scripts/importar_pgfn.mjs)
+ *   GET  /admin/divida-ativa/pendencias          → lista matches "a confirmar" (JSON)
+ *   POST /admin/divida-ativa/pendencias/:id/resolver → confirma ou descarta um match (JSON)
  *
  * Cron Trigger (config em wrangler.toml):
  *   Dispara automaticamente os coletores no(s) horário(s) configurado(s). Ver scheduled() abaixo
@@ -41,6 +44,8 @@ import { coletarDeputados, coletarProposicoes, coletarVotacoes } from './collect
 import { coletarSenadores, coletarVotacoesSenado, cruzarSenadoresComTse } from './collectors/senado.js';
 import { listarPendencias, resolverPendencia } from './lib/curadoria.js';
 import { CURADORIA_HTML } from './lib/curadoria_html.js';
+import { listarPendenciasDividaAtiva, resolverPendenciaDividaAtiva } from './lib/divida_ativa.js';
+import { DIVIDA_ATIVA_HTML } from './lib/divida_ativa_html.js';
 import { renderHomepage, renderResultados } from './lib/busca_html.js';
 import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
@@ -568,7 +573,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       const pessoa = await db.prepare(`SELECT * FROM pessoa WHERE id = ?`).bind(pessoaId).first();
       if (!pessoa) return html404(renderNaoEncontrado(url.pathname));
 
-      const [candidaturasRes, mandatosRes, filiacoesRes] = await Promise.all([
+      const [candidaturasRes, mandatosRes, filiacoesRes, atributosRes] = await Promise.all([
         db
           .prepare(
             `SELECT c.*, ca.nome as cargo_nome, pa.sigla as partido_sigla, pa.nome as partido_nome,
@@ -605,6 +610,18 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           )
           .bind(pessoaId)
           .all(),
+        // Só atributos CONFIRMADOS (status_id=1) — os "a confirmar" (status_id=2, ver
+        // scripts/importar_pgfn.mjs e lib/divida_ativa.js) nunca aparecem aqui de propósito.
+        db
+          .prepare(
+            `SELECT ac.atributo_slug, ac.valor, ac.regra_publicada_url, ev.url as evidencia_url
+             FROM atributo_candidato ac
+             JOIN candidatura c ON c.id = ac.candidatura_id
+             LEFT JOIN evidencia ev ON ev.id = ac.evidencia_id
+             WHERE c.pessoa_id = ? AND ac.status_id = 1`
+          )
+          .bind(pessoaId)
+          .all(),
       ]);
 
       return html(
@@ -613,6 +630,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           candidaturas: candidaturasRes.results || [],
           mandatos: mandatosRes.results || [],
           filiacoes: filiacoesRes.results || [],
+          atributos: atributosRes.results || [],
           // feedback pós-POST de /acompanhar (ver rota abaixo) — sem JS, redirect com querystring
           acompanhar: {
             status: url.searchParams.get('acompanhar'),
@@ -747,6 +765,36 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         historicoId,
         decisao: body.decisao,
         pessoaDestinoId: body.pessoaDestinoId,
+        curador: body.curador,
+      });
+      return Response.json(result, { status: result.ok ? 200 : 400 });
+    }
+
+    // Painel de curadoria da Dívida Ativa (PGFN) — mesma lógica de proteção do painel acima:
+    // a página em si só serve HTML estático, o token é exigido nas rotas JSON.
+    if (url.pathname === '/admin/divida-ativa' && request.method === 'GET') {
+      return new Response(DIVIDA_ATIVA_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    if (url.pathname === '/admin/divida-ativa/pendencias' && request.method === 'GET') {
+      if (!requireAdminToken(request, env)) return new Response('Unauthorized', { status: 401 });
+      const result = await listarPendenciasDividaAtiva(env);
+      return Response.json(result, { status: result.ok ? 200 : 500 });
+    }
+
+    const resolverDividaMatch = url.pathname.match(/^\/admin\/divida-ativa\/pendencias\/(\d+)\/resolver$/);
+    if (resolverDividaMatch && request.method === 'POST') {
+      if (!requireAdminToken(request, env)) return new Response('Unauthorized', { status: 401 });
+      const id = Number(resolverDividaMatch[1]);
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return Response.json({ ok: false, error: 'Corpo da requisição precisa ser JSON válido.' }, { status: 400 });
+      }
+      const result = await resolverPendenciaDividaAtiva(env, {
+        id,
+        decisao: body.decisao,
         curador: body.curador,
       });
       return Response.json(result, { status: result.ok ? 200 : 400 });

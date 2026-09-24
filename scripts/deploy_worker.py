@@ -9,6 +9,17 @@ lista estava desatualizada (faltavam vários lib/*_html.js criados nas seções 
 forma). Se adicionar um arquivo novo com import próprio no futuro, adicione aqui também — não
 tem verificação automática disso.
 
+ATUALIZADO 23/09/2026 (seção 27): faltava `lib/partidos_logos.js`, novo módulo importado por
+`partidos_html.js` pra logos dos partidos — causa raiz confirmada de por que o deploy dessa
+sessão não atualizou /partidos em produção (upload rejeitado/incompleto pela API, Cloudflare
+manteve servindo a versão anterior em vez de quebrar visivelmente, o que mascarou o problema).
+Reforçando o aviso acima: esta lista é manual e SEM checagem automática — todo arquivo novo
+com import próprio (`lib/*_html.js`, `lib/*_logos.js`, etc.) tem que ser adicionado aqui à mão
+antes do deploy, ou o deploy fica silenciosamente desatualizado.
+
+ATUALIZADO 23/09/2026 (seção 31): adicionados `lib/divida_ativa.js` e `lib/divida_ativa_html.js`
+(painel de curadoria da Dívida Ativa PGFN, importados por index.js) — mesmo motivo do aviso acima.
+
 IMPORTANTE — secrets (ex.: RESEND_API_KEY): a API de upload de Worker tem histórico de
 descartar bindings existentes (inclusive secrets) quando a nova versão não os redeclara
 explicitamente — isso já foi reportado como bug mesmo usando o campo `keep_bindings` que
@@ -40,6 +51,8 @@ MODULES = [
     "lib/tse_parser.js",
     "lib/curadoria.js",
     "lib/curadoria_html.js",
+    "lib/divida_ativa.js",
+    "lib/divida_ativa_html.js",
     "lib/estilo_html.js",
     "lib/assets_data.js",
     "lib/icones.js",
@@ -52,6 +65,7 @@ MODULES = [
     "lib/sobre_html.js",
     "lib/institucional_html.js",
     "lib/partidos_html.js",
+    "lib/partidos_logos.js",
     "lib/judiciario_html.js",
     "lib/acompanhamento.js",
     "lib/acompanhamento_email.js",

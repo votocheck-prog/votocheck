@@ -59,6 +59,34 @@ function blocoMandato(m) {
   </div>`;
 }
 
+// Rótulo público de cada atributo_slug confirmado (ver lib/divida_ativa.js). Só usado depois que
+// um humano confirma manualmente — ver a regra em atributo_candidato.status_id.
+const RUBRICAS_ATRIBUTO = {
+  divida_ativa_uniao_a_confirmar: 'Dívida Ativa da União (PGFN)',
+};
+
+/** Bloco de atributos CONFIRMADOS (status_id=1) — nunca renderiza um "a confirmar". Segue o
+ *  princípio de "passaporte da evidência": todo item mostra a regra publicada que o rege. */
+function blocoAtributos(atributos) {
+  if (!atributos || !atributos.length) return '';
+  return `
+    <h2 style="font-size:18px; margin:28px 0 12px;">Informações verificadas</h2>
+    ${atributos
+      .map(
+        (a) => `
+      <div class="card" style="margin-bottom:12px;">
+        <strong style="font-size:14px;">${escapeHtml(RUBRICAS_ATRIBUTO[a.atributo_slug] || a.atributo_slug)}</strong>
+        <p style="font-size:13.5px; color:var(--text); margin:8px 0 0;">${escapeHtml(a.valor)}</p>
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);">
+          ${a.evidencia_url ? `Fonte: <a href="${escapeHtml(a.evidencia_url)}" target="_blank" rel="noopener">documento oficial</a> · ` : ''}
+          <a href="${escapeHtml(a.regra_publicada_url)}" target="_blank" rel="noopener">como verificamos isso</a>
+        </div>
+      </div>`
+      )
+      .join('')}
+  `;
+}
+
 const MENSAGENS_ACOMPANHAR = {
   ok: { tipo: 'sucesso', texto: 'Combinado — você está acompanhando este Representante Público. Resumos periódicos por e-mail chegam assim que essa parte estiver pronta (ainda estamos construindo o envio).' },
   ja_existia: { tipo: 'sucesso', texto: 'Você já estava acompanhando este Representante Público.' },
@@ -93,7 +121,7 @@ function blocoAcompanhar(pessoaId, acompanhar) {
   </div>`;
 }
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, acompanhar }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar }) {
   const nomeExibicao = pessoa.nome_urna_atual || pessoa.nome_completo;
   const idade = calcularIdade(pessoa.data_nascimento);
   const principal = candidaturas[0];
@@ -131,6 +159,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, acompa
         ${filiacoes.map((f) => `<li>${escapeHtml(f.sigla)}${f.nome ? ` — ${escapeHtml(f.nome)}` : ''}${f.data_inicio ? ` (desde ${escapeHtml(f.data_inicio)})` : ''}</li>`).join('')}
       </ul>
     ` : ''}
+
+    ${blocoAtributos(atributos)}
 
     ${blocoAcompanhar(pessoa.id, acompanhar)}
 

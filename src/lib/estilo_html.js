@@ -813,6 +813,171 @@ export const ESTILO_BASE = `
   @media (max-width: 640px) {
     .jud-ramos { grid-template-columns: 1fr; gap: 24px; }
   }
+
+  /* ===== Meu VotoCheck — quiz (quiz_html.js, 24/09/2026) =====
+     Regra de gamificação: todo card nasce "apagado" (não respondido) e some pra "ativo" só
+     quando o usuário toca — nunca uma posição neutra no meio da escala é tratada como resposta.
+     Ver aviso fixo (.quiz-aviso-topo) e nota no rodapé de cada pergunta de escala/espectro. */
+  .quiz-aviso-topo {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+  .quiz-progresso-wrap {
+    height: 6px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .quiz-progresso-barra {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.2s ease;
+  }
+  .quiz-cards { display: flex; flex-direction: column; gap: 16px; }
+  .quiz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+  }
+  .quiz-card--apagada { opacity: 0.55; }
+  .quiz-card.quiz-respondida { opacity: 1; border-color: var(--primary); }
+  .quiz-card-num {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .quiz-card-texto { font-size: 15.5px; font-weight: 600; margin: 0 0 6px; }
+  .quiz-card-ajuda { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; }
+  .quiz-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .quiz-opcoes--coluna { flex-direction: column; }
+  .quiz-opcao {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+  }
+  .quiz-opcao:hover { border-color: var(--primary); }
+  .quiz-opcao--ativa { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .quiz-opcao--tantofaz {
+    flex: 0 0 auto;
+    min-width: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border-style: dashed;
+    font-weight: 400;
+  }
+  .quiz-opcao--tantofaz.quiz-opcao--ativa { background: var(--text-muted); border-color: var(--text-muted); color: #fff; }
+  .quiz-escala-rotulos {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .quiz-slider { width: 100%; accent-color: var(--primary); }
+  .quiz-escala-estado { font-size: 12.5px; color: var(--text-muted); margin: 8px 0 0; }
+  .quiz-card--espectro .quiz-espectro-opcoes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .quiz-espectro-opcao {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+  }
+  .quiz-espectro-opcao strong { display: block; color: var(--primary); margin-bottom: 4px; }
+  .quiz-card--filtro { border-style: dashed; }
+  .quiz-partido-blocos { display: flex; flex-direction: column; gap: 12px; }
+  .quiz-partido-bloco-nome {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .quiz-partido-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .quiz-partido-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 10px 5px 8px;
+    cursor: pointer;
+  }
+  .quiz-partido-chip:has(input:checked) { border-color: var(--primary); color: var(--primary); }
+
+  /* ===== Resultado do quiz ===== */
+  .quiz-perfil-eleitor { margin-bottom: 8px; }
+  .quiz-resultado-linha {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 10px;
+  }
+  .quiz-resultado-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--primary);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .quiz-resultado-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .quiz-resultado-diverge { font-size: 12px; color: #B24C1F; margin-top: 2px; }
+
+  /* ===== Selos automáticos (presença / patrimônio) — perfil_html.js, 24/09/2026 =====
+     Cor neutra (nunca verde=bom/vermelho=ruim — ver princípio de nunca ranquear): o desvio em si
+     é só um dado comparativo, não um veredito. */
+  .selo-automatico {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+    margin: 0 6px 6px 0;
+  }
+  .selo-automatico-info { color: var(--text-muted); font-size: 11px; cursor: help; }
 `;
 
 /** Converte o código de status (tabela `status`) numa pill visual — nunca usa ✔️. */
@@ -838,6 +1003,7 @@ export function cabecalho() {
       <img src="data:image/png;base64,${LOGO_HEADER_B64}" alt="VotoCheck" width="204" height="73" />
     </a>
     <nav class="nav">
+      <a class="link-sobre" href="/quiz" style="color:var(--primary); font-weight:600;">Meu VotoCheck</a>
       <a class="link-sobre" href="/sobre">Sobre</a>
       <span class="tagline">Confira antes de decidir.</span>
     </nav>
@@ -850,6 +1016,7 @@ export function rodape() {
     Nenhuma informação aqui é opinião do VotoCheck — veja sempre a fonte de cada dado.
     <br>
     <a href="/sobre" style="color:var(--text-muted);">Sobre o VotoCheck</a> ·
+    <a href="/quiz" style="color:var(--text-muted);">Meu VotoCheck</a> ·
     <a href="/partidos" style="color:var(--text-muted);">Partidos Políticos</a> ·
     <a href="/judiciario" style="color:var(--text-muted);">O Judiciário</a> ·
     <a href="/termos" style="color:var(--text-muted);">Termos e Condições</a> ·

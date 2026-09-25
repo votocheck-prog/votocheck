@@ -91,6 +91,35 @@ function blocoAtributos(atributos) {
   `;
 }
 
+/**
+ * Selos automáticos (presença / crescimento patrimonial) — ver src/lib/selos.js pro cálculo e
+ * pra cobertura real hoje (as duas comparações ainda têm pouco ou nenhum dado disponível; isso
+ * é esperado, não um bug — o selo simplesmente não aparece até haver dado suficiente).
+ * Nunca usa cor verde/vermelho pra "bom/ruim" — o desvio é um dado comparativo, não um veredito
+ * (mesmo princípio de nunca ranquear/pontuar candidato que rege o resto do produto).
+ */
+function blocoSelos(selos, cargoNome) {
+  if (!selos || (!selos.presenca && !selos.patrimonio)) return '';
+  const partes = [];
+  if (selos.presenca) {
+    const sinal = selos.presenca.desvioPct >= 0 ? 'acima' : 'abaixo';
+    partes.push(`
+      <span class="selo-automatico">
+        Presença ${Math.abs(selos.presenca.desvioPct)}% ${sinal} da média de ${escapeHtml(cargoNome)}
+        <span class="selo-automatico-info" title="Presença mais recente: ${selos.presenca.percentualPropio}% · Média de ${escapeHtml(cargoNome)} em exercício: ${Math.round(selos.presenca.mediaCargo)}%">ⓘ</span>
+      </span>`);
+  }
+  if (selos.patrimonio) {
+    const sinal = selos.patrimonio.desvioPct >= 0 ? 'acima' : 'abaixo';
+    partes.push(`
+      <span class="selo-automatico">
+        Crescimento patrimonial ${Math.abs(selos.patrimonio.desvioPct)}% ${sinal} da média de ${escapeHtml(cargoNome)}
+        <span class="selo-automatico-info" title="Variação própria entre os dois ciclos mais recentes: ${Math.round(selos.patrimonio.variacaoPropiaPct)}% · Média de ${escapeHtml(cargoNome)}: ${Math.round(selos.patrimonio.mediaCargoPct)}%">ⓘ</span>
+      </span>`);
+  }
+  return `<div style="margin:4px 0 20px;">${partes.join('')}</div>`;
+}
+
 const MENSAGENS_ACOMPANHAR = {
   ok: { tipo: 'sucesso', texto: 'Combinado — você está acompanhando este Representante Público. Resumos periódicos por e-mail chegam assim que essa parte estiver pronta (ainda estamos construindo o envio).' },
   ja_existia: { tipo: 'sucesso', texto: 'Você já estava acompanhando este Representante Público.' },
@@ -125,7 +154,7 @@ function blocoAcompanhar(pessoaId, acompanhar) {
   </div>`;
 }
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null }) {
   const nomeExibicao = pessoa.nome_urna_atual || pessoa.nome_completo;
   const idade = calcularIdade(pessoa.data_nascimento);
   const principal = candidaturas[0];
@@ -148,6 +177,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
       ${pessoa.grau_instrucao ? `<span>${escapeHtml(pessoa.grau_instrucao)}</span>` : ''}
       ${pessoa.cor_raca ? `<span>${escapeHtml(pessoa.cor_raca)}</span>` : ''}
     </div>
+
+    ${blocoSelos(selos, principal ? principal.cargo_nome : '')}
 
     <h2 style="font-size:18px; margin-bottom:12px;">Candidatura${candidaturas.length > 1 ? 's' : ''} 2026</h2>
     ${candidaturas.map(blocoCandidatura).join('') || '<p style="color:var(--text-muted);">Nenhuma candidatura registrada.</p>'}

@@ -39,6 +39,10 @@ existem, e avisa alto se algum sumiu.
 ATUALIZADO 24/09/2026 (seção 33): adicionado `lib/clipping_mensal.js` (dados do resumo mensal de
 atuação enviado a quem acompanha um Representante Público, chamado a partir de scheduled() em
 index.js) — mesmo motivo dos avisos acima.
+
+ATUALIZADO 25/09/2026: adicionados `lib/quiz_config.js`, `lib/quiz_html.js` e `lib/selos.js`
+(quiz "Meu VotoCheck" — perguntas, matching e renderização — e cálculo dos selos automáticos de
+presença/patrimônio no perfil), todos importados por index.js — mesmo motivo dos avisos acima.
 """
 import json
 import os
@@ -83,6 +87,9 @@ MODULES = [
     "lib/clipping_mensal.js",
     "lib/acompanhamento_email.js",
     "lib/email.js",
+    "lib/quiz_config.js",
+    "lib/quiz_html.js",
+    "lib/selos.js",
 ]
 
 for nome, valor in (("RESEND_API_KEY", RESEND_API_KEY), ("ADMIN_TOKEN", ADMIN_TOKEN)):

@@ -150,14 +150,16 @@ export const PARTIDOS_INFO = [
 export const LEGENDA_ORDENACAO =
   'Partidos listados em ordem crescente do número eleitoral oficial (o mesmo número usado na urna) — critério numérico e neutro, não é ranking de relevância, tamanho de bancada ou preferência do VotoCheck.';
 
-function partidosOrdenados() {
+export function partidosOrdenados() {
   return [...PARTIDOS_INFO].sort((a, b) => a.numero - b.numero);
 }
 
-const ZONAS_ESPECTRO = ['Esquerda', 'Centro-esquerda', 'Centro', 'Centro-direita', 'Direita'];
+export const ZONAS_ESPECTRO = ['Esquerda', 'Centro-esquerda', 'Centro', 'Centro-direita', 'Direita'];
 
-/** Deriva a faixa [zonaMin, zonaMax] (1–5) direto do texto de `familiaIdeologica`. Ver nota no topo do arquivo. */
-function faixaEspectro(familia) {
+/** Deriva a faixa [zonaMin, zonaMax] (1–5) direto do texto de `familiaIdeologica`. Ver nota no topo do arquivo.
+ * Exportada (24/09/2026) para reaproveitamento no filtro de partido/ideologia e na pergunta de
+ * espectro do quiz "Meu VotoCheck" — ver src/lib/quiz_config.js: nunca duplicar essa classificação. */
+export function faixaEspectro(familia) {
   const tokens = familia.toLowerCase().split('/').map((t) => t.trim());
   const zonas = [];
   for (const t of tokens) {
@@ -171,7 +173,7 @@ function faixaEspectro(familia) {
   return [Math.min(...zonas), Math.max(...zonas)];
 }
 
-function zonaPrincipal(familia) {
+export function zonaPrincipal(familia) {
   const [min, max] = faixaEspectro(familia);
   return Math.round((min + max) / 2);
 }

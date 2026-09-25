@@ -53,8 +53,12 @@ import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
 import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
-import { renderPartidos, PARTIDOS_INFO } from './lib/partidos_html.js';
+import { renderPartidos, PARTIDOS_INFO, zonaPrincipal } from './lib/partidos_html.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
+import { calcularSelos } from './lib/selos.js';
+import { renderQuizEscolhaCargo, renderQuiz, renderQuizResultado, cargoQuizPorSlug } from './lib/quiz_html.js';
+import { PERGUNTAS, ESPECTRO, avaliarCandidato, resumoResposta } from './lib/quiz_config.js';
+import { RUBRICA_CURTA } from './lib/quiz_html.js';
 import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
 import { emailConfirmacaoAcompanhamento } from './lib/acompanhamento_email.js';
 import { enviarEmail } from './lib/email.js';
@@ -303,6 +307,184 @@ async function buscarComCache(env, ctx, { queryString, buscar }) {
   return resultado;
 }
 
+/** TSE usa um vocabulário fechado de grau de instrução — mapeia pra "tem formação superior
+ *  completa (ou maior)?" (true/false) ou null quando o texto não bate com nenhuma categoria
+ *  conhecida (nunca adivinha). Ver pergunta 6 do quiz, src/lib/quiz_config.js. */
+function temFormacaoSuperior(grauInstrucao) {
+  if (!grauInstrucao) return null;
+  const g = grauInstrucao
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+  if (g.includes('SUPERIOR COMPLETO') || g.includes('POS-GRADUA') || g.includes('MESTRADO') || g.includes('DOUTORADO')) return true;
+  if (
+    g.includes('SUPERIOR INCOMPLETO') ||
+    g.includes('MEDIO') ||
+    g.includes('FUNDAMENTAL') ||
+    g.includes('ANALFABETO') ||
+    g.includes('LE E ESCREVE')
+  ) {
+    return false;
+  }
+  return null;
+}
+
+const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado';
+
+/**
+ * GET /quiz/resultado — calcula, dentro do recorte de cargo (+UF), quais candidatos "combinam"
+ * (bateram com TODOS os critérios que o usuário respondeu) e quais divergem em pelo menos um,
+ * junto com o "seu perfil de eleitor". Nunca grava nada no banco (ver nota no topo de
+ * quiz_html.js) — só lê, com o mesmo padrão de cache versionado já usado em /buscar e /partidos
+ * (ver `obterVersaoDados`/`buscarComCache` acima), pra não bater na cota de leitura do D1 à toa
+ * quando o mesmo link de resultado for reaberto.
+ */
+async function rotaQuizResultado(url, env, ctx) {
+  const cargoSlug = (url.searchParams.get('cargo') || '').trim();
+  const cargoInfo = cargoQuizPorSlug(cargoSlug);
+  const ufParam = (url.searchParams.get('uf') || '').trim().toUpperCase();
+  if (!cargoInfo || (!cargoInfo.semUf && !ufParam)) {
+    return Response.redirect(new URL('/quiz', url.origin).toString(), 302);
+  }
+  const uf = cargoInfo.semUf ? 'BR' : ufParam;
+
+  // Respostas efetivamente dadas (perguntas "tanto faz"/não tocadas não chegam à querystring —
+  // ver quiz_html.js: o campo hidden só recebe valor quando o usuário toca no card/slider).
+  const respostas = {};
+  for (const p of [...PERGUNTAS, ESPECTRO]) {
+    const v = url.searchParams.get(p.slug);
+    if (v !== null && v !== '') {
+      respostas[p.slug] = p.tipo === 'escala' || p.tipo === 'espectro' ? Number(v) : v;
+    }
+  }
+
+  // Filtro de partido: "tudo marcado" ou "tudo desmarcado" contam como NENHUM filtro (ver
+  // decisão registrada em quiz_html.js/filtroPartidos) — só filtra de verdade quando o usuário
+  // deixou uma seleção parcial.
+  const totalPartidosConhecidos = Number(url.searchParams.get('partidos_total')) || PARTIDOS_INFO.length;
+  const siglasMarcadas = PARTIDOS_INFO.filter((p) => url.searchParams.get(`partido_${p.sigla}`) === '1').map((p) => p.sigla);
+  const filtroPartidoAtivo = siglasMarcadas.length > 0 && siglasMarcadas.length < totalPartidosConhecidos;
+
+  const cargoRow = await env.DB.prepare(`SELECT id, nome FROM cargo WHERE slug = ?`).bind(cargoSlug).first();
+  if (!cargoRow) return html404(render404(url.pathname));
+
+  const precisaTrocaPartido = 'trocou_de_partido' in respostas;
+  const precisaDividaAtiva = 'divida_ativa_uniao_confirmada' in respostas;
+  const precisaAlinhamento = 'alinhamento_bancada' in respostas;
+
+  const colunasExtra = [
+    precisaTrocaPartido
+      ? `(SELECT COUNT(*) FROM filiacao_partidaria fp WHERE fp.pessoa_id = c.pessoa_id) > 1 as trocou_partido`
+      : null,
+    precisaDividaAtiva
+      ? `EXISTS (SELECT 1 FROM atributo_candidato ac WHERE ac.candidatura_id = c.id AND ac.atributo_slug = 'divida_ativa_uniao_a_confirmar' AND ac.status_id = 1) as divida_ativa`
+      : null,
+    precisaAlinhamento
+      ? `(SELECT CASE WHEN COUNT(*) = 0 THEN NULL ELSE SUM(CASE WHEN vp.voto = vp.orientacao_bancada THEN 1 ELSE 0 END) * 100.0 / COUNT(*) END
+          FROM voto_parlamentar vp WHERE vp.pessoa_id = c.pessoa_id AND vp.orientacao_bancada IS NOT NULL AND vp.orientacao_bancada <> '') as alinhamento_pct`
+      : null,
+  ].filter(Boolean);
+
+  const condicoes = ['c.ano_eleicao = ?', 'c.cargo_id = ?'];
+  const params = [ANO_ATUAL, cargoRow.id];
+  if (!cargoInfo.semUf) {
+    condicoes.push('c.sg_uf = ?');
+    params.push(uf);
+  }
+  if (filtroPartidoAtivo) {
+    condicoes.push(`pa.sigla IN (${siglasMarcadas.map(() => '?').join(',')})`);
+    params.push(...siglasMarcadas);
+  }
+
+  const chaveCache = `${CACHE_KEY_QUIZ_PREFIX}${url.search}`;
+
+  const buscarNoD1 = async () => {
+    const { results } = await env.DB.prepare(
+      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, c.sg_uf, ca.nome as cargo_nome,
+              pa.sigla as partido_sigla, c.reeleicao, c.declarou_bens
+              ${colunasExtra.length ? ', ' + colunasExtra.join(', ') : ''}
+       FROM candidatura c
+       JOIN pessoa p ON p.id = c.pessoa_id
+       JOIN cargo ca ON ca.id = c.cargo_id
+       LEFT JOIN partido pa ON pa.id = c.partido_id
+       WHERE ${condicoes.join(' AND ')}
+       ORDER BY p.nome_urna_atual ASC
+       LIMIT 1000`
+    )
+      .bind(...params)
+      .all();
+    return results || [];
+  };
+
+  let candidatos = [];
+  try {
+    const versao = await obterVersaoDados(env);
+    const chave = new Request(`${chaveCache}&_v=${encodeURIComponent(versao)}`);
+    const cache = caches.default;
+    const cacheado = await cache.match(chave);
+    if (cacheado) {
+      candidatos = await cacheado.json();
+    } else {
+      candidatos = await buscarNoD1();
+      ctx.waitUntil(cache.put(chave, new Response(JSON.stringify(candidatos), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=86400' } })));
+    }
+  } catch (e) {
+    console.error('Falha ao buscar candidatos pro quiz, tentando sem cache:', e);
+    try {
+      candidatos = await buscarNoD1();
+    } catch (e2) {
+      console.error('Falha em buscarNoD1 (quiz):', e2);
+    }
+  }
+
+  const totalPerguntasRespondidas = Object.keys(respostas).length;
+  const combinam = [];
+  const naoBateram = [];
+
+  if (totalPerguntasRespondidas > 0) {
+    for (const c of candidatos) {
+      const partidoInfo = PARTIDOS_INFO.find((p) => p.sigla === c.partido_sigla);
+      const sinais = {
+        reeleicao: c.reeleicao ?? null,
+        declarouBens: c.declarou_bens === 'S' ? true : c.declarou_bens === 'N' ? false : null,
+        grauInstrucaoSuperior: temFormacaoSuperior(c.grau_instrucao),
+        trocouPartido: precisaTrocaPartido ? Boolean(c.trocou_partido) : null,
+        dividaAtivaConfirmada: precisaDividaAtiva ? Boolean(c.divida_ativa) : null,
+        alinhamentoBancadaPct: precisaAlinhamento ? c.alinhamento_pct : null,
+        zonaEspectro: partidoInfo ? zonaPrincipal(partidoInfo.familiaIdeologica) : null,
+      };
+      const avaliacao = avaliarCandidato(respostas, sinais);
+      if (avaliacao.combina) {
+        combinam.push(c);
+      } else {
+        naoBateram.push({ candidato: c, tags: avaliacao.divergeEm.map((slug) => RUBRICA_CURTA[slug] || slug) });
+      }
+    }
+  }
+
+  const respostasLegiveis = Object.entries(respostas)
+    .map(([slug, valor]) => resumoResposta(slug, valor))
+    .filter(Boolean);
+
+  const voltarQuery = new URLSearchParams();
+  voltarQuery.set('cargo', cargoSlug);
+  if (!cargoInfo.semUf) voltarQuery.set('uf', uf);
+
+  return html(
+    renderQuizResultado({
+      cargo: cargoSlug,
+      uf: cargoInfo.semUf ? '' : uf,
+      cargoNome: cargoRow.nome,
+      totalPerguntasRespondidas,
+      combinam: totalPerguntasRespondidas > 0 ? combinam : candidatos,
+      naoBateram,
+      totalCandidatos: candidatos.length,
+      respostasLegiveis,
+      voltarQuery: voltarQuery.toString(),
+    })
+  );
+}
+
 const ROTAS = {
   'POST /admin/coletar/tse-candidatos': async (req, env, url) => coletarCandidatos(env, Number(url.searchParams.get('ano')) || 2026),
   'POST /admin/coletar/tse-redes-sociais': async (req, env, url) => coletarRedesSociais(env, Number(url.searchParams.get('ano')) || 2026),
@@ -503,6 +685,21 @@ async function fetchInterno(request, env, ctx) {
       return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla }));
     }
 
+    if (url.pathname === '/quiz' && request.method === 'GET') {
+      const cargoSlug = (url.searchParams.get('cargo') || '').trim();
+      if (!cargoSlug) return html(renderQuizEscolhaCargo());
+      const cargoInfo = cargoQuizPorSlug(cargoSlug);
+      const ufParam = (url.searchParams.get('uf') || '').trim().toUpperCase();
+      if (!cargoInfo || (!cargoInfo.semUf && !ufParam)) {
+        return Response.redirect(new URL('/quiz', url.origin).toString(), 302);
+      }
+      return html(renderQuiz({ cargo: cargoSlug, uf: cargoInfo.semUf ? '' : ufParam }));
+    }
+
+    if (url.pathname === '/quiz/resultado' && request.method === 'GET') {
+      return await rotaQuizResultado(url, env, ctx);
+    }
+
     const cargoMatch = url.pathname.match(/^\/cargo\/([a-z_]+)$/);
     if (cargoMatch && request.method === 'GET') {
       const slug = cargoMatch[1];
@@ -540,6 +737,7 @@ async function fetchInterno(request, env, ctx) {
         { loc: '/', prioridade: '1.0' },
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
+        { loc: '/quiz', prioridade: '0.8' },
         { loc: '/partidos', prioridade: '0.6' },
         { loc: '/judiciario', prioridade: '0.4' },
         { loc: '/termos', prioridade: '0.3' },
@@ -626,6 +824,19 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           .all(),
       ]);
 
+      // Selos automáticos (presença / crescimento patrimonial) — ver src/lib/selos.js. Cargo de
+      // referência = o da candidatura de 2026 (a mais recente), quando existir; sem candidatura
+      // 2026 não há cargo pra comparar contra pares, e os dois selos ficam ausentes (nunca um erro).
+      let selos = null;
+      const candidaturaAtual = (candidaturasRes.results || []).find((c) => c.ano_eleicao === ANO_ATUAL);
+      if (candidaturaAtual) {
+        try {
+          selos = await calcularSelos(env, { pessoaId, cargoId: candidaturaAtual.cargo_id });
+        } catch (e) {
+          console.error('Falha em calcularSelos:', e);
+        }
+      }
+
       return html(
         renderPerfil({
           pessoa,
@@ -633,6 +844,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           mandatos: mandatosRes.results || [],
           filiacoes: filiacoesRes.results || [],
           atributos: atributosRes.results || [],
+          selos,
           // feedback pós-POST de /acompanhar (ver rota abaixo) — sem JS, redirect com querystring
           acompanhar: {
             status: url.searchParams.get('acompanhar'),

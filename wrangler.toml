@@ -4,6 +4,7 @@
 name = "votocheck-coletor"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
+account_id = "22688effbd9ab181498d04ccd2cc8d2e"
 
 # Banco D1 — depois de criar com `wrangler d1 create votocheck-db`, cole o database_id retornado aqui.
 [[d1_databases]]

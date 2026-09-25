@@ -2,3 +2,9 @@ node_modules/
 .wrangler/
 .dev.vars
 *.log
+
+# Artefatos de import/coleta — arquivos baixados ou gerados localmente, nunca código-fonte.
+# candidatos_2026.sql sozinho já passa de 50MB e o GitHub trava push de qualquer arquivo >100MB
+# (achado em 25/09/2026, tentando commitar o SQL gerado pelo importar_local.mjs).
+scripts/output/
+scripts/input/

@@ -196,7 +196,12 @@ async function main() {
 
   const sqlLines = [];
   sqlLines.push('-- Gerado por scripts/importar_local.mjs — NÃO editar manualmente.');
-  sqlLines.push('BEGIN TRANSACTION;');
+  // NUNCA emitir BEGIN TRANSACTION/COMMIT aqui: o D1 recusa esses comandos em SQL aplicado via
+  // `wrangler d1 execute --file=` — ele já aplica o arquivo inteiro como uma transação própria
+  // internamente (API state.storage.transaction()), e trata BEGIN/SAVEPOINT manual como erro
+  // (achado em 25/09/2026, rodando este script na máquina do Rodrigo pela 1ª vez — ver também
+  // importar_pgfn.mjs, que já tratava isso ao aplicar via API direta, mas nunca ao gerar arquivo
+  // pra wrangler).
   sqlLines.push(`INSERT OR IGNORE INTO fonte (nome, tipo, url_base, descricao) VALUES ('Tribunal Superior Eleitoral', 'institucional_oficial', 'https://dadosabertos.tse.jus.br', 'Dados abertos oficiais do TSE');`);
 
   let lidos = 0;
@@ -252,8 +257,6 @@ async function main() {
       `INSERT OR IGNORE INTO partido (numero, sigla, nome) VALUES (${sqlEscape(numero)}, ${sqlEscape(sigla)}, ${sqlEscape(nome)});`
     );
   }
-
-  sqlLines.push('COMMIT;');
 
   // Partidos precisam vir ANTES das candidaturas para o subselect funcionar — reordena o array
   const partidoInserts = sqlLines.filter((l) => l.startsWith('INSERT OR IGNORE INTO partido'));

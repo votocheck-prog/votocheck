@@ -184,6 +184,12 @@ function mapConsultaCandRow(row) {
     composicao_coligacao: tseTextOrNull(row.DS_COMPOSICAO_COLIGACAO),
     situacao_candidatura: tseTextOrNull(row.DS_SITUACAO_CANDIDATURA),
     situacao_totalizacao_turno: tseTextOrNull(row.DS_SIT_TOT_TURNO),
+    // Achado em 25/09/2026 comparando com src/lib/tse_parser.js (usado pelo coletor do Worker,
+    // já corrigido antes desta sessão): este script tinha os mesmos dois campos descartados —
+    // nunca chegavam a virar coluna. Corrigido agora, mesmos nomes de campo do TSE que o parser
+    // do Worker já usa (ver migrations/0004_reeleicao_declarou_bens.sql).
+    reeleicao: tseTextOrNull(row.ST_REELEICAO),
+    declarou_bens: tseTextOrNull(row.ST_DECLARAR_BENS),
   };
 }
 
@@ -236,7 +242,7 @@ async function main() {
       );
 
       sqlLines.push(
-        `INSERT INTO candidatura (pessoa_id, ano_eleicao, turno, cargo_id, sg_uf, sq_candidato_tse, numero_urna, nome_urna, partido_id, sq_coligacao, nome_coligacao, composicao_coligacao, situacao_candidatura, situacao_totalizacao_turno, status_id, fonte_id)
+        `INSERT INTO candidatura (pessoa_id, ano_eleicao, turno, cargo_id, sg_uf, sq_candidato_tse, numero_urna, nome_urna, partido_id, sq_coligacao, nome_coligacao, composicao_coligacao, situacao_candidatura, situacao_totalizacao_turno, reeleicao, declarou_bens, status_id, fonte_id)
          SELECT
            (SELECT id FROM pessoa WHERE cpf_hash = ${sqlEscape(cpfHash)} OR sq_candidato_tse_atual = ${sqlEscape(mapped.sq_candidato_tse)} LIMIT 1),
            ${sqlEscape(mapped.ano_eleicao)}, ${sqlEscape(mapped.turno)},
@@ -244,9 +250,18 @@ async function main() {
            ${sqlEscape(mapped.sg_uf)}, ${sqlEscape(mapped.sq_candidato_tse)}, ${sqlEscape(mapped.numero_urna)}, ${sqlEscape(mapped.nome_urna)},
            (SELECT id FROM partido WHERE numero = ${sqlEscape(mapped.numero_partido)}),
            ${sqlEscape(mapped.sq_coligacao)}, ${sqlEscape(mapped.nome_coligacao)}, ${sqlEscape(mapped.composicao_coligacao)},
-           ${sqlEscape(mapped.situacao_candidatura)}, ${sqlEscape(mapped.situacao_totalizacao_turno)}, 2,
+           ${sqlEscape(mapped.situacao_candidatura)}, ${sqlEscape(mapped.situacao_totalizacao_turno)},
+           ${sqlEscape(mapped.reeleicao)}, ${sqlEscape(mapped.declarou_bens)}, 2,
            (SELECT id FROM fonte WHERE nome = 'Tribunal Superior Eleitoral')
          WHERE NOT EXISTS (SELECT 1 FROM candidatura WHERE ano_eleicao = ${sqlEscape(mapped.ano_eleicao)} AND sq_candidato_tse = ${sqlEscape(mapped.sq_candidato_tse)});`
+      );
+      // Backfill pra quem já foi inserido antes desta correção (achado em 25/09/2026 — ver nota em
+      // mapConsultaCandRow) — UPDATE incondicional é seguro mesmo pra quem acabou de ser inserido
+      // pelo INSERT acima (só reescreve os mesmos dois valores). Custo baixo: chave já é indexada
+      // (UNIQUE(ano_eleicao, sq_candidato_tse)).
+      sqlLines.push(
+        `UPDATE candidatura SET reeleicao = ${sqlEscape(mapped.reeleicao)}, declarou_bens = ${sqlEscape(mapped.declarou_bens)}
+         WHERE ano_eleicao = ${sqlEscape(mapped.ano_eleicao)} AND sq_candidato_tse = ${sqlEscape(mapped.sq_candidato_tse)};`
       );
       gravados++;
     }

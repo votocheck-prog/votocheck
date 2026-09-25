@@ -840,6 +840,12 @@ export const ESTILO_BASE = `
     background: var(--primary);
     transition: width 0.2s ease;
   }
+  .quiz-progresso-legenda {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: -16px 0 20px;
+  }
   .quiz-cards { display: flex; flex-direction: column; gap: 16px; }
   .quiz-card {
     background: var(--surface);

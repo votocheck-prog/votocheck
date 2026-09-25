@@ -26,11 +26,9 @@
  *      abaixo, só para referência/documentação — a UI nunca esconde uma pergunta por causa
  *      disso, ela só aparece como "sem dado suficiente" por candidato quando faltar o sinal).
  *
- * PENDENTE DE CONFIRMAÇÃO DO RODRIGO: o texto de ESPECTRO.opcaoA/opcaoB abaixo é um rascunho
- * meu, reconstruindo a partir do que o doc registra em prosa (tema: grau de controle do Estado
- * sobre recursos/infraestrutura; ajuste aceito: "indicando gestores públicos para essas áreas"
- * no lugar de "escolhendo pessoas ligadas ao governo") — o doc nunca cita o texto final literal
- * que o Rodrigo escreveu. NÃO publicar sem ele confirmar ou substituir este texto.
+ *   4) Texto de ESPECTRO.opcaoA/opcaoB (25/09/2026): aprovado pelo Rodrigo, texto dele próprio,
+ *      com um único ajuste de neutralidade combinado com ele (ver comentário junto a `ESPECTRO`
+ *      abaixo). Ele revisa como fica na prática e ajusta depois se achar necessário.
  */
 
 // ============================================================
@@ -115,16 +113,21 @@ export const PERGUNTAS = [
  * ser opcional). O resultado usa a família ideológica do PARTIDO do candidato, nunca uma posição
  * pessoal verificada dele — isso é explicado na própria UI, perto do cursor (ver quiz_html.js).
  *
- * ⚠ TEXTO PENDENTE — ver nota no topo do arquivo. `opcaoA`/`opcaoB` são um rascunho meu, não o
- * texto final do Rodrigo.
+ * Texto final aprovado pelo Rodrigo em 25/09/2026 (substitui o rascunho anterior). Único ajuste
+ * feito por mim, também aprovado por ele: troquei "escolhendo pessoas ligadas ao governo" —
+ * carregava conotação de apadrinhamento que pesava contra a opção A sem necessidade — por
+ * "podendo indicar diretamente os gestores responsáveis por essas áreas", que descreve o mesmo
+ * fato (nomeação política de gestores) de forma neutra.
  */
 export const ESPECTRO = {
   slug: 'espectro_estado_mercado',
   ordem: 7,
   tipo: 'espectro',
-  textoIntro: 'Sobre o papel do Estado em setores estratégicos (energia, água, infraestrutura):',
-  opcaoA: 'O Estado deve ter um papel forte nesses setores, inclusive indicando gestores públicos para essas áreas.',
-  opcaoB: 'Esses setores devem ser conduzidos principalmente pela iniciativa privada, com o Estado tendo um papel menor.',
+  textoIntro: 'Como você acredita que o Estado/poder público deve interferir na vida das pessoas?',
+  opcaoA:
+    'Alto controle e atuação, cuidando não só de assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, mas também controlando e monopolizando recursos naturais (petróleo, energia, minerais etc.) e infraestrutura (telecomunicações, estradas, ferrovias etc.), podendo indicar diretamente os gestores responsáveis por essas áreas — com uma estrutura administrativa maior, de maior custo, tributos mais altos, mas com o Estado no controle total das frentes não essenciais (recursos e infraestrutura).',
+  opcaoB:
+    'Atuação focada em assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, delegando o controle de outros assuntos a empresas privadas — ficando com a fiscalização e regulação, com uma estrutura de pessoas, ativos e custo mais enxuta, ágil e focada, mas com menor poder de controle sobre as frentes não essenciais (recursos e infraestrutura).',
   aviso: 'Usa a família ideológica do partido do candidato (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra na sua recomendação se você tocar no cursor.',
 };
 

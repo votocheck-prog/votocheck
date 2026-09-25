@@ -19,6 +19,7 @@
 import { pagina, escapeHtml } from './estilo_html.js';
 import { PERGUNTAS, ESPECTRO, ZONAS_ESPECTRO, partidosOrdenados, zonaPrincipal } from './quiz_config.js';
 import { Icone } from './icones.js';
+import { renderCtaApoio } from './jornada_html.js';
 
 const CARGOS_QUIZ = [
   { slug: 'presidente', nome: 'Presidente', semUf: true },
@@ -228,6 +229,7 @@ export function renderQuiz({ cargo, uf }) {
       </p>
       <div class="quiz-aviso-topo">Só as perguntas que você responder entram na sua recomendação.</div>
       <div class="quiz-progresso-wrap"><div class="quiz-progresso-barra" id="quiz-progresso" style="width:0%"></div></div>
+      <p id="quiz-progresso-legenda" class="quiz-progresso-legenda">0 de ${totalPerguntas} perguntas respondidas</p>
 
       <form method="GET" action="/quiz/resultado" id="quiz-form">
         <input type="hidden" name="cargo" value="${escapeHtml(cargo)}" />
@@ -244,10 +246,18 @@ export function renderQuiz({ cargo, uf }) {
         var form = document.getElementById('quiz-form');
         var cards = Array.prototype.slice.call(form.querySelectorAll('.quiz-card[data-slug]'));
         var progresso = document.getElementById('quiz-progresso');
+        var legenda = document.getElementById('quiz-progresso-legenda');
 
         function atualizarProgresso() {
           var respondidas = cards.filter(function (c) { return c.classList.contains('quiz-respondida'); }).length;
           progresso.style.width = (respondidas / cards.length * 100) + '%';
+          if (legenda) {
+            var texto = respondidas + ' de ' + cards.length + ' perguntas respondidas';
+            if (respondidas === 0) texto += ' — cada uma que você responder deixa a recomendação mais precisa';
+            else if (respondidas < cards.length) texto += ' — quanto mais, melhor sua recomendação';
+            else texto += ' — pronto pra ver o resultado';
+            legenda.textContent = texto;
+          }
         }
 
         cards.forEach(function (card) {
@@ -404,6 +414,8 @@ export function renderQuizResultado({
         Esta lista nunca é um ranking — a ordem é sempre alfabética. "Combina"/"diverge" descreve só
         os critérios que você escolheu responder, não uma nota do candidato.
       </p>
+
+      ${renderCtaApoio({ contexto: 'quiz' })}
     </div>`;
 
   return pagina({

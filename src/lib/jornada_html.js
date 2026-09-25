@@ -292,6 +292,8 @@ export function renderCtaApoio({ contexto = 'home' } = {}) {
   const abertura =
     contexto === 'perfil'
       ? 'Esse perfil ajudou você a se decidir sobre esse candidato ou representante?'
+      : contexto === 'quiz'
+      ? 'Esse resultado ajudou você a encontrar candidatos alinhados com o que você procura?'
       : 'Esse conteúdo ajudou você a se decidir sobre um candidato ou representante?';
   return `
     <section class="cta-apoio" aria-labelledby="apoio-titulo">

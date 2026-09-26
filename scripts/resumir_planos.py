@@ -46,7 +46,7 @@ for sq, arqs in grupos.items():
         textos.append(txt); pdfs.append(dados)
     texto = '\n'.join(textos)
     if len(texto.strip()) > 1500:
-        partes = [{'text': INSTR + '\n\nDOCUMENTO:\n' + texto[:180000]}]
+        partes = [{'text': INSTR + '\n\nDOCUMENTO:\n' + texto[:60000]}]
     else:
         pequenos = [p for p in pdfs if len(p) < 18_000_000][:2]
         if not pequenos: print(sq, 'sem texto e PDF grande demais'); continue

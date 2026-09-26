@@ -13,7 +13,7 @@ partidos nunca em ranking; véspera e dia de eleição = só utilidade (a fábri
 Variáveis de ambiente: CF_TOKEN, ADMIN_TOKEN, RESEND_API_KEY, GEMINI_API_KEY (opcional: sem ela, o reel sai sem narração),
 DATA (AAAA-MM-DD, opcional), UFS_POR_DIA (padrão 3), EMAIL_PARA (padrão votocheck@gmail.com).
 """
-import os, sys, json, base64, time, wave, subprocess, statistics, urllib.request, datetime, asyncio, shutil
+import os, sys, json, base64, time, wave, subprocess, statistics, urllib.request, urllib.parse, urllib.error, datetime, asyncio, shutil, hashlib
 
 ACC = '22688effbd9ab181498d04ccd2cc8d2e'
 DB = '1de4bbee-3c8c-4043-91f9-fafd527c2f1f'
@@ -202,10 +202,33 @@ async def render(htmls, pasta, prefixo):
     return saidas
 
 
+def _kv_get(chave):
+    req = urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{ACC}/storage/kv/namespaces/{KV}/values/{urllib.parse.quote(chave, safe="")}', headers={'Authorization': 'Bearer ' + TOK})
+    try:
+        return urllib.request.urlopen(req, timeout=60).read()
+    except urllib.error.HTTPError:
+        return None
+
+
+def _kv_put(chave, dados, ttl=60 * 60 * 24 * 90):
+    req = urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{ACC}/storage/kv/namespaces/{KV}/values/{urllib.parse.quote(chave, safe="")}?expiration_ttl={ttl}', method='PUT', data=dados, headers={'Authorization': 'Bearer ' + TOK, 'Content-Type': 'application/octet-stream'})
+    try:
+        urllib.request.urlopen(req, timeout=60)
+    except Exception as e:
+        print('cache TTS: falha ao gravar', e)
+
+
 def tts(texto, saida):
     key = os.environ.get('GEMINI_API_KEY')
     if not key:
         return False
+    # Cache de narração (26/09/2026): a mesma frase com a mesma voz nunca é gerada duas vezes.
+    # O fechamento é igual todo dia e as frases de cada estado se repetem no rodízio.
+    chave = 'tts:' + hashlib.sha1(('gemini-3.8-flash-tts|Charon|' + texto).encode()).hexdigest()
+    guardado = _kv_get(chave)
+    if guardado:
+        open(saida, 'wb').write(guardado)
+        return True
     body = {"contents": [{"parts": [{"text": texto}]}], "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Charon"}}}}}
     for tent in range(6):
         req = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent', data=json.dumps(body).encode(), headers={'x-goog-api-key': key, 'Content-Type': 'application/json'})
@@ -218,6 +241,7 @@ def tts(texto, saida):
             else:
                 with wave.open(saida, 'wb') as w:
                     w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(raw)
+            _kv_put(chave, open(saida, 'rb').read())
             time.sleep(7)
             return True
         except urllib.error.HTTPError as e:

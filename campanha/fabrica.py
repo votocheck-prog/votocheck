@@ -306,4 +306,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        # Monitor de uso da Cloudflare roda junto, todo dia (e-mail só com alerta ou às segundas).
+        subprocess.run([sys.executable, os.path.join(AQUI, 'monitor_uso.py')])

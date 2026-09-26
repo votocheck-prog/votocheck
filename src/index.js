@@ -920,9 +920,16 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     // Fotos oficiais do TSE (importadas por scripts/importar_fotos.py para o KV, chave foto:<sq>).
     const fotoTse = url.pathname.match(/^\/foto\/(\d{6,15})\.jpg$/);
     if (fotoTse && request.method === 'GET') {
+      // Cache de borda: cada foto sai do KV uma vez por data center, não a cada visita (economia de
+      // leituras do KV — uma página de busca tem 30 fotos).
+      const chaveCache = new Request(url.origin + url.pathname);
+      const emCache = await caches.default.match(chaveCache);
+      if (emCache) return emCache;
       const buf = env.OG ? await env.OG.get(`foto:${fotoTse[1]}`, 'arrayBuffer') : null;
       if (!buf) return new Response('Not found', { status: 404 });
-      return new Response(buf, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=2592000' } });
+      const resp = new Response(buf, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=2592000' } });
+      ctx.waitUntil(caches.default.put(chaveCache, resp.clone()));
+      return resp;
     }
     const logoAnunciante = url.pathname.match(/^\/static\/anunciante\/([a-z0-9]+)\.png$/);
     if (logoAnunciante && LOGOS_ANUNCIANTES[logoAnunciante[1]] && request.method === 'GET') {
@@ -1430,10 +1437,11 @@ export default {
           }
         }
 
-        // TSE — melhor esforço; nunca bloqueia os coletores abaixo (ver nota acima).
-        await rodar('coletarCandidatos', () => coletarCandidatos(env, 2026));
-        await rodar('coletarRedesSociais', () => coletarRedesSociais(env, 2026));
-        await rodar('coletarBensCandidatos', () => coletarBensCandidatos(env, 2026));
+        // TSE: DESLIGADO no cron em 26/09/2026. O CDN do TSE recusa (403) as requisições vindas da
+        // Cloudflare, então isso só gerava falha diária. Os arquivos do TSE são baixados pelo Rodrigo
+        // no navegador e importados pelos scripts em scripts/ (atualização manual, datas combinadas).
+        // Cron também passou de diário para semanal (segunda, 07:00 UTC): cadastro de parlamentares e
+        // votações mudam pouco, e o Congresso está em recesso branco até o 2º turno.
 
         // Câmara + Senado — sem bloqueio conhecido, roda de forma confiável.
         await rodar('coletarDeputados', () => coletarDeputados(env, 57));

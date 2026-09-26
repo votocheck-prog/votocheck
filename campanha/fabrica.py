@@ -264,7 +264,8 @@ def email(pauta):
 <p><a href="{link}" style="display:inline-block;background:#0059F5;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Abrir e aprovar</a></p>
 <p style="color:#5B6478;font-size:13px">Cada peça tem os arquivos para baixar e a legenda pronta. Nada é publicado sem aprovação.</p></div>"""
     body = {'from': 'VotoCheck <naoresponda@updates.votocheck.com.br>', 'to': [os.environ.get('EMAIL_PARA', 'votocheck@gmail.com')], 'subject': f'VotoCheck · pauta de {HOJE[8:10]}/{HOJE[5:7]} ({len(pauta["itens"])} peças)', 'html': html}
-    req = urllib.request.Request('https://api.resend.com/emails', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+    # User-Agent explícito: a Resend (atrás da Cloudflare) recusa com 403 o agente padrão "Python-urllib".
+    req = urllib.request.Request('https://api.resend.com/emails', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'User-Agent': 'VotoCheck-fabrica/1.0 (+https://votocheck.com.br)'})
     print('e-mail:', urllib.request.urlopen(req, timeout=60).status)
 
 

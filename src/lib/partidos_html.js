@@ -92,7 +92,7 @@
  */
 import { nomeProprio } from './perfil_html.js';
 import { pagina, escapeHtml } from './estilo_html.js';
-import { LOGOS_PARTIDOS } from './partidos_logos.js';
+import { LOGOS_PARTIDOS, LOGOS_COMMONS } from './partidos_logos.js';
 import { Icone } from './icones.js';
 
 export const LINK_LIDERANCAS_CAMARA = 'https://www.camara.leg.br/deputados/liderancas-e-bancadas/liderancas';
@@ -137,6 +137,31 @@ export const PARTIDOS_INFO = [
     presidenteNacional: { nome: 'José Luiz Penna', fonteUrl: 'https://pv.org.br/jose-luiz-penna-presidente/', nota: 'No cargo continuamente há cerca de 25 anos — o mais estável desta lista.' } },
   { sigla: 'Avante', numero: 70, nome: 'Avante', familiaIdeologica: 'Centro', fundacao: '1988 (como PTdoB; renomeado Avante em 2017)', historico: 'Sigla renomeada em 2017 — antes chamava-se PTdoB.',
     presidenteNacional: { nome: 'Luís Tibé', fonteUrl: 'https://www.metropoles.com/brasil/eleicoes-2026-presidentes-de-17-dos-30-partidos-do-brasil-tentam-se-eleger' } },
+  // 26/09/2026: os 11 partidos que faltavam para completar os 30 com candidatos em 2026. Presidência
+  // conforme a página oficial do TSE (partidos registrados); família ideológica conforme a
+  // classificação usual das enciclopédias (Wikipédia pt/en) na data — mesmo critério dos demais.
+  { sigla: 'MISSÃO', numero: 14, nome: 'Partido Missão', familiaIdeologica: 'Direita', fundacao: '2023 (registro no TSE em 2025)', historico: 'Criado em 2023 por integrantes do Movimento Brasil Livre (MBL); teve o registro deferido pelo TSE em novembro de 2025. 2026 é sua primeira eleição geral.',
+    presidenteNacional: { nome: 'Renan Santos', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'PSTU', numero: 16, nome: 'Partido Socialista dos Trabalhadores Unificado', familiaIdeologica: 'Esquerda', fundacao: '1994 (registro em 1995)', historico: 'Formado em 1994 pela fusão da Convergência Socialista com outros grupos que deixaram o PT; de orientação trotskista.',
+    presidenteNacional: { nome: 'José Maria de Almeida', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'PCB', numero: 21, nome: 'Partido Comunista Brasileiro', familiaIdeologica: 'Esquerda', fundacao: '1922 (refundado em 1993)', historico: 'Fundado em 1922. Em 1992 parte da direção criou o PPS (hoje Cidadania); militantes refundaram o PCB em 1993 com a sigla e os símbolos históricos.',
+    presidenteNacional: { nome: 'Edmilson Costa', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'PRD', numero: 25, nome: 'Partido Renovação Democrática', familiaIdeologica: 'Centro', fundacao: '2023 (fusão de PTB e Patriota)', historico: 'Nasceu da fusão do PTB com o Patriota, homologada pelo TSE em novembro de 2023.',
+    presidenteNacional: { nome: 'Marcus Vinícius de Vasconcelos Ferreira', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'DC', numero: 27, nome: 'Democracia Cristã', familiaIdeologica: 'Centro-direita', fundacao: '1995 (como PSDC; renomeado DC em 2018)', historico: 'Fundado em 1995 como Partido Social Democrata Cristão (PSDC); passou a se chamar Democracia Cristã em 2018.',
+    presidenteNacional: { nome: 'João Caldas da Silva', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'PRTB', numero: 28, nome: 'Partido Renovador Trabalhista Brasileiro', familiaIdeologica: 'Direita', fundacao: '1994 (registro em 1997)', historico: 'Fundado em 1994; ganhou projeção com as candidaturas presidenciais de Levy Fidelix e com a vice-presidência de Hamilton Mourão (eleito em 2018).',
+    presidenteNacional: { nome: 'Leonardo Alves de Araújo', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'PCO', numero: 29, nome: 'Partido da Causa Operária', familiaIdeologica: 'Esquerda', fundacao: '1995 (registro em 1997)', historico: 'Surgiu em 1995 de dissidentes da corrente Causa Operária, que atuava dentro do PT; de orientação trotskista.',
+    presidenteNacional: { nome: 'Rui Costa Pimenta', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'Mobiliza', numero: 33, nome: 'Mobilização Nacional', familiaIdeologica: 'Centro / centro-direita', fundacao: '1984 (como PMN)', historico: 'Fundado em 1984 como Partido da Mobilização Nacional (PMN), com pauta nacionalista; hoje usa a sigla Mobiliza.',
+    presidenteNacional: { nome: 'Antonio Carlos Bosco Massarollo', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'Democrata', numero: 35, nome: 'Democrata', familiaIdeologica: 'Centro-direita', fundacao: '2008 (como PMB; renomeado Democrata em 2025)', historico: 'Criado em 2008 como Partido da Mulher Brasileira (PMB), registrado em 2015; o TSE aprovou a mudança de nome para Democrata em dezembro de 2025.',
+    presidenteNacional: { nome: 'Suêd Haidar Nogueira', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'Agir', numero: 36, nome: 'Agir', familiaIdeologica: 'Centro / centro-direita', fundacao: '1985 (como PJ; depois PRN e PTC)', historico: 'Fundado em 1985 como Partido da Juventude; como PRN elegeu Fernando Collor em 1989; foi PTC a partir de 2000 e passou a se chamar Agir em 2022.',
+    presidenteNacional: { nome: 'Daniel S. Tourinho', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
+  { sigla: 'UP', numero: 80, nome: 'Unidade Popular', familiaIdeologica: 'Esquerda', fundacao: '2016 (registro em 2019)', historico: 'Fundada em 2016 a partir de movimentos populares; obteve registro no TSE em dezembro de 2019.',
+    presidenteNacional: { nome: 'Leonardo Péricles', fonteUrl: 'https://www.tse.jus.br/partidos/partidos-registrados-no-tse/registrados-no-tse' } },
 ];
 
 // ATUALIZAÇÃO 24/09/2026 (pedido do Rodrigo): PARTIDOS_INFO acima está em ordem "como foi
@@ -201,8 +226,8 @@ function anoFundacaoCurto(fundacao) {
  * Retorna null quando ainda não temos logo pra essa sigla, pra sempre haver um fallback tratável. */
 function logoPartidoHtml(sigla) {
   const logo = LOGOS_PARTIDOS[sigla];
-  if (logo && logo.base64) {
-    return `<img class="partido-logo" src="/static/partido/${siglaSlug(sigla)}" alt="Logo do ${escapeHtml(sigla)}" width="48" height="48" loading="lazy" />`;
+  if ((logo && logo.base64) || LOGOS_COMMONS[sigla]) {
+    return `<img class="partido-logo" src="/static/partido/${siglaSlug(sigla)}?v=2" alt="Logo do ${escapeHtml(sigla)}" width="48" height="48" loading="lazy" />`;
   }
   // Fallback sem logo: iniciais num círculo, nunca uma imagem quebrada.
   const iniciais = sigla.replace(/[^A-Za-zÀ-ÿ]/g, '').slice(0, 3).toUpperCase();
@@ -348,6 +373,7 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <p style="margin-top:10px">A família ideológica segue leituras correntes de ciência política e imprensa especializada; não é opinião do VotoCheck. As notas históricas são resumos simplificados.</p>
         <p style="margin-top:8px">Presidência nacional verificada nas fontes oficiais listadas em ${escapeHtml(LIDERANCA_VERIFICADA_EM)}; pode mudar. Liderança de bancada muda a cada sessão: consulte a <a href="${escapeHtml(LINK_LIDERANCAS_CAMARA)}" target="_blank" rel="noopener noreferrer">página oficial da Câmara</a>.</p>
         <p style="margin-top:8px">"Filiado com mandato no Congresso" é calculado automaticamente a partir de mandatos atuais na Câmara e no Senado; ministérios, prefeituras e câmaras municipais ainda não entram. Partidos sem guia completo aparecem na busca de candidatos normalmente.</p>
+        <p style="margin-top:8px">Logos: arquivos do Wikimedia Commons em domínio público ou licença livre, usados só para identificar cada partido. ${Object.values(LOGOS_COMMONS).filter((l) => l.credito).map((l) => escapeHtml(l.credito)).join('. ')}.</p>
       </details>
     </div>
     <script>

@@ -54,7 +54,7 @@ import { renderSobre } from './lib/sobre_html.js';
 import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
 import { renderPartidos, PARTIDOS_INFO, zonaPrincipal, siglaSlug } from './lib/partidos_html.js';
-import { LOGOS_PARTIDOS } from './lib/partidos_logos.js';
+import { LOGOS_PARTIDOS, LOGOS_COMMONS, urlCommons } from './lib/partidos_logos.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
 import { calcularSelos } from './lib/selos.js';
 import { renderQuizEscolhaCargo, renderQuiz, renderQuizResultado, cargoQuizPorSlug } from './lib/quiz_html.js';
@@ -413,9 +413,11 @@ async function rotaQuizResultado(url, env, ctx) {
   }
   if (filtroPartidoAtivo) {
     // 27/09/2026: filtra pelo número do partido (a sigla de PARTIDOS_INFO não bate com a do TSE).
-    const numerosMarcados = PARTIDOS_INFO.filter((p) => siglasMarcadas.includes(p.sigla)).map((p) => p.numero);
-    condicoes.push(`pa.numero IN (${numerosMarcados.map(() => '?').join(',') || "''"})`);
-    params.push(...numerosMarcados);
+    // 26/09/2026: filtra por EXCLUSÃO — só sai quem o usuário desmarcou. Antes era por inclusão e
+    // derrubava junto os partidos que não estão em PARTIDOS_INFO (Missão, Agir, DC, PCO...).
+    const numerosDesmarcados = PARTIDOS_INFO.filter((p) => !siglasMarcadas.includes(p.sigla)).map((p) => p.numero);
+    condicoes.push(`(pa.numero IS NULL OR pa.numero NOT IN (${numerosDesmarcados.map(() => '?').join(',')}))`);
+    params.push(...numerosDesmarcados);
   }
 
   const chaveCache = `${CACHE_KEY_QUIZ_PREFIX}${url.search}`;
@@ -895,10 +897,32 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     if (logoPartido && request.method === 'GET') {
       const sigla = Object.keys(LOGOS_PARTIDOS).find((k) => siglaSlug(k) === logoPartido[1]);
       const logo = sigla && LOGOS_PARTIDOS[sigla];
-      if (!logo || !logo.base64) return html404(render404(url.pathname));
+      if (!logo || !logo.base64) {
+        // Logo do Commons, guardada no KV na primeira visita (ver LOGOS_COMMONS).
+        const siglaC = Object.keys(LOGOS_COMMONS).find((k) => siglaSlug(k) === logoPartido[1]);
+        if (!siglaC || !env.OG) return html404(render404(url.pathname));
+        const chave = `logo:${logoPartido[1]}`;
+        let obj = await env.OG.getWithMetadata(chave, 'arrayBuffer');
+        if (!obj || !obj.value) {
+          const r = await fetch(urlCommons(LOGOS_COMMONS[siglaC].arquivo), { headers: { 'User-Agent': 'VotoCheck/1.0 (https://votocheck.com.br; contato@votocheck.com.br)' }, redirect: 'follow' });
+          const tipo = r.headers.get('content-type') || '';
+          if (!r.ok || !tipo.startsWith('image/')) return html404(render404(url.pathname));
+          const buf = await r.arrayBuffer();
+          await env.OG.put(chave, buf, { metadata: { tipo } });
+          obj = { value: buf, metadata: { tipo } };
+        }
+        return new Response(obj.value, { headers: { 'Content-Type': obj.metadata?.tipo || 'image/png', 'Cache-Control': 'public, max-age=2592000' } });
+      }
       const bin = atob(logo.base64); const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       return new Response(bytes, { headers: { 'Content-Type': logo.mime, 'Cache-Control': 'public, max-age=2592000' } });
+    }
+    // Fotos oficiais do TSE (importadas por scripts/importar_fotos.py para o KV, chave foto:<sq>).
+    const fotoTse = url.pathname.match(/^\/foto\/(\d{6,15})\.jpg$/);
+    if (fotoTse && request.method === 'GET') {
+      const buf = env.OG ? await env.OG.get(`foto:${fotoTse[1]}`, 'arrayBuffer') : null;
+      if (!buf) return new Response('Not found', { status: 404 });
+      return new Response(buf, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=2592000' } });
     }
     const logoAnunciante = url.pathname.match(/^\/static\/anunciante\/([a-z0-9]+)\.png$/);
     if (logoAnunciante && LOGOS_ANUNCIANTES[logoAnunciante[1]] && request.method === 'GET') {
@@ -910,6 +934,18 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
     // ===== Pauta diária da campanha (D21) — protegida por ADMIN_TOKEN via ?t= =====
     const tokenOk = () => env.ADMIN_TOKEN && url.searchParams.get('t') === env.ADMIN_TOKEN;
+    // Diagnóstico de fontes externas (26/09/2026): confere, a partir da Cloudflare, se as APIs
+    // públicas de onde o site busca fotos (TSE) e logos (Wikimedia Commons) respondem. Só texto,
+    // só hosts da lista, só com ADMIN_TOKEN.
+    if (url.pathname === '/admin/diag-fonte' && request.method === 'GET') {
+      if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
+      let alvo; try { alvo = new URL(url.searchParams.get('u') || ''); } catch { return new Response('url inválida', { status: 400 }); }
+      if (!['divulgacandcontas.tse.jus.br', 'commons.wikimedia.org'].includes(alvo.hostname)) return new Response('host fora da lista', { status: 400 });
+      const r = await fetch(alvo.toString(), { headers: { 'User-Agent': 'VotoCheck/1.0 (https://votocheck.com.br; contato@votocheck.com.br)', Accept: 'application/json,*/*' } });
+      const ct = r.headers.get('content-type') || '';
+      const corpo = ct.includes('json') || ct.includes('text') ? (await r.text()).slice(0, 6000) : `[${ct}, ${(await r.arrayBuffer()).byteLength} bytes]`;
+      return new Response(`${r.status} ${ct}\n${corpo}`, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
     if (url.pathname === '/admin/pauta' && request.method === 'GET') {
       if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
       const data = url.searchParams.get('d') || dataSP();
@@ -1072,8 +1108,10 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       try {
         const [vRes, tRes] = await Promise.all([
           db.prepare(
-            `SELECT v.voto, vt.data_votacao, vt.descricao, vt.url_origem, vt.casa
+            `SELECT v.voto, vt.data_votacao, vt.descricao, vt.url_origem, vt.casa,
+                    ex.projeto AS ex_projeto, ex.resumo AS ex_resumo, ex.esta_votacao AS ex_votacao
              FROM voto_parlamentar v JOIN votacao vt ON vt.id = v.votacao_id
+             LEFT JOIN votacao_explicacao ex ON ex.votacao_id = vt.id
              WHERE v.pessoa_id = ? ORDER BY vt.data_votacao DESC, vt.id DESC LIMIT 8`
           ).bind(pessoaId).all(),
           db.prepare(`SELECT COUNT(*) as n FROM voto_parlamentar WHERE pessoa_id = ?`).bind(pessoaId).first(),
@@ -1124,9 +1162,16 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       } catch (e) {
         console.error('perfil: falha ao carregar bens/redes', e);
       }
+      let temas = null;
+      try {
+        temas = await db.prepare(`SELECT casa, periodo, total, temas_json FROM autoria_temas WHERE pessoa_id = ?`).bind(pessoaId).first();
+      } catch (e) {
+        console.error('perfil: falha ao carregar temas', e);
+      }
 
       return html(
         renderPerfil({
+          temas,
           bens,
           redes,
           votos,

@@ -209,6 +209,8 @@ const ESTILO_FICHA = `
   .fx-topo { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: var(--shadow-sm); display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; }
   .fx-foto { width: 104px; height: 104px; border-radius: 20px; background: linear-gradient(135deg, var(--blue-50), #DCE9FF); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 38px; color: var(--blue); overflow: hidden; }
   .fx-foto img { width: 100%; height: 100%; object-fit: cover; }
+  .fx-foto-wrap { display: grid; gap: 6px; justify-items: center; align-content: start; }
+  .fx-sem-foto { font-size: 11px; line-height: 1.25; color: var(--muted); text-align: center; max-width: 104px; cursor: help; }
   .fx-topo h1 { font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 4px; }
   .fx-nome-completo { color: var(--muted); font-size: 14.5px; margin-bottom: 10px; }
   .fx-chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -229,6 +231,22 @@ const ESTILO_FICHA = `
   .fx-sec > p.fx-sub { color: var(--muted); margin: 0 0 14px; font-size: 15px; }
   .fx-tabela { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; font-size: 14.5px; }
   .fx-tabela td, .fx-tabela th { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  @media (max-width: 620px) {
+    .fx-votos thead { display: none; }
+    .fx-votos tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 14px; border-bottom: 1px solid var(--line); }
+    .fx-votos td { padding: 0; border: 0; }
+    .fx-votos td:nth-child(1) { grid-row: 1; grid-column: 1; font-size: 13px; color: var(--muted); align-self: center; }
+    .fx-votos td:nth-child(3) { grid-row: 1; grid-column: 2; }
+    .fx-votos td:nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+  }
+  .fx-proj { font-family: var(--font-display); color: var(--navy); }
+  .fx-saiba { margin-top: 8px; }
+  .fx-saiba summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 4px 10px; }
+  .fx-saiba summary::-webkit-details-marker { display: none; }
+  .fx-saiba[open] summary { background: var(--blue); color: #fff; }
+  .fx-saiba > div { margin-top: 8px; background: #fff; border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 24px rgba(10,20,64,.08); }
+  .fx-saiba p { margin: 0 0 6px; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .fx-saiba small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
   .fx-tabela th { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--paper); }
   .fx-tabela tr:last-child td { border-bottom: 0; }
   .fx-voto { display: inline-block; min-width: 48px; text-align: center; font-size: 12.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
@@ -250,7 +268,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [] }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -274,11 +292,16 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     <section class="fx-sec">
       <h2>Como votou recentemente</h2>
       <p class="fx-sub">Últimas votações nominais do Plenário em que há voto registrado. É um registro factual: não avaliamos se o voto foi certo ou errado.</p>
-      <table class="fx-tabela">
+      <table class="fx-tabela fx-votos">
         <thead><tr><th style="width:110px">Data</th><th>O que foi votado</th><th style="width:90px">Voto</th></tr></thead>
         <tbody>${votos
           .map(
-            (v) => `<tr><td class="tabnum">${dataBr(v.data_votacao)}</td><td>${escapeHtml(String(v.descricao || '').slice(0, 220))}${String(v.descricao || '').length > 220 ? '…' : ''}${v.url_origem ? ` <a href="${escapeHtml(v.url_origem)}" target="_blank" rel="noopener" style="font-size:13px;white-space:nowrap">registro oficial ↗</a>` : ''}</td><td>${marcaVoto(v.voto)}</td></tr>`
+            (v) => `<tr><td class="tabnum">${dataBr(v.data_votacao)}</td><td>${v.ex_projeto ? `<strong class="fx-proj">${escapeHtml(v.ex_projeto)}</strong> ` : ''}${escapeHtml(String(v.descricao || '').replace(/\s*Sim: \d+.*$/, '').slice(0, 220))}${String(v.descricao || '').length > 220 ? '…' : ''}${v.url_origem ? ` <a href="${escapeHtml(v.url_origem)}" target="_blank" rel="noopener" style="font-size:13px;white-space:nowrap">registro oficial ↗</a>` : ''}${v.ex_resumo ? `
+              <details class="fx-saiba"><summary>${Icone.lampada(14)} Saiba o que é</summary><div>
+                <p><b>O projeto:</b> ${escapeHtml(v.ex_resumo)}</p>
+                ${v.ex_votacao ? `<p><b>Nesta votação:</b> ${escapeHtml(v.ex_votacao)}</p>` : ''}
+                <small>Explicação simplificada gerada por IA a partir da ementa oficial. Confira no registro oficial.</small>
+              </div></details>` : ''}</td><td>${marcaVoto(v.voto)}</td></tr>`
           )
           .join('')}</tbody>
       </table>
@@ -306,6 +329,24 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   }
   const tipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
   const maxTipo = Math.max(1, ...tipos.map((t) => t[1]));
+  // Temas dos projetos apresentados (26/09/2026) — classificação oficial da Câmara, nunca do VotoCheck.
+  let listaTemas = [];
+  try { listaTemas = temas ? JSON.parse(temas.temas_json) : []; } catch { listaTemas = []; }
+  const maxTema = listaTemas.length ? listaTemas[0].n : 1;
+  const blocoTemas = listaTemas.length
+    ? `
+    <section class="fx-sec" id="temas">
+      <h2>Temas dos projetos que apresentou</h2>
+      <p class="fx-sub">Com base em <strong>${temas.total}</strong> ${temas.total === 1 ? 'projeto' : 'projetos'} (PL, PLP, PEC e PDL) de que é autor ou coautor na Câmara desde 2023. O tema é a classificação oficial da própria Câmara, e um projeto pode ter mais de um. Mostra onde a atuação se concentra, não se os projetos avançaram.</p>
+      <div class="vc-barras" style="margin:0 0 10px">${listaTemas
+        .slice(0, 6)
+        .map((t) => `<div class="vc-barra"><span>${escapeHtml(t.tema)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(3, (t.n / maxTema) * 100).toFixed(1)}%"></i></span><b>${t.n}</b></div>`)
+        .join('')}</div>
+      <div class="vc-fonte">${Icone.documento(14)} Fonte: Câmara dos Deputados · autores e temas das proposições, 2023–2026 (dados abertos)</div>
+      ${pessoa.id_camara ? `<p style="margin:8px 0 0;font-size:14px"><a href="https://www.camara.leg.br/deputados/${escapeHtml(String(pessoa.id_camara))}" target="_blank" rel="noopener">Ver os projetos na página da Câmara ↗</a></p>` : ''}
+    </section>`
+    : '';
+
   const blocoBens = `
     <section class="fx-sec" id="patrimonio">
       <h2>Patrimônio declarado</h2>
@@ -349,7 +390,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     <nav class="fx-migalha" aria-label="Você está em"><a href="/buscar">Candidatos</a>${principal ? ` › <a href="/buscar?uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.sg_uf)}</a> › <a href="/buscar?cargo=${escapeHtml(cargoSlug)}&uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.cargo_nome)}</a>` : ''}</nav>
 
     <div class="fx-topo">
-      <div class="fx-foto">${pessoa.foto_url ? `<img src="${escapeHtml(pessoa.foto_url)}" alt="Foto de ${escapeHtml(nomeExibicao)}" loading="eager">` : inicial}</div>
+      <div class="fx-foto-wrap"><div class="fx-foto">${pessoa.foto_url ? `<img src="${escapeHtml(pessoa.foto_url)}" alt="Foto de ${escapeHtml(nomeExibicao)}" loading="eager">` : inicial}</div>${pessoa.foto_url ? '' : '<small class="fx-sem-foto" title="Ainda não importamos as fotos da Justiça Eleitoral. Por enquanto só aparecem fotos oficiais de quem já tem mandato no Congresso.">Foto oficial ainda não carregada</small>'}</div>
       <div>
         <h1>${escapeHtml(nomeExibicao)}</h1>
         ${nomeCompleto && nomeCompleto !== nomeExibicao ? `<div class="fx-nome-completo">${escapeHtml(nomeCompleto)}</div>` : ''}
@@ -372,6 +413,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     <div class="fx-resumo">${kpis.join('')}</div>
 
     ${blocoSelos(selos, principal ? principal.cargo_nome : '')}
+
+    ${blocoTemas}
 
     ${blocoBens}
 
@@ -440,7 +483,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
       name: nomeCompleto || nomeExibicao,
       alternateName: nomeExibicao,
       url: `https://votocheck.com.br/candidato/${pessoa.id}`,
-      ...(pessoa.foto_url ? { image: pessoa.foto_url } : {}),
+      ...(pessoa.foto_url ? { image: pessoa.foto_url.startsWith('/') ? `https://votocheck.com.br${pessoa.foto_url}` : pessoa.foto_url } : {}),
       ...(principal?.partido_nome ? { affiliation: { '@type': 'PoliticalParty', name: nomeProprio(principal.partido_nome) } } : {}),
     },
     corpo: corpo + renderCtaApoio({ contexto: 'perfil', url: urlFicha }),

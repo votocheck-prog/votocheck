@@ -122,6 +122,13 @@ export const ESPECTRO = {
     'Alto controle e atuação, cuidando não só de assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, mas também controlando e monopolizando recursos naturais (petróleo, energia, minerais etc.) e infraestrutura (telecomunicações, estradas, ferrovias etc.), podendo indicar diretamente os gestores responsáveis por essas áreas — com uma estrutura administrativa maior, de maior custo, tributos mais altos, mas com o Estado no controle total das frentes não essenciais (recursos e infraestrutura).',
   opcaoB:
     'Atuação focada em assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, delegando o controle de outros assuntos a empresas privadas — ficando com a fiscalização e regulação, com uma estrutura de pessoas, ativos e custo mais enxuta, ágil e focada, mas com menor poder de controle sobre as frentes não essenciais (recursos e infraestrutura).',
+  // Resumos curtos (26/09/2026) — só para leitura rápida no celular; o texto completo do Rodrigo
+  // continua a um toque. Os dois lados citam ganho e custo, para não pender.
+  tituloA: 'Estado amplo',
+  resumoA: 'Cuida do essencial e também controla recursos naturais e infraestrutura. Estrutura maior e tributos mais altos, com mais controle direto.',
+  tituloB: 'Estado focado no essencial',
+  resumoB: 'Cuida do essencial e deixa recursos e infraestrutura com empresas privadas, fiscalizando. Estrutura mais enxuta, com menos controle direto.',
+  niveis: ['Totalmente A', 'Mais para A', 'Meio-termo', 'Mais para B', 'Totalmente B'],
   aviso: 'Usa a família ideológica do partido do candidato (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra no seu resultado se você tocar no cursor.',
 };
 
@@ -198,9 +205,8 @@ export function resumoResposta(slug, valor) {
   if (slug === ESPECTRO.slug) {
     const v = Number(valor);
     if (Number.isNaN(v)) return null;
-    if (v <= 2) return `Papel do Estado: mais perto de "${ESPECTRO.opcaoA}"`;
-    if (v >= 4) return `Papel do Estado: mais perto de "${ESPECTRO.opcaoB}"`;
-    return 'Papel do Estado: meio-termo';
+    const n = Math.min(5, Math.max(1, Math.round(v)));
+    return `Papel do Estado: nível ${n} de 5 (${ESPECTRO.niveis[n - 1].toLowerCase()}${n <= 2 ? `, ${ESPECTRO.tituloA.toLowerCase()}` : n >= 4 ? `, ${ESPECTRO.tituloB.toLowerCase()}` : ''})`;
   }
   const p = PERGUNTAS.find((q) => q.slug === slug) || (slug === FILTRO_ESCOLARIDADE.slug ? { texto: 'Só candidatos com ensino superior completo', tipo: 'filtro', opcoes: [{ valor: 'sim', label: 'sim' }] } : null);
   if (!p) return null;

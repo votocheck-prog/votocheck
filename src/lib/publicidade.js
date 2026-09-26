@@ -48,7 +48,7 @@ export function renderPublicidade(espaco, semente = '') {
   return `
   <a class="vc-pub" href="${href}" target="_blank" rel="sponsored noopener" data-ev="pub_impressao" data-ev-chave="${a.id}:${espaco}">
     <span class="vc-pub-rotulo">Publicidade</span>
-    <img class="vc-pub-logo" src="/static/anunciante/${a.id}.png" alt="${escapeHtml(a.nome)}" width="120" height="80" loading="lazy" />
+    <img class="vc-pub-logo" src="/static/anunciante/${a.id}.png?v=2" alt="${escapeHtml(a.nome)}" width="72" height="72" loading="lazy" />
     <span class="vc-pub-texto"><strong>${escapeHtml(a.titulo)}</strong><span>${escapeHtml(a.nome)} · ${escapeHtml(a.texto)}</span></span>
     <span class="vc-pub-cta">${escapeHtml(a.cta)} →</span>
   </a>`;
@@ -59,7 +59,7 @@ export function renderApoiadores() {
   const lista = ativos();
   if (!lista.length) return '';
   return `<div class="rod-apoio"><small>Publicidade · Apoiadores</small><div class="vc-apoiadores">${lista
-    .map((a) => `<a href="/p/${a.id}?e=A5" target="_blank" rel="sponsored noopener" title="${escapeHtml(a.nome)}"><img src="/static/anunciante/${a.id}.png" alt="${escapeHtml(a.nome)}" width="84" height="56" loading="lazy" /></a>`)
+    .map((a) => `<a href="/p/${a.id}?e=A5" target="_blank" rel="sponsored noopener" title="${escapeHtml(a.nome)}"><img src="/static/anunciante/${a.id}.png?v=2" alt="${escapeHtml(a.nome)}" width="60" height="60" loading="lazy" /></a>`)
     .join('')}</div></div>`;
 }
 

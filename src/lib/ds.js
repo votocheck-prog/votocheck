@@ -247,9 +247,10 @@ export const ESTILO_DS = `
   .vc-pub { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; text-decoration: none; color: var(--ink); }
   .vc-pub:hover { border-color: var(--line-2); box-shadow: var(--shadow-sm); color: var(--ink); }
   .vc-pub-rotulo { position: absolute; top: -9px; left: 16px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; background: var(--paper); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
-  .vc-pub-logo { width: 120px; height: 80px; border-radius: 12px; border: 1px solid var(--line); object-fit: cover; }
-  @media (max-width: 560px) { .vc-pub-logo { width: 90px; height: 60px; } }
-  .vc-apoiadores img { width: 84px; height: 56px; border-radius: 8px; display: block; opacity: .9; transition: opacity .15s; }
+  .vc-pub-logo { width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 0 0 1px var(--line), 0 4px 12px rgba(10,20,64,.10); object-fit: cover; flex: none; }
+  @media (max-width: 560px) { .vc-pub-logo { width: 56px; height: 56px; } }
+  .vc-apoiadores img { width: 60px; height: 60px; border-radius: 50%; display: block; opacity: .92; box-shadow: 0 0 0 2px rgba(255,255,255,.14); transition: opacity .15s, transform .15s; }
+  .vc-apoiadores a:hover img { transform: translateY(-2px); }
   .vc-apoiadores a:hover img { opacity: 1; }
   .vc-pub-marca { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px; color: #fff; }
   .vc-pub-texto strong { display: block; font-size: 16px; }

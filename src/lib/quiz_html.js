@@ -197,17 +197,27 @@ function cardEscala(p, indice, total) {
 }
 
 function cardEspectro(indice, total) {
+  const opcao = (letra, titulo, resumo, completo) => `
+        <div class="qe-op">
+          <div class="qe-op-topo"><b>${letra}</b><strong>${escapeHtml(titulo)}</strong></div>
+          <p>${escapeHtml(resumo)}</p>
+          <details><summary>Ler a descrição completa</summary><p>${escapeHtml(completo)}</p></details>
+        </div>`;
   return `
     <div class="quiz-card quiz-card--espectro" data-slug="${ESPECTRO.slug}" data-tipo="espectro">
       <div class="quiz-card-num">${indice} de ${total}</div>
       <p class="quiz-card-texto">${escapeHtml(ESPECTRO.textoIntro)}</p>
-      <div class="quiz-espectro-opcoes">
-        <div class="quiz-espectro-opcao"><strong>A</strong><span>${escapeHtml(ESPECTRO.opcaoA)}</span></div>
-        <div class="quiz-espectro-opcao"><strong>B</strong><span>${escapeHtml(ESPECTRO.opcaoB)}</span></div>
+      <div class="qe-ops">
+        ${opcao('A', ESPECTRO.tituloA, ESPECTRO.resumoA, ESPECTRO.opcaoA)}
+        ${opcao('B', ESPECTRO.tituloB, ESPECTRO.resumoB, ESPECTRO.opcaoB)}
       </div>
-      <input type="range" class="quiz-slider quiz-slider--espectro" min="1" max="5" step="0.1" value="3" data-tocado="false" />
-      <p class="quiz-escala-estado" data-intensidade>Arraste pro lado que mais combina com o que você pensa — sem toque, conta como "tanto faz".</p>
-      <p class="quiz-card-ajuda">${escapeHtml(ESPECTRO.aviso)}</p>
+      <div class="qe-regua">
+        <div class="qe-pontas"><span>A</span><span>B</span></div>
+        <input type="range" class="quiz-slider quiz-slider--espectro" min="1" max="5" step="1" value="3" data-tocado="false" aria-label="Nível entre A e B" />
+        <div class="qe-niveis">${ESPECTRO.niveis.map((n, i) => `<button type="button" data-nivel="${i + 1}"><b>${i + 1}</b><span>${escapeHtml(n)}</span></button>`).join('')}</div>
+      </div>
+      <p class="quiz-escala-estado" data-intensidade>Toque num nível de 1 a 5. Sem toque, conta como "tanto faz".</p>
+      <p class="quiz-card-ajuda">${escapeHtml(ESPECTRO.aviso)} Conta como aderente quem está no seu nível ou num nível vizinho.</p>
       <input type="hidden" name="${ESPECTRO.slug}" value="" />
     </div>`;
 }
@@ -230,8 +240,11 @@ function filtroPartidos() {
         )
         .join('');
       return `
-        <div class="quiz-partido-bloco">
-          <span class="quiz-partido-bloco-nome">${ZONAS_ESPECTRO[i]}</span>
+        <div class="quiz-partido-bloco" data-bloco>
+          <div class="qz-bloco-topo">
+            <span class="quiz-partido-bloco-nome">${ZONAS_ESPECTRO[i]}</span>
+            <label class="qz-bloco-chave"><span data-bloco-rotulo>Incluído</span><input type="checkbox" data-bloco-chave checked aria-label="Incluir ou excluir todo o bloco ${ZONAS_ESPECTRO[i]}" /></label>
+          </div>
           <div class="quiz-partido-chips">${chips}</div>
         </div>`;
     })
@@ -242,9 +255,9 @@ function filtroPartidos() {
       <div class="quiz-card-num">Último passo</div>
       <p class="quiz-card-texto">Quer excluir algum bloco ou partido específico da sua busca?</p>
       <p class="quiz-card-ajuda">
-        Isso não pontua nem pesa no resultado — só inclui ou exclui quem aparece no resultado.
-        Todos começam marcados (inclusos); desmarque quem você não quer ver. Deixar tudo marcado
-        (ou desmarcado) tem o mesmo efeito de não filtrar por partido.
+        Não pontua nem pesa: só tira da lista quem você não quer ver. Use a chave ao lado do bloco
+        para excluir o bloco inteiro, ou desmarque partidos um a um. Deixar tudo marcado (ou tudo
+        desmarcado) é o mesmo que não filtrar.
       </p>
       <input type="hidden" name="partidos_total" value="${partidosOrdenados().length}" />
       <div class="quiz-partido-blocos">${blocos}</div>
@@ -279,6 +292,34 @@ export function renderQuiz({ cargo, uf }) {
       .quiz-card-texto { font-family: var(--font-display); font-size: clamp(21px, 2.6vw, 26px) !important; line-height: 1.25; color: var(--ink) !important; }
       .quiz-opcao { font-size: 16px !important; padding: 15px 16px !important; border-radius: 14px !important; }
       .quiz-opcao--ativa { background: var(--blue) !important; color: #fff !important; border-color: var(--blue) !important; }
+      @media (max-width: 520px) { .quiz-card { padding: 20px 16px; } }
+      .qe-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 18px; }
+      @media (max-width: 560px) { .qe-ops { grid-template-columns: 1fr; } }
+      .qe-op { background: var(--paper); border-radius: 14px; padding: 14px 16px; }
+      .qe-op-topo { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+      .qe-op-topo b { width: 28px; height: 28px; border-radius: 8px; background: var(--navy); color: #fff; display: grid; place-items: center; font-family: var(--font-display); flex: none; }
+      .qe-op-topo strong { font-family: var(--font-display); font-size: 16.5px; color: var(--ink); }
+      .qe-op > p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+      .qe-op details { margin-top: 8px; }
+      .qe-op summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--blue); }
+      .qe-op details p { font-size: 13.5px; color: var(--ink-2); margin: 8px 0 0; line-height: 1.55; }
+      .qe-pontas { display: flex; justify-content: space-between; font-family: var(--font-display); font-weight: 800; color: var(--navy); font-size: 15px; padding: 0 2px; }
+      .qe-regua .quiz-slider { margin: 4px 0 0; height: 28px; }
+      .qe-niveis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 6px; }
+      .qe-niveis button { background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 2px; cursor: pointer; font-family: inherit; display: grid; gap: 1px; justify-items: center; }
+      .qe-niveis b { font-family: var(--font-display); font-size: 16px; color: var(--ink); }
+      .qe-niveis span { font-size: 11px; line-height: 1.2; color: var(--muted); }
+      .qe-niveis button.ativo { background: var(--blue); border-color: var(--blue); }
+      .qe-niveis button.ativo b, .qe-niveis button.ativo span { color: #fff; }
+      .qz-bloco-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+      .qz-bloco-topo .quiz-partido-bloco-nome { margin: 0; }
+      .qz-bloco-chave { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+      .qz-bloco-chave input { appearance: none; width: 36px; height: 20px; border-radius: 999px; background: var(--line-2); position: relative; cursor: pointer; transition: background .15s; margin: 0; }
+      .qz-bloco-chave input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+      .qz-bloco-chave input:checked { background: var(--teal); }
+      .qz-bloco-chave input:checked::after { transform: translateX(16px); }
+      .qz-bloco-chave input:indeterminate { background: #8FB0FF; }
+      .qz-bloco-chave input:indeterminate::after { transform: translateX(8px); }
     </style>
     <div style="max-width:640px; margin:0 auto;">
       <p style="text-align:center; font-size:13px; color:var(--text-muted); margin-bottom:4px;">
@@ -351,6 +392,9 @@ export function renderQuiz({ cargo, uf }) {
 
           if (tipo === 'escala' || tipo === 'espectro') {
             var slider = card.querySelector('.quiz-slider');
+            card.querySelectorAll('[data-nivel]').forEach(function (b) {
+              b.addEventListener('click', function () { slider.value = b.dataset.nivel; slider.dispatchEvent(new Event('input')); });
+            });
             var estado = card.querySelector('[data-intensidade], .quiz-escala-estado');
             slider.addEventListener('input', function () {
               if (slider.getAttribute('data-tocado') !== 'true') {
@@ -360,13 +404,11 @@ export function renderQuiz({ cargo, uf }) {
               }
               hidden.value = slider.value;
               if (tipo === 'espectro') {
-                var v = parseFloat(slider.value);
-                var texto = v <= 1.6 ? 'Bem próximo da opção A'
-                  : v <= 2.6 ? 'Mais pra opção A'
-                  : v < 3.4 ? 'Bem no meio-termo'
-                  : v < 4.4 ? 'Mais pra opção B'
-                  : 'Bem próximo da opção B';
-                estado.textContent = texto;
+                var n = Math.round(parseFloat(slider.value));
+                var nomes = ${JSON.stringify(ESPECTRO.niveis)};
+                var viz = [n - 1, n, n + 1].filter(function (x) { return x >= 1 && x <= 5; });
+                estado.innerHTML = '<strong>Nível ' + n + ' de 5: ' + nomes[n - 1] + '.</strong> Aderentes: níveis ' + viz.join(', ').replace(/, (\\d)$/, ' e $1') + '.';
+                card.querySelectorAll('[data-nivel]').forEach(function (b) { b.classList.toggle('ativo', +b.dataset.nivel === n); });
               } else {
                 estado.textContent = 'Resposta registrada.';
               }
@@ -402,6 +444,18 @@ export function renderQuiz({ cargo, uf }) {
         });
         window.vcEv && vcEv('quiz_inicio', '${escapeHtml(cargo)}');
         form.addEventListener('submit', function () { window.vcEv && vcEv('quiz_fim', '${escapeHtml(cargo)}'); });
+        document.querySelectorAll('[data-bloco]').forEach(function (bl) {
+          var chave = bl.querySelector('[data-bloco-chave]'), rot = bl.querySelector('[data-bloco-rotulo]');
+          var itens = bl.querySelectorAll('.quiz-partido-chip input');
+          function sync() {
+            var n = 0; itens.forEach(function (i) { if (i.checked) n++; });
+            chave.checked = n === itens.length; chave.indeterminate = n > 0 && n < itens.length;
+            rot.textContent = n === itens.length ? 'Incluído' : n === 0 ? 'Excluído' : 'Parcial';
+          }
+          chave.addEventListener('change', function () { itens.forEach(function (i) { i.checked = chave.checked; }); sync(); });
+          itens.forEach(function (i) { i.addEventListener('change', sync); });
+          sync();
+        });
         mostrar(0);
       })();
     </script>`;
@@ -426,7 +480,7 @@ function cardCandidato(c, tagsDivergencia) {
   const busca = `${nome} ${c.numero_urna || ''} ${c.partido_sigla || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   return `
     <div class="bx-card qr-item" data-busca="${escapeHtml(busca)}">
-      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true">${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
+      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
         <div class="bx-meta">${escapeHtml(c.partido_sigla || 'sem partido')}${c.sg_uf && c.sg_uf !== 'BR' ? ` · ${escapeHtml(c.sg_uf)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>

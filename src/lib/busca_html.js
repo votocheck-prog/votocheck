@@ -191,7 +191,7 @@ function linhaResultado(c) {
   const slot = SLOT_COLA[c.cargo_slug];
   return `
     <div class="bx-card">
-      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true">${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
+      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
         <div class="bx-meta">${escapeHtml(c.cargo_nome)} · ${escapeHtml(c.sg_uf)}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>

@@ -169,6 +169,126 @@ def legenda_dinheiro(x):
             f"#eleicoes2026 #{x['nome'].replace(' ', '').lower()} #fundoeleitoral #dinheiropublico #votoconsciente")
 
 
+# ---------- Ranking de dinheiro público por estado (prioridade, pedido do Rodrigo em 26/09/2026) ----------
+# Cita candidatos por nome: só dado oficial do TSE, "recebeu" (não "gastou"), valores parciais com data,
+# ordem pelo valor e sem adjetivo. Nunca impulsionar esta peça (Lei 9.504, art. 57-C).
+CARGOS_RANK = [(4, 'deputado federal'), (5, 'deputado estadual'), (6, 'deputado distrital')]
+
+
+def top_dinheiro(uf, cargo_id, n=5):
+    return d1("""SELECT p.nome_urna_atual nome, pa.sigla partido, p.foto_url foto, c.numero_urna num, f.fefc + f.fundo_partidario pub
+                 FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN pessoa p ON p.id = c.pessoa_id
+                 LEFT JOIN partido pa ON pa.id = c.partido_id
+                 WHERE c.sg_uf = ? AND c.cargo_id = ? AND f.fefc + f.fundo_partidario > 0
+                 ORDER BY pub DESC LIMIT ?""", [uf, cargo_id, n])
+
+
+def nome_proprio(t):
+    menores = {'da', 'de', 'do', 'das', 'dos', 'e'}
+    return ' '.join(w if w.lower() in menores else w.capitalize() for w in (t or '').lower().split())
+
+
+def slide_ranking(x, titulo_cargo, linhas, pag, t, F):
+    itens = ''.join(
+        f'''<div style="display:grid;grid-template-columns:70px 120px 1fr auto;gap:26px;align-items:center;padding:20px 0;border-bottom:1px solid rgba(255,255,255,.12)">
+<b style="font-family:'Plus Jakarta Sans';font-size:48px;color:#5FE3C8">{i}º</b>
+<img src="{('https://votocheck.com.br' + r['foto']) if (r['foto'] or '').startswith('/') else (r['foto'] or '')}" style="width:120px;height:120px;border-radius:24px;object-fit:cover;background:#1B2766">
+<div><div style="font-family:'Plus Jakarta Sans';font-weight:800;font-size:42px;line-height:1.1">{nome_proprio(r['nome'])}</div><div style="font-size:30px;color:#AEB9E0;margin-top:6px">{r['partido'] or ''} · {r['num']}</div></div>
+<b style="font-family:'Plus Jakarta Sans';font-size:48px;color:#FFB067;white-space:nowrap">{brl(r['pub'])}</b></div>'''
+        for i, r in enumerate(linhas, 1))
+    return page(f'''<div class="pag">{pag}/{t}</div><div class="eyebrow">{titulo_cargo} · {x['uf']}</div><h2 style="font-size:64px;margin-bottom:18px">Quem mais recebeu dinheiro público</h2>
+<div>{itens}</div>{rod(F)}''')
+
+
+def slides_ranking(x, ranks):
+    t = 2 + len(ranks) + 1
+    F = f"Fonte: TSE, prestação de contas parcial (dados de {x['ref']}). Valores recebidos do fundo eleitoral e partidário."
+    s = [page(f'''<div class="eyebrow">Faltam {FALTAM} dias · dinheiro público</div><h1 style="font-size:80px">Quem mais recebeu <em>dinheiro público</em> para fazer campanha {x['prep']} {x['nome']}?</h1>
+<p class="lead" style="margin-top:36px">Fundo eleitoral e fundo partidário são pagos com imposto. Nomes e valores oficiais do TSE. Arrasta →</p>{rod('@votocheck · informação oficial, com fonte')}''')]
+    for k, (titulo, linhas) in enumerate(ranks, 2):
+        s.append(slide_ranking(x, titulo, linhas, k, t, F))
+    s.append(page(f'''<div class="pag">{t - 1}/{t}</div><div class="eyebrow">{x['nome']}</div><div class="big" style="font-size:150px"><em>{brl(x['pub'])}</em></div>
+<h2 style="margin-top:24px">de dinheiro público para as campanhas do estado</h2><p class="lead">Quem decide quanto vai para cada candidato é o partido. Os valores ainda podem mudar até a prestação de contas final.</p>{rod(F)}'''))
+    s.append(page(f'''<div class="pag">{t}/{t}</div><div class="eyebrow">E o seu candidato?</div><h2>Veja quanto <em>cada um</em> recebeu.</h2>
+<p class="lead">Todos os candidatos {x['prep']} {x['nome']}, nome por nome, em votocheck.com.br/dinheiro-publico</p>
+<div style="margin-top:36px;display:flex;gap:18px;flex-wrap:wrap"><span class="btn">Siga @votocheck</span><span class="btn" style="background:#00B495">Mande pra 3 amigos</span></div>{rod('votocheck.com.br · até o dia 4, conteúdo novo todo dia')}'''))
+    return s
+
+
+def legenda_ranking(x, ranks):
+    top = ranks[0][1][0] if ranks and ranks[0][1] else None
+    linha_top = f"Em {x['nome']}, quem mais recebeu para a campanha de {ranks[0][0]} foi {nome_proprio(top['nome'])} ({top['partido']}): {brl(top['pub'])}. " if top else ''
+    return (f"Quem mais recebeu dinheiro público para fazer campanha {x['prep']} {x['nome']}? {linha_top}"
+            f"No total, {brl(x['pub'])} de fundo eleitoral e partidário já foram para as campanhas do estado.\n\n"
+            f"Valores oficiais declarados ao TSE até {x['ref']} (parciais). Quem distribui o dinheiro entre os candidatos é o partido.\n\n"
+            f"👉 Quer saber quanto o SEU candidato recebeu? Está no VotoCheck, nome por nome. Link na bio.\n👉 Manda pra 3 pessoas {x['prep']} {x['nome']}\n👉 Segue @votocheck: até o dia 4 tem conteúdo novo todo dia\n\n"
+            f"#eleicoes2026 #{x['nome'].replace(' ', '').lower()} #fundoeleitoral #dinheiropublico #votoconsciente")
+
+
+# ---------- Publicação automática via Buffer (26/09/2026) ----------
+# A peça nasce "pré-aprovada" e já agendada no Buffer para o horário do item. Se o Rodrigo recusar
+# em /admin/pauta antes do horário, o Worker apaga o agendamento. Sem BUFFER_API_KEY, tudo fica
+# "pendente" para publicação manual, como antes.
+# Facebook: não entra pelo Buffer (plano grátis = 3 canais); sai espelhado do Instagram pela Central
+# de Contas da Meta (compartilhamento automático de posts e reels).
+BUFFER_KEY = os.environ.get('BUFFER_API_KEY')
+MIDIA = 'https://votocheck.com.br/midia'
+
+
+def buffer_gql(query, variables=None):
+    req = urllib.request.Request('https://api.buffer.com', data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
+                                 headers={'Authorization': 'Bearer ' + BUFFER_KEY, 'Content-Type': 'application/json', 'User-Agent': 'VotoCheck-fabrica/1.0'})
+    r = json.load(urllib.request.urlopen(req, timeout=120))
+    if r.get('errors'):
+        raise RuntimeError(json.dumps(r['errors'])[:400])
+    return r['data']
+
+
+def buffer_canais():
+    orgs = buffer_gql('query { account { organizations { id } } }')['account']['organizations']
+    canais = {}
+    for o in orgs:
+        for c in buffer_gql('query C($o: OrganizationId!) { channels(input: { organizationId: $o }) { id service name } }', {'o': o['id']})['channels']:
+            canais.setdefault(c['service'].lower(), c['id'])
+    return canais
+
+
+def horario_utc(hhmm):
+    h, m = [int(x) for x in hhmm.split(':')]
+    return (datetime.datetime.fromisoformat(HOJE) + datetime.timedelta(hours=h + 3, minutes=m)).strftime('%Y-%m-%dT%H:%M:00.000Z')
+
+
+def buffer_agendar(item, canais, redes, arquivos, hhmm, titulo_video=None):
+    """Agenda o item em cada rede. Imagens viram carrossel; .mp4 vira vídeo (reel/short)."""
+    item['publicar_em'] = horario_utc(hhmm)
+    item['buffer'] = []
+    erros = []
+    for rede in redes:
+        cid = canais.get(rede)
+        if not cid:
+            erros.append(f'{rede}: canal não conectado no Buffer'); continue
+        video = [a for a in arquivos if a.endswith('.mp4')]
+        if video:
+            assets = [{'video': {'url': f'{MIDIA}/{HOJE}/{video[0]}'}}]
+        else:
+            assets = [{'image': {'url': f'{MIDIA}/{HOJE}/{a}'}} for a in arquivos if a.endswith('.png') and not a.endswith('_v.png')][:10]
+        entrada = {'text': item['legenda'], 'channelId': cid, 'schedulingType': 'automatic', 'mode': 'customScheduled', 'dueAt': item['publicar_em'], 'assets': assets}
+        if rede == 'youtube' and titulo_video:
+            entrada['metadata'] = {'youtube': {'title': titulo_video[:95], 'privacy': 'public', 'categoryId': '25'}}
+        try:
+            d = buffer_gql('mutation P($i: CreatePostInput!) { createPost(input: $i) { ... on PostActionSuccess { post { id dueAt } } ... on MutationError { message } } }', {'i': entrada})['createPost']
+            if d.get('message'):
+                erros.append(f'{rede}: {d["message"]}')
+            else:
+                item['buffer'].append({'rede': rede, 'id': d['post']['id']})
+        except Exception as e:
+            erros.append(f'{rede}: {e}')
+    item['status'] = 'pre-aprovada' if item['buffer'] else 'pendente'
+    if erros:
+        item['erro_buffer'] = ' | '.join(erros)
+        print('Buffer:', item['id'], item['erro_buffer'])
+
+
 def roteiro_uf(x):
     return [
         f"Faltam {FALTAM} dias. Quem vai representar {x['nome']} na Câmara pelos próximos quatro anos?",
@@ -218,18 +338,34 @@ def _kv_put(chave, dados, ttl=60 * 60 * 24 * 90):
         print('cache TTS: falha ao gravar', e)
 
 
+# Narração (26/09/2026): voz e velocidade configuráveis. O cache guarda o áudio original da voz;
+# a aceleração é aplicada depois (ffmpeg atempo, sem mudar o tom), então trocar a velocidade não
+# gera custo novo de Gemini.
+VOZ = os.environ.get('NARRACAO_VOZ', 'Charon')
+TEMPO = float(os.environ.get('NARRACAO_TEMPO', '1.12'))
+
+
+def _acelerar(saida):
+    if abs(TEMPO - 1.0) < 0.01:
+        return
+    tmp = saida + '.tmp.wav'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', saida, '-filter:a', f'atempo={TEMPO}', tmp], check=True)
+    os.replace(tmp, saida)
+
+
 def tts(texto, saida):
     key = os.environ.get('GEMINI_API_KEY')
     if not key:
         return False
     # Cache de narração (26/09/2026): a mesma frase com a mesma voz nunca é gerada duas vezes.
     # O fechamento é igual todo dia e as frases de cada estado se repetem no rodízio.
-    chave = 'tts:' + hashlib.sha1(('gemini-3.8-flash-tts|Charon|' + texto).encode()).hexdigest()
+    chave = 'tts:' + hashlib.sha1((f'gemini-3.8-flash-tts|{VOZ}|' + texto).encode()).hexdigest()
     guardado = _kv_get(chave)
     if guardado:
         open(saida, 'wb').write(guardado)
+        _acelerar(saida)
         return True
-    body = {"contents": [{"parts": [{"text": texto}]}], "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Charon"}}}}}
+    body = {"contents": [{"parts": [{"text": texto}]}], "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": VOZ}}}}}
     for tent in range(6):
         req = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent', data=json.dumps(body).encode(), headers={'x-goog-api-key': key, 'Content-Type': 'application/json'})
         try:
@@ -242,6 +378,7 @@ def tts(texto, saida):
                 with wave.open(saida, 'wb') as w:
                     w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(raw)
             _kv_put(chave, open(saida, 'rb').read())
+            _acelerar(saida)
             time.sleep(7)
             return True
         except urllib.error.HTTPError as e:
@@ -324,13 +461,18 @@ def email(pauta):
     if not key or not tok:
         print('sem RESEND_API_KEY/ADMIN_TOKEN: e-mail não enviado'); return
     link = f'https://votocheck.com.br/admin/pauta?d={HOJE}&t={tok}'
-    itens = ''.join(f"<li>{i['titulo']} <small>({i['tipo']})</small></li>" for i in pauta['itens'])
+    def hora(i):
+        if not i.get('publicar_em'): return 'publicação manual'
+        t = datetime.datetime.strptime(i['publicar_em'][:16], '%Y-%m-%dT%H:%M') - datetime.timedelta(hours=3)
+        return f"sai às {t:%H:%M} em {', '.join(b['rede'] for b in i.get('buffer', []))}"
+    itens = ''.join(f"<li><b>{i['titulo']}</b> <small>({i['tipo']} · {hora(i)})</small></li>" for i in pauta['itens'])
+    auto = any(i.get('buffer') for i in pauta['itens'])
     html = f"""<div style="font-family:Arial,sans-serif;max-width:560px">
-<h2 style="color:#0A1440">Pauta do dia {HOJE[8:10]}/{HOJE[5:7]}: {len(pauta['itens'])} peças para aprovar</h2>
+<h2 style="color:#0A1440">Pauta do dia {HOJE[8:10]}/{HOJE[5:7]}: {len(pauta['itens'])} peças {'já agendadas' if auto else 'para publicar'}</h2>
 <ul>{itens}</ul>
-<p><a href="{link}" style="display:inline-block;background:#0059F5;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Abrir e aprovar</a></p>
-<p style="color:#5B6478;font-size:13px">Cada peça tem os arquivos para baixar e a legenda pronta. Nada é publicado sem aprovação.</p></div>"""
-    body = {'from': 'VotoCheck <naoresponda@updates.votocheck.com.br>', 'to': [os.environ.get('EMAIL_PARA', 'votocheck@gmail.com')], 'subject': f'VotoCheck · pauta de {HOJE[8:10]}/{HOJE[5:7]} ({len(pauta["itens"])} peças)', 'html': html}
+<p><a href="{link}" style="display:inline-block;background:#0059F5;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Ver e recusar o que não quiser</a></p>
+<p style="color:#5B6478;font-size:13px">{'As peças saem sozinhas no horário, pelo Buffer, se você não recusar. Facebook sai espelhado do Instagram.' if auto else 'O Buffer não está configurado: baixe as peças e publique manualmente.'} Nunca impulsione peça que cite candidato.</p></div>"""
+    body = {'from': 'VotoCheck <naoresponda@updates.votocheck.com.br>', 'to': [os.environ.get('EMAIL_PARA', 'votocheck@gmail.com')], 'subject': f'VotoCheck · pauta de {HOJE[8:10]}/{HOJE[5:7]} ({len(pauta["itens"])} peças' + (', já agendadas)' if auto else ')'), 'html': html}
     # User-Agent explícito: a Resend (atrás da Cloudflare) recusa com 403 o agente padrão "Python-urllib".
     req = urllib.request.Request('https://api.resend.com/emails', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'User-Agent': 'VotoCheck-fabrica/1.0 (+https://votocheck.com.br)'})
     print('e-mail:', urllib.request.urlopen(req, timeout=60).status)
@@ -359,14 +501,18 @@ def main():
         if k == 0:
             try:
                 xd = dados_dinheiro(uf)
-                pngs_d = asyncio.run(render(slides_dinheiro(xd), pasta, f'dinheiro_{uf}'))
+                cargos = [c for c in CARGOS_RANK if (c[0] == 6) == (uf == 'DF')]
+                ranks = [(nome_c, top_dinheiro(uf, cid)) for cid, nome_c in cargos]
+                ranks = [r for r in ranks if r[1]]
+                pngs_d = asyncio.run(render(slides_ranking(xd, ranks), pasta, f'ranking_{uf}'))
                 arq_d = [os.path.basename(p) for p in pngs_d]
                 for a in arq_d:
                     uploads.append({'key': f's:{HOJE}/{a}', 'value': base64.b64encode(open(os.path.join(pasta, a), 'rb').read()).decode(), 'base64': True, 'expiration_ttl': 60 * 60 * 24 * 21})
-                pauta['itens'].append({'id': f'dinheiro_{uf}', 'tipo': 'carrossel', 'titulo': f"Dinheiro público nas campanhas {xd['prep']} {xd['nome']}",
-                    'redes': ['Instagram', 'TikTok'], 'horario': '19h', 'arquivos': arq_d, 'legenda': legenda_dinheiro(xd), 'dados': xd, 'status': 'pendente'})
+                # Prioridade: entra no topo da pauta, no melhor horário.
+                pauta['itens'].insert(0, {'id': f'ranking_{uf}', 'tipo': 'carrossel · PRIORIDADE', 'titulo': f"Quem mais recebeu dinheiro público {xd['prep']} {xd['nome']}",
+                    'redes': ['Instagram', 'TikTok'], 'horario': '12h', 'arquivos': arq_d, 'legenda': legenda_ranking(xd, ranks), 'dados': xd, 'status': 'pendente'})
             except Exception as e:
-                print('dinheiro: falhou', e)
+                print('ranking dinheiro: falhou', e)
         pauta['itens'].append({
             'id': f'raiox_{uf}', 'tipo': 'carrossel' + (' + reel' if k == 0 else ''), 'titulo': f"Raio-X da eleição {x['prep']} {x['nome']}",
             'redes': ['Instagram', 'TikTok'] + (['YouTube Shorts'] if k == 0 else []), 'horario': ['12h', '18h', '20h'][k % 3],
@@ -374,6 +520,22 @@ def main():
         })
     for i in range(0, len(uploads), 50):
         kv_put_bulk(uploads[i:i + 50])
+    # Agendamento no Buffer depois do upload (o Buffer busca a mídia pela URL pública /midia/...).
+    if BUFFER_KEY:
+        try:
+            canais = buffer_canais()
+            print('Buffer: canais', sorted(canais))
+            for n, item in enumerate(pauta['itens']):
+                if item['id'].startswith('ranking_'):
+                    buffer_agendar(item, canais, ['instagram', 'tiktok'], item['arquivos'], '12:00')
+                elif 'reel' in item['tipo']:
+                    reel = [a for a in item['arquivos'] if a.endswith('.mp4')]
+                    buffer_agendar(item, canais, ['instagram', 'tiktok', 'youtube'], reel, '18:00', titulo_video=item['titulo'] + ' #shorts')
+                else:
+                    buffer_agendar(item, canais, ['instagram'], item['arquivos'], ['20:00', '21:30', '21:45'][min(n, 2)])
+        except Exception as e:
+            print('Buffer indisponível, pauta fica para publicação manual:', e)
+
     kv_put_bulk([{'key': f'pauta:{HOJE}', 'value': json.dumps(pauta, ensure_ascii=False), 'expiration_ttl': 60 * 60 * 24 * 60}])
     print(json.dumps({'data': HOJE, 'itens': [i['id'] for i in pauta['itens']]}))
     email(pauta)

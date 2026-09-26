@@ -983,6 +983,18 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       ctx.waitUntil(caches.default.put(chaveCache, resp.clone()));
       return resp;
     }
+    // PDFs oficiais dos planos de governo 2026 (TSE), guardados no KV por scripts/publicar_planos.py.
+    const planoPdf = url.pathname.match(/^\/plano\/(2026[A-Z]{2}\d+_\d+\.pdf)$/i);
+    if (planoPdf && request.method === 'GET') {
+      const chaveCache = new Request(url.origin + url.pathname);
+      const emCache = await caches.default.match(chaveCache);
+      if (emCache) return emCache;
+      const buf = env.OG ? await env.OG.get(`plano:${planoPdf[1]}`, 'arrayBuffer') : null;
+      if (!buf) return new Response('Not found', { status: 404 });
+      const resp = new Response(buf, { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'public, max-age=2592000', 'Content-Disposition': `inline; filename="${planoPdf[1]}"` } });
+      ctx.waitUntil(caches.default.put(chaveCache, resp.clone()));
+      return resp;
+    }
     const logoAnunciante = url.pathname.match(/^\/static\/anunciante\/([a-z0-9]+)\.png$/);
     if (logoAnunciante && LOGOS_ANUNCIANTES[logoAnunciante[1]] && request.method === 'GET') {
       return imagemPng(LOGOS_ANUNCIANTES[logoAnunciante[1]].b64, { cacheSegundos: 2592000 });
@@ -1015,6 +1027,12 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       const data = url.searchParams.get('d') || dataSP();
       await decidirPeca(env, data, url.searchParams.get('id'), url.searchParams.get('acao'));
       return Response.redirect(`${url.origin}/admin/pauta?t=${encodeURIComponent(url.searchParams.get('t'))}&d=${data}`, 302);
+    }
+    // Mídia pública das peças (26/09/2026): o Buffer busca os arquivos por URL pública no horário
+    // da publicação. Mesmo conteúdo de /social, sem token.
+    const midiaMatch = url.pathname.match(/^\/midia\/(\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_.-]+)$/);
+    if (midiaMatch && request.method === 'GET') {
+      return (await servirArquivoSocial(env, midiaMatch[1])) || html404(render404(url.pathname));
     }
     const socialMatch = url.pathname.match(/^\/social\/(\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_.-]+)$/);
     if (socialMatch && request.method === 'GET') {
@@ -1230,6 +1248,15 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       } catch (e) {
         console.error('perfil: falha ao carregar bens/redes', e);
       }
+      let plano = null;
+      try {
+        const candP = (candidaturasRes.results || []).find((c) => c.ano_eleicao === ANO_ATUAL);
+        if (candP && ['presidente', 'governador'].includes(candP.cargo_slug)) {
+          plano = await db.prepare(`SELECT resumo, propostas_json, arquivos_json FROM plano_governo WHERE candidatura_id = ?`).bind(candP.id).first();
+        }
+      } catch (e) {
+        console.error('perfil: falha ao carregar plano', e);
+      }
       let temas = null;
       try {
         temas = await db.prepare(`SELECT casa, periodo, total, temas_json, total_coautor, temas_coautor_json FROM autoria_temas WHERE pessoa_id = ?`).bind(pessoaId).first();
@@ -1239,6 +1266,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
       return html(
         renderPerfil({
+          plano,
           fin,
           temas,
           bens,

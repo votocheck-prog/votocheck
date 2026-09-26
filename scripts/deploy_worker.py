@@ -89,6 +89,9 @@ if RESEND_API_KEY:
     bindings.append({"type": "secret_text", "name": "RESEND_API_KEY", "text": RESEND_API_KEY})
 if ADMIN_TOKEN:
     bindings.append({"type": "secret_text", "name": "ADMIN_TOKEN", "text": ADMIN_TOKEN})
+# 26/09/2026: chave da API do Buffer (recusar peça = apagar o agendamento no Buffer).
+if os.environ.get("BUFFER_API_KEY"):
+    bindings.append({"type": "secret_text", "name": "BUFFER_API_KEY", "text": os.environ["BUFFER_API_KEY"]})
 
 metadata = {
     "main_module": "index.js",

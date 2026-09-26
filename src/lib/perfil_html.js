@@ -261,6 +261,13 @@ const ESTILO_FICHA = `
   #campanha .vc-barra { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) 96px; }
   .fx-barra-pub .vc-barra-trilho i { background: #F2994A; }
   .fx-kpi--pub b { color: #B4541A; }
+  .fx-plano { padding: 20px 22px; }
+  .fx-plano-resumo { font-size: 16px; line-height: 1.55; margin: 0 0 12px; color: var(--ink); }
+  .fx-plano ul { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 10px; }
+  .fx-plano li { font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+  .fx-plano-tema { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 2px 9px; margin-right: 8px; }
+  .fx-plano-pdf { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fx-plano-ia { display: block; font-size: 12px; color: var(--muted); margin-top: 10px; }
   .fx-proj { font-family: var(--font-display); color: var(--navy); }
   .fx-saiba { margin-top: 8px; }
   .fx-saiba summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 4px 10px; }
@@ -292,7 +299,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -416,6 +423,25 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
       <div class="vc-fonte">${Icone.documento(14)} Fonte: TSE · prestação de contas eleitorais 2026 (dados abertos${fin?.data_referencia ? `, atualizados em ${dataBr(fin.data_referencia)}` : ''}). Inclui doações estimadas em serviços ou materiais.</div>
     </section>`;
 
+  // Plano de governo (26/09/2026): resumo por IA da proposta registrada no TSE, com o PDF original.
+  let blocoPlano = '';
+  if (plano) {
+    let props = [], arqs = [];
+    try { props = JSON.parse(plano.propostas_json || '[]'); arqs = JSON.parse(plano.arquivos_json || '[]'); } catch { props = []; }
+    blocoPlano = `
+    <section class="fx-sec" id="plano">
+      <h2>Plano de governo</h2>
+      <p class="fx-sub">O que a candidatura registrou na Justiça Eleitoral como proposta de governo. Resumo em linguagem simples; leia o documento completo para conferir.</p>
+      <div class="vc-card fx-plano">
+        ${plano.resumo ? `<p class="fx-plano-resumo">${escapeHtml(plano.resumo)}</p>` : ''}
+        <ul>${props.map((x) => `<li><span class="fx-plano-tema">${escapeHtml(x.tema || '')}</span>${escapeHtml(x.texto || '')}</li>`).join('')}</ul>
+        <div class="fx-plano-pdf">${arqs.map((a, i) => `<a class="vc-btn vc-btn--sec vc-btn--sm" href="/plano/${encodeURIComponent(a)}" target="_blank" rel="noopener">${Icone.documento(16)} Ler o plano completo${arqs.length > 1 ? ` (parte ${i + 1})` : ''} · PDF oficial</a>`).join('')}</div>
+        <small class="fx-plano-ia">Resumo gerado por IA a partir do documento oficial registrado no TSE. Pode conter imprecisões; o PDF é a fonte.</small>
+      </div>
+      <div class="vc-fonte">${Icone.documento(14)} Fonte: TSE · propostas de governo registradas pelas candidaturas de 2026 (dados abertos)</div>
+    </section>`;
+  }
+
   const blocoBens = `
     <section class="fx-sec" id="patrimonio">
       <h2>Patrimônio declarado</h2>
@@ -482,6 +508,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     <div class="fx-resumo">${kpis.join('')}</div>
 
     ${blocoSelos(selos, principal ? principal.cargo_nome : '')}
+
+    ${blocoPlano}
 
     ${blocoTemas}
 

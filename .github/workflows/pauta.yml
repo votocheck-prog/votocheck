@@ -1,0 +1,47 @@
+name: Pauta diaria
+
+on:
+  schedule:
+    # 09:45 UTC = 06:45 em Brasília. O GitHub pode atrasar o disparo em 10 a 40 min.
+    - cron: '45 9 * * *'
+  workflow_dispatch:
+    inputs:
+      data:
+        description: 'Data da pauta (AAAA-MM-DD). Vazio = hoje.'
+        required: false
+
+concurrency:
+  group: pauta
+  cancel-in-progress: false
+
+jobs:
+  fabrica:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q playwright pillow
+          python -m playwright install --with-deps chromium
+      - name: Gerar pauta
+        env:
+          CF_TOKEN: ${{ secrets.CF_TOKEN }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATA: ${{ github.event.inputs.data }}
+        run: python campanha/fabrica.py
+      - name: Guardar pecas (7 dias)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pauta-${{ github.run_id }}
+          path: campanha/saida/
+          retention-days: 7
+          if-no-files-found: ignore

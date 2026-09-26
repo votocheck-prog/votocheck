@@ -9,3 +9,6 @@ CREATE TABLE IF NOT EXISTS autoria_temas (
   temas_json    TEXT NOT NULL,
   atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- 26/09/2026 (2ª parte): autoria principal (1º signatário) separada de coautoria, a pedido do Rodrigo.
+ALTER TABLE autoria_temas ADD COLUMN total_coautor INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE autoria_temas ADD COLUMN temas_coautor_json TEXT NOT NULL DEFAULT '[]';

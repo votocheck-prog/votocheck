@@ -239,6 +239,14 @@ const ESTILO_FICHA = `
     .fx-votos td:nth-child(3) { grid-row: 1; grid-column: 2; }
     .fx-votos td:nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
   }
+  .fx-temas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 10px; }
+  @media (max-width: 820px) { .fx-temas { grid-template-columns: 1fr; } }
+  .fx-tema-bloco { padding: 18px 20px; }
+  .fx-tema-bloco h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 16.5px; margin: 0 0 2px; }
+  .fx-tema-bloco h3 span { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--muted); }
+  .fx-tema-bloco > p { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+  .fx-tema-bloco .vc-barras { background: none; border: 0; padding: 0; box-shadow: none; }
+  .fx-tema-bloco .vc-barra { grid-template-columns: minmax(0,1.3fr) minmax(0,1fr) 34px; }
   .fx-proj { font-family: var(--font-display); color: var(--navy); }
   .fx-saiba { margin-top: 8px; }
   .fx-saiba summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 4px 10px; }
@@ -330,18 +338,34 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   const tipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
   const maxTipo = Math.max(1, ...tipos.map((t) => t[1]));
   // Temas dos projetos apresentados (26/09/2026) — classificação oficial da Câmara, nunca do VotoCheck.
-  let listaTemas = [];
-  try { listaTemas = temas ? JSON.parse(temas.temas_json) : []; } catch { listaTemas = []; }
-  const maxTema = listaTemas.length ? listaTemas[0].n : 1;
-  const blocoTemas = listaTemas.length
+  // Autoria principal (1º signatário) e coautoria em blocos separados, a pedido do Rodrigo.
+  const lerTemas = (j) => { try { return JSON.parse(j || '[]'); } catch { return []; } };
+  const temasAutor = temas ? lerTemas(temas.temas_json) : [];
+  const temasCo = temas ? lerTemas(temas.temas_coautor_json) : [];
+  const barrasTemas = (lista) => {
+    const max = lista.length ? lista[0].n : 1;
+    return `<div class="vc-barras" style="margin:0">${lista
+      .slice(0, 5)
+      .map((t) => `<div class="vc-barra"><span>${escapeHtml(t.tema)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(3, (t.n / max) * 100).toFixed(1)}%"></i></span><b>${t.n}</b></div>`)
+      .join('')}</div>`;
+  };
+  const blocoTemas = temas && (temas.total || temas.total_coautor)
     ? `
     <section class="fx-sec" id="temas">
       <h2>Temas dos projetos que apresentou</h2>
-      <p class="fx-sub">Com base em <strong>${temas.total}</strong> ${temas.total === 1 ? 'projeto' : 'projetos'} (PL, PLP, PEC e PDL) de que é autor ou coautor na Câmara desde 2023. O tema é a classificação oficial da própria Câmara, e um projeto pode ter mais de um. Mostra onde a atuação se concentra, não se os projetos avançaram.</p>
-      <div class="vc-barras" style="margin:0 0 10px">${listaTemas
-        .slice(0, 6)
-        .map((t) => `<div class="vc-barra"><span>${escapeHtml(t.tema)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(3, (t.n / maxTema) * 100).toFixed(1)}%"></i></span><b>${t.n}</b></div>`)
-        .join('')}</div>
+      <p class="fx-sub">Projetos de lei, de lei complementar, de emenda à Constituição e de decreto legislativo na Câmara desde 2023. O tema é a classificação oficial da própria Câmara, e um projeto pode ter mais de um. Mostra onde a atuação se concentra, não se os projetos avançaram.</p>
+      <div class="fx-temas">
+        <div class="vc-card fx-tema-bloco">
+          <h3>Como autor principal <span>${temas.total} ${temas.total === 1 ? 'projeto' : 'projetos'}</span></h3>
+          <p>Primeira assinatura no projeto: a iniciativa foi do parlamentar.</p>
+          ${temasAutor.length ? barrasTemas(temasAutor) : '<p style="margin:0"><strong>Nenhum projeto como autor principal</strong> nesse período.</p>'}
+        </div>
+        <div class="vc-card fx-tema-bloco">
+          <h3>Como coautor <span>${temas.total_coautor} ${temas.total_coautor === 1 ? 'projeto' : 'projetos'}</span></h3>
+          <p>Projetos de outros parlamentares em que também assinou.</p>
+          ${temasCo.length ? barrasTemas(temasCo) : '<p style="margin:0">Nenhum projeto como coautor nesse período.</p>'}
+        </div>
+      </div>
       <div class="vc-fonte">${Icone.documento(14)} Fonte: Câmara dos Deputados · autores e temas das proposições, 2023–2026 (dados abertos)</div>
       ${pessoa.id_camara ? `<p style="margin:8px 0 0;font-size:14px"><a href="https://www.camara.leg.br/deputados/${escapeHtml(String(pessoa.id_camara))}" target="_blank" rel="noopener">Ver os projetos na página da Câmara ↗</a></p>` : ''}
     </section>`

@@ -106,7 +106,7 @@ export async function coletarDeputados(env, idLegislatura = 57) {
           await db
             .prepare(
               `UPDATE pessoa SET nome_completo=?, nome_urna_atual=?, cpf_hash=COALESCE(?, cpf_hash), data_nascimento=?,
-               genero=?, id_camara=?, foto_url=?, updated_at=datetime('now') WHERE id=?`
+               genero=?, id_camara=?, foto_url=CASE WHEN foto_url LIKE '/foto/%' THEN foto_url ELSE ? END, updated_at=datetime('now') WHERE id=?`
             )
             .bind(
               detalhe.nomeCivil || dep.nome, dep.nome, cpfHash, detalhe.dataNascimento,

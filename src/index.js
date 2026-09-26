@@ -1164,7 +1164,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       }
       let temas = null;
       try {
-        temas = await db.prepare(`SELECT casa, periodo, total, temas_json FROM autoria_temas WHERE pessoa_id = ?`).bind(pessoaId).first();
+        temas = await db.prepare(`SELECT casa, periodo, total, temas_json, total_coautor, temas_coautor_json FROM autoria_temas WHERE pessoa_id = ?`).bind(pessoaId).first();
       } catch (e) {
         console.error('perfil: falha ao carregar temas', e);
       }

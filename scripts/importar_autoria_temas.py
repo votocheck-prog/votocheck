@@ -1,7 +1,8 @@
 """Temas dos projetos apresentados por deputados federais (legislatura 57, 2023–2026).
 
 Baixa os arquivos abertos da Câmara (autores + temas por ano), conta, para cada deputado, os PL/PLP/PEC/PDL
-de que é autor ou coautor e agrupa pelos temas oficiais da Câmara. Grava em autoria_temas (migração 0009).
+separando autoria principal (1º signatário) de coautoria, e agrupa pelos temas oficiais da Câmara.
+Grava em autoria_temas (migração 0009): total/temas_json = autor principal; total_coautor/temas_coautor_json = coautor.
 Uso: CF_TOKEN=... python3 scripts/importar_autoria_temas.py [pasta_cache]
 """
 import os, sys, csv, json, collections, urllib.request
@@ -22,19 +23,20 @@ for a in ANOS:
     for r in csv.DictReader(open(arquivo('proposicoesTemas', a), encoding='utf-8-sig'), delimiter=';'):
         if r['siglaTipo'] in TIPOS:
             temas.setdefault(r['uriProposicao'].rsplit('/', 1)[1], set()).add(r['tema'])
-autoria = collections.defaultdict(set)
+autoria = collections.defaultdict(set); coautoria = collections.defaultdict(set)
 for a in ANOS:
     for r in csv.DictReader(open(arquivo('proposicoesAutores', a), encoding='utf-8-sig'), delimiter=';'):
         if r['idDeputadoAutor'] and r['idProposicao'] in temas:
-            autoria[r['idDeputadoAutor']].add(r['idProposicao'])
+            (autoria if r['ordemAssinatura'] == '1' else coautoria)[r['idDeputadoAutor']].add(r['idProposicao'])
 pessoas = {str(r['id_camara']): r['id'] for r in d1("SELECT id, id_camara FROM pessoa WHERE id_camara IS NOT NULL AND id_camara <> ''")}
 linhas = []
-for dep, props in autoria.items():
-    if dep not in pessoas: continue
+def top(props):
     c = collections.Counter(t for p in props for t in temas[p])
-    top = [{'tema': t, 'n': n} for t, n in c.most_common(8)]
-    j = json.dumps(top, ensure_ascii=False).replace("'", "''")
-    linhas.append(f"INSERT OR REPLACE INTO autoria_temas (pessoa_id, casa, periodo, total, temas_json) VALUES ({pessoas[dep]}, 'camara', '2023–2026', {len(props)}, '{j}')")
+    return json.dumps([{'tema': t, 'n': n} for t, n in c.most_common(8)], ensure_ascii=False).replace("'", "''")
+for dep in set(autoria) | set(coautoria):
+    if dep not in pessoas: continue
+    a, co = autoria.get(dep, set()), coautoria.get(dep, set()) - autoria.get(dep, set())
+    linhas.append(f"INSERT OR REPLACE INTO autoria_temas (pessoa_id, casa, periodo, total, temas_json, total_coautor, temas_coautor_json) VALUES ({pessoas[dep]}, 'camara', '2023–2026', {len(a)}, '{top(a)}', {len(co)}, '{top(co)}')")
 for i in range(0, len(linhas), 40):
     d1(';'.join(linhas[i:i + 40]))
 print('deputados com temas:', len(linhas))

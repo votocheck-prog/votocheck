@@ -21,6 +21,8 @@ KV = os.environ.get('CF_KV_OG', '58aea9d36a9c4055bbcff72f7c08c3bd')
 TOK = os.environ['CF_TOKEN']
 AQUI = os.path.dirname(os.path.abspath(__file__))
 HOJE = os.environ.get('DATA') or (datetime.datetime.utcnow() - datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+DIA_1T = datetime.date(2026, 10, 4)
+FALTAM = (DIA_1T - datetime.date.fromisoformat(HOJE)).days
 SEM_PECAS = {'2026-10-03', '2026-10-04', '2026-10-24', '2026-10-25'}  # véspera e dia de votação: só utilidade (feito à mão)
 
 UF_NOMES = {'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas', 'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo', 'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul', 'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná', 'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte', 'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina', 'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins'}
@@ -102,8 +104,8 @@ FONTE = f'Fonte: TSE, candidaturas registradas (dados de {HOJE[8:10]}/{HOJE[5:7]
 def slides_uf(x):
     t = 6
     s = []
-    s.append(page(f'''<div class="eyebrow">Raio-X da eleição · 1º turno 4/out</div><h1 style="font-size:100px">Quem disputa<br>{x['prep']} <em>{x['nome']}?</em></h1>
-<p class="lead" style="margin-top:36px">Os números oficiais dos candidatos a deputado federal {x['prep']} {x['nome']}. Arrasta →</p>{rod('@votocheck · informação oficial, com fonte')}'''))
+    s.append(page(f'''<div class="eyebrow">Faltam {FALTAM} dias · 4 de outubro</div><h1 style="font-size:84px">Quem vai representar <em>{x['nome']}</em> na Câmara pelos próximos 4 anos?</h1>
+<p class="lead" style="margin-top:36px">Você decide no dia 4. Antes, veja os números oficiais de quem disputa. Arrasta →</p>{rod('@votocheck · informação oficial, com fonte')}'''))
     s.append(page(f'''<div class="pag">2/{t}</div><div class="eyebrow">Deputado Federal · {x['uf']}</div><div class="big"><em>{num(x['fed'])}</em></div>
 <h2 style="margin-top:24px">candidatos para {x['vagas_fed']} vagas</h2><p class="lead">Cerca de {str(x['por_vaga']).replace('.', ',')} por vaga. E ainda tem {num(x['est'])} disputando {x['vagas_est']} vagas de deputado {'distrital' if x['uf']=='DF' else 'estadual'}.</p>{rod(FONTE)}'''))
     s.append(page(f'''<div class="pag">3/{t}</div><div class="eyebrow">Quem são</div><div class="big"><em>{x['mulheres_pct']}%</em></div>
@@ -112,28 +114,30 @@ def slides_uf(x):
 <h2 style="margin-top:24px">é a idade média</h2><p class="lead">E metade dos candidatos declarou ao TSE patrimônio de até <b style="color:#fff">{brl(x['bens_mediana'])}</b>.</p>{rod(FONTE + ' · bens declarados')}'''))
     s.append(page(f'''<div class="pag">5/{t}</div><div class="eyebrow">Quem já está lá</div><div class="big"><em>{x['reeleicao']}</em></div>
 <h2 style="margin-top:24px">deputados federais {x['prep']} {x['nome']} tentam a reeleição</h2><p class="lead">No VotoCheck, a ficha de quem já tem mandato mostra como a pessoa votou nas votações do Plenário.</p>{rod('Fonte: Câmara dos Deputados e TSE')}'''))
-    s.append(page(f'''<div class="pag">6/{t}</div><div class="eyebrow">VotoCheck</div><h2>Veja todos os<br>candidatos {x['prep']}<br><em>{x['nome']}.</em></h2>
-<p class="lead">Nome, número, partido, patrimônio declarado e com quem o voto soma. Monte sua cola e leve impressa.</p>
-<div style="margin-top:44px"><span class="btn">votocheck.com.br</span></div>{rod('@votocheck no Instagram, TikTok e YouTube')}'''))
+    s.append(page(f'''<div class="pag">6/{t}</div><div class="eyebrow">E agora?</div><h2>Conhecer antes<br>ou <em>reclamar depois?</em></h2>
+<p class="lead">Veja todos os candidatos {x['prep']} {x['nome']}: número, partido, patrimônio, como votou. Monte sua cola.</p>
+<div style="margin-top:36px;display:flex;gap:18px;flex-wrap:wrap"><span class="btn">Siga @votocheck</span><span class="btn" style="background:#00B495">Mande pra 3 amigos</span></div>{rod('votocheck.com.br · até o dia 4, um raio-X por dia')}'''))
     return s
 
 
 def legenda_uf(x):
-    return (f"Raio-X da eleição {x['prep']} {x['nome']}: {num(x['fed'])} candidatos a deputado federal para {x['vagas_fed']} vagas, "
-            f"{x['mulheres_pct']}% de mulheres, idade média de {x['idade_media']} anos.\n\n"
-            f"Arrasta para ver os números oficiais e marca alguém {x['prep']} {x['nome']} que ainda não decidiu o voto para deputado.\n\n"
+    return (f"Faltam {FALTAM} dias. No dia 4 você escolhe quem vai fazer as leis pelos próximos 4 anos (e dois senadores, que ficam 8). "
+            f"Vai conhecer antes ou reclamar depois?\n\n"
+            f"{x['prep'].capitalize()} {x['nome']}: {num(x['fed'])} candidatos a deputado federal para {x['vagas_fed']} vagas, "
+            f"{x['mulheres_pct']}% de mulheres, idade média de {x['idade_media']} anos. Números oficiais do TSE.\n\n"
+            f"👉 Salva este post\n👉 Manda pra 3 pessoas que ainda não decidiram o voto para deputado\n👉 Segue @votocheck: até o dia 4 tem um raio-X por dia\n\n"
             f"No VotoCheck você vê todos os candidatos do estado, com número, partido, patrimônio declarado e fonte oficial. Link na bio.\n\n"
             f"#eleicoes2026 #{x['nome'].replace(' ', '').lower()} #deputadofederal #voto #votoconsciente")
 
 
 def roteiro_uf(x):
     return [
-        f"Quem disputa a eleição {x['prep']} {x['nome']}?",
+        f"Faltam {FALTAM} dias. Quem vai representar {x['nome']} na Câmara pelos próximos quatro anos?",
         f"São {x['fed']} candidatos a deputado federal para {x['vagas_fed']} vagas.",
         f"{x['mulheres_pct']} por cento das candidaturas são de mulheres.",
         f"A idade média é de {x['idade_media']} anos.",
         f"{x['reeleicao']} deputados federais do estado tentam a reeleição.",
-        "Veja todos os candidatos e monte sua cola em votocheck ponto com ponto bê erre.",
+        "Conhecer antes ou reclamar depois? Siga o VotoCheck e mande este vídeo para quem ainda não decidiu.",
     ]
 
 
@@ -272,6 +276,10 @@ def email(pauta):
 def main():
     if HOJE in SEM_PECAS:
         print('Véspera/dia de votação: nenhuma peça automática.'); return
+    if FALTAM < 0:
+        # Depois do 1º turno o Raio-X de deputados perde o sentido. A pauta do 2º turno depende do
+        # resultado oficial (quem foi para o 2º turno) e entra como um bloco novo da fábrica.
+        print('1º turno encerrado: Raio-X desligado até a pauta do 2º turno ser ativada.'); return
     pasta = os.path.join(AQUI, 'saida', HOJE)
     os.makedirs(pasta, exist_ok=True)
     pauta = {'data': HOJE, 'gerado_em': datetime.datetime.utcnow().isoformat() + 'Z', 'itens': []}

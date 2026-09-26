@@ -150,7 +150,7 @@ export async function coletarSenadores(env) {
           pessoaId = pessoaRow.id;
           await db
             .prepare(
-              `UPDATE pessoa SET nome_completo=?, nome_urna_atual=?, genero=?, id_senado=?, foto_url=?, updated_at=datetime('now') WHERE id=?`
+              `UPDATE pessoa SET nome_completo=?, nome_urna_atual=?, genero=?, id_senado=?, foto_url=CASE WHEN foto_url LIKE '/foto/%' THEN foto_url ELSE ? END, updated_at=datetime('now') WHERE id=?`
             )
             .bind(
               ident.NomeCompletoParlamentar || ident.NomeParlamentar, ident.NomeParlamentar,

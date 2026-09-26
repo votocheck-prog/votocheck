@@ -130,6 +130,45 @@ def legenda_uf(x):
             f"#eleicoes2026 #{x['nome'].replace(' ', '').lower()} #deputadofederal #voto #votoconsciente")
 
 
+def dados_dinheiro(uf):
+    r = d1("""SELECT ca.slug, COUNT(*) n, SUM(f.fefc + f.fundo_partidario) pub, SUM(f.total) tot,
+                 SUM(CASE WHEN f.fefc + f.fundo_partidario > 0 THEN 1 ELSE 0 END) com, MAX(f.data_referencia) ref
+              FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN cargo ca ON ca.id = c.cargo_id
+              WHERE c.sg_uf = ? GROUP BY ca.slug""", [uf])
+    por = {x['slug']: x for x in r}
+    pub = sum(x['pub'] or 0 for x in r); tot = sum(x['tot'] or 0 for x in r); com = sum(x['com'] or 0 for x in r)
+    fed = por.get('deputado_federal', {})
+    ref = max((x['ref'] or '') for x in r) if r else HOJE
+    return {'uf': uf, 'nome': UF_NOMES[uf], 'prep': PREP[uf], 'pub': pub, 'pct': round(100 * pub / tot) if tot else 0, 'com': com,
+            'fed_pub': fed.get('pub') or 0, 'fed_com': fed.get('com') or 0, 'fed_media': (fed.get('pub') or 0) / (fed.get('com') or 1),
+            'ref': f"{ref[8:10]}/{ref[5:7]}"}
+
+
+def slides_dinheiro(x):
+    t = 5; F = f"Fonte: TSE, prestação de contas parcial dos candidatos (dados de {x['ref']})"
+    return [
+        page(f'''<div class="eyebrow">Faltam {FALTAM} dias · dinheiro público</div><h1 style="font-size:84px">Quanto do <em>seu dinheiro</em> já foi para as campanhas {x['prep']} {x['nome']}?</h1>
+<p class="lead" style="margin-top:36px">Fundo eleitoral e fundo partidário são pagos com dinheiro público. Arrasta →</p>{rod('@votocheck · informação oficial, com fonte')}'''),
+        page(f'''<div class="pag">2/{t}</div><div class="eyebrow">{x['nome']}</div><div class="big" style="font-size:150px"><em>{brl(x['pub'])}</em></div>
+<h2 style="margin-top:24px">de dinheiro público já foram para as campanhas do estado</h2><p class="lead">Somando todos os cargos, até {x['ref']}.</p>{rod(F)}'''),
+        page(f'''<div class="pag">3/{t}</div><div class="eyebrow">De onde vem</div><div class="big"><em>{x['pct']}%</em></div>
+<h2 style="margin-top:24px">de tudo o que as campanhas arrecadaram é dinheiro público</h2><p class="lead">O resto vem de doações de pessoas e de recursos dos próprios candidatos.</p>{rod(F)}'''),
+        page(f'''<div class="pag">4/{t}</div><div class="eyebrow">Deputado federal · {x['uf']}</div><div class="big" style="font-size:150px"><em>{brl(x['fed_media'])}</em></div>
+<h2 style="margin-top:24px">é a média recebida por quem ganhou verba pública</h2><p class="lead">{num(x['fed_com'])} candidatos a deputado federal {x['prep']} {x['nome']} receberam. Quem decide quanto vai para cada um é o partido.</p>{rod(F)}'''),
+        page(f'''<div class="pag">5/{t}</div><div class="eyebrow">E agora?</div><h2>Veja quanto <em>cada candidato</em> recebeu.</h2>
+<p class="lead">Nome por nome, com fonte oficial, em votocheck.com.br/dinheiro-publico</p>
+<div style="margin-top:36px;display:flex;gap:18px;flex-wrap:wrap"><span class="btn">Siga @votocheck</span><span class="btn" style="background:#00B495">Mande pra 3 amigos</span></div>{rod('votocheck.com.br · até o dia 4, um raio-X por dia')}'''),
+    ]
+
+
+def legenda_dinheiro(x):
+    return (f"{brl(x['pub'])} de dinheiro público já foram para as campanhas {x['prep']} {x['nome']}. É fundo eleitoral e fundo partidário, pago com imposto. "
+            f"{x['pct']}% de tudo o que as campanhas do estado arrecadaram vem daí.\n\n"
+            f"Quer saber quanto foi para cada candidato? Está tudo no VotoCheck, nome por nome, com fonte do TSE. Link na bio.\n\n"
+            f"👉 Manda pra 3 pessoas {x['prep']} {x['nome']}\n👉 Segue @votocheck: até o dia 4 tem conteúdo novo todo dia\n\n"
+            f"#eleicoes2026 #{x['nome'].replace(' ', '').lower()} #fundoeleitoral #dinheiropublico #votoconsciente")
+
+
 def roteiro_uf(x):
     return [
         f"Faltam {FALTAM} dias. Quem vai representar {x['nome']} na Câmara pelos próximos quatro anos?",
@@ -293,6 +332,17 @@ def main():
             arquivos.append(os.path.basename(reel))
         for a in arquivos:
             uploads.append({'key': f's:{HOJE}/{a}', 'value': base64.b64encode(open(os.path.join(pasta, a), 'rb').read()).decode(), 'base64': True, 'expiration_ttl': 60 * 60 * 24 * 21})
+        if k == 0:
+            try:
+                xd = dados_dinheiro(uf)
+                pngs_d = asyncio.run(render(slides_dinheiro(xd), pasta, f'dinheiro_{uf}'))
+                arq_d = [os.path.basename(p) for p in pngs_d]
+                for a in arq_d:
+                    uploads.append({'key': f's:{HOJE}/{a}', 'value': base64.b64encode(open(os.path.join(pasta, a), 'rb').read()).decode(), 'base64': True, 'expiration_ttl': 60 * 60 * 24 * 21})
+                pauta['itens'].append({'id': f'dinheiro_{uf}', 'tipo': 'carrossel', 'titulo': f"Dinheiro público nas campanhas {xd['prep']} {xd['nome']}",
+                    'redes': ['Instagram', 'TikTok'], 'horario': '19h', 'arquivos': arq_d, 'legenda': legenda_dinheiro(xd), 'dados': xd, 'status': 'pendente'})
+            except Exception as e:
+                print('dinheiro: falhou', e)
         pauta['itens'].append({
             'id': f'raiox_{uf}', 'tipo': 'carrossel' + (' + reel' if k == 0 else ''), 'titulo': f"Raio-X da eleição {x['prep']} {x['nome']}",
             'redes': ['Instagram', 'TikTok'] + (['YouTube Shorts'] if k == 0 else []), 'horario': ['12h', '18h', '20h'][k % 3],

@@ -170,13 +170,13 @@ export function nomeProprio(txt) {
     .join('');
 }
 
-function brl(v) {
+export function brl(v) {
   const n = Number(v) || 0;
   if (n >= 1e6) return `R$ ${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`;
   if (n >= 1e4) return `R$ ${Math.round(n / 1e3).toLocaleString('pt-BR')} mil`;
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 }
-function brlCheio(v) {
+export function brlCheio(v) {
   return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
 }
 const REDE_ROTULO = [
@@ -220,7 +220,7 @@ const ESTILO_FICHA = `
   .fx-numero a { font-size: 12.5px; color: #9EC0FF; font-weight: 600; text-decoration: none; }
   @media (max-width: 720px) { .fx-topo { grid-template-columns: auto 1fr; } .fx-numero { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; } .fx-foto { width: 76px; height: 76px; font-size: 28px; border-radius: 16px; } }
   .fx-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 28px; }
-  .fx-resumo { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 32px; }
+  .fx-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 32px; }
   @media (max-width: 820px) { .fx-resumo { grid-template-columns: 1fr 1fr; } }
   .fx-kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .fx-kpi small { display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
@@ -247,6 +247,9 @@ const ESTILO_FICHA = `
   .fx-tema-bloco > p { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
   .fx-tema-bloco .vc-barras { background: none; border: 0; padding: 0; box-shadow: none; }
   .fx-tema-bloco .vc-barra { grid-template-columns: minmax(0,1.3fr) minmax(0,1fr) 34px; }
+  #campanha .vc-barra { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) 96px; }
+  .fx-barra-pub .vc-barra-trilho i { background: #F2994A; }
+  .fx-kpi--pub b { color: #B4541A; }
   .fx-proj { font-family: var(--font-display); color: var(--navy); }
   .fx-saiba { margin-top: 8px; }
   .fx-saiba summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 4px 10px; }
@@ -276,7 +279,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -293,6 +296,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   kpis.push(`<div class="fx-kpi"><small>${Icone.votoCaixa(14)} Votos registrados</small><b class="tabnum">${totalVotos ? totalVotos.toLocaleString('pt-BR') : '—'}</b><span>${totalVotos ? 'em votações nominais do Plenário' : mandatos.length ? 'nenhum voto nominal coletado ainda' : 'só existe para quem tem mandato'}</span></div>`);
   const totalBens = bens.reduce((a, b) => a + (Number(b.valor) || 0), 0);
   kpis.unshift(`<div class="fx-kpi"><small>${Icone.cifrao(14)} Patrimônio declarado</small><b class="tabnum">${bens.length ? brl(totalBens) : 'R$ 0'}</b><span>${bens.length ? `${bens.length} ${bens.length > 1 ? 'bens' : 'bem'} na declaração ao TSE` : 'nenhum bem na declaração ao TSE'}</span></div>`);
+  const publico = fin ? (Number(fin.fefc) || 0) + (Number(fin.fundo_partidario) || 0) : 0;
+  if (fin) kpis.splice(1, 0, `<div class="fx-kpi fx-kpi--pub"><small>${Icone.cifrao(14)} Dinheiro público na campanha</small><b class="tabnum">${brl(publico)}</b><span>${fin.total ? `${Math.round((100 * publico) / fin.total)}% do que arrecadou · <a href="#campanha">ver origem</a>` : 'nenhuma receita declarada ao TSE até agora'}</span></div>`);
   kpis.push(`<div class="fx-kpi"><small>${Icone.usuario(14)} Perfil</small><b>${idade ? `${idade} anos` : '—'}</b><span>${escapeHtml(nomeProprio(pessoa.grau_instrucao || '')) || 'escolaridade não informada'}</span></div>`);
 
   const blocoVotos = votos.length
@@ -371,6 +376,32 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     </section>`
     : '';
 
+  // Dinheiro de campanha (26/09/2026): prestação de contas parcial ao TSE.
+  const fontesFin = fin
+    ? [
+        ['Fundo eleitoral (público)', Number(fin.fefc) || 0, 'pub'],
+        ['Fundo partidário (público)', Number(fin.fundo_partidario) || 0, 'pub'],
+        ['Doações de pessoas', Number(fin.pessoas_fisicas) || 0, ''],
+        ['Recursos próprios', Number(fin.recursos_proprios) || 0, ''],
+        ['Outras fontes (partido, outros candidatos, internet)', Number(fin.outros) || 0, ''],
+      ].filter((x) => x[1] > 0)
+    : [];
+  const maxFin = Math.max(1, ...fontesFin.map((x) => x[1]));
+  const blocoCampanha = !fin ? '' : `
+    <section class="fx-sec" id="campanha">
+      <h2>Dinheiro da campanha</h2>
+      <p class="fx-sub">O que a campanha declarou ter recebido até agora na prestação de contas parcial à Justiça Eleitoral. Fundo eleitoral e fundo partidário são dinheiro público, repassado pelo partido.</p>
+      ${
+        fontesFin.length
+          ? `<div class="vc-barras" style="margin:0 0 10px">${fontesFin
+              .map(([n, v, t]) => `<div class="vc-barra${t ? ' fx-barra-pub' : ''}"><span>${n}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, (v / maxFin) * 100).toFixed(1)}%"></i></span><b>${brl(v)}</b></div>`)
+              .join('')}</div>
+             <p style="font-size:14px;margin:0 0 8px">Total declarado: <strong>${brlCheio(fin.total)}</strong>, sendo <strong>${brlCheio(publico)}</strong> de dinheiro público. <a href="/dinheiro-publico?uf=${escapeHtml(principal?.sg_uf || '')}&cargo=${escapeHtml(cargoSlug || '')}">Compare com os outros candidatos →</a></p>`
+          : `<div class="vc-card"><p style="margin:0">Nenhuma receita declarada ao TSE até ${fin?.data_referencia ? dataBr(fin.data_referencia) : 'a última atualização'}.</p></div>`
+      }
+      <div class="vc-fonte">${Icone.documento(14)} Fonte: TSE · prestação de contas eleitorais 2026 (dados abertos${fin?.data_referencia ? `, atualizados em ${dataBr(fin.data_referencia)}` : ''}). Inclui doações estimadas em serviços ou materiais.</div>
+    </section>`;
+
   const blocoBens = `
     <section class="fx-sec" id="patrimonio">
       <h2>Patrimônio declarado</h2>
@@ -441,6 +472,8 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     ${blocoTemas}
 
     ${blocoBens}
+
+    ${blocoCampanha}
 
     ${blocoVotos}
 

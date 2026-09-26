@@ -1070,6 +1070,8 @@ export function rodape() {
             <li><a href="/quiz">Meu VotoCheck</a></li>
             <li><a href="/cola">Monte sua cola</a></li>
             <li><a href="/partidos">Partidos</a></li>
+            <li><a href="/dinheiro-publico">Dinheiro público</a></li>
+            <li><a href="/quanto-vale-seu-voto">Quanto vale seu voto</a></li>
           </ul>
         </div>
         <div>

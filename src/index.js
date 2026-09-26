@@ -56,6 +56,8 @@ import { renderTermos, renderFaq } from './lib/institucional_html.js';
 import { renderPartidos, PARTIDOS_INFO, zonaPrincipal, siglaSlug } from './lib/partidos_html.js';
 import { LOGOS_PARTIDOS, LOGOS_COMMONS, urlCommons } from './lib/partidos_logos.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
+import { renderDinheiroPublico, CARGOS_DINHEIRO } from './lib/dinheiro_html.js';
+import { renderPesoVoto } from './lib/peso_voto_html.js';
 import { calcularSelos } from './lib/selos.js';
 import { renderQuizEscolhaCargo, renderQuiz, renderQuizResultado, cargoQuizPorSlug } from './lib/quiz_html.js';
 import { PERGUNTAS, ESPECTRO, PARAMETROS_QUIZ, avaliarCandidato, resumoResposta } from './lib/quiz_config.js';
@@ -759,6 +761,39 @@ async function fetchInterno(request, env, ctx) {
       return html(renderFaq());
     }
 
+    if (url.pathname === '/dinheiro-publico' && request.method === 'GET') {
+      const cargo = CARGOS_DINHEIRO.some((c) => c.slug === url.searchParams.get('cargo')) ? url.searchParams.get('cargo') : 'deputado_federal';
+      const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
+      const uf = UF_NOMES[ufParam] ? ufParam : 'SP';
+      const versao = await obterVersaoDados(env);
+      const chave = new Request(`https://cache.interno.votocheck/dinheiro-v1?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
+      let dados = null;
+      const emCache = await caches.default.match(chave);
+      if (emCache) dados = await emCache.json();
+      else {
+        const semUf = cargo === 'presidente';
+        const filtro = semUf ? `ca.slug = ?` : `ca.slug = ? AND c.sg_uf = ?`;
+        const params = semUf ? [cargo] : [cargo, uf];
+        const [nac, lista, partidos, tot] = await Promise.all([
+          env.DB.prepare(`SELECT SUM(fefc) fefc, SUM(fundo_partidario) fp, SUM(total) total, SUM(CASE WHEN fefc + fundo_partidario > 0 THEN 1 ELSE 0 END) com, MAX(data_referencia) data_ref FROM financiamento_campanha`).first(),
+          env.DB.prepare(`SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, c.numero_urna, pa.sigla partido_sigla, f.fefc + f.fundo_partidario publico, f.total
+             FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN cargo ca ON ca.id = c.cargo_id JOIN pessoa p ON p.id = c.pessoa_id LEFT JOIN partido pa ON pa.id = c.partido_id
+             WHERE ${filtro} ORDER BY publico DESC LIMIT 60`).bind(...params).all(),
+          env.DB.prepare(`SELECT pa.sigla, SUM(f.fefc + f.fundo_partidario) publico FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN cargo ca ON ca.id = c.cargo_id LEFT JOIN partido pa ON pa.id = c.partido_id
+             WHERE ${filtro} GROUP BY pa.sigla HAVING publico > 0 ORDER BY publico DESC`).bind(...params).all(),
+          env.DB.prepare(`SELECT COUNT(*) n FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN cargo ca ON ca.id = c.cargo_id WHERE ${filtro}`).bind(...params).first(),
+        ]);
+        dados = { nacional: { fefc: nac.fefc || 0, fp: nac.fp || 0, total: nac.total || 0, com: nac.com || 0 }, dataRef: nac.data_ref, lista: lista.results || [], partidos: partidos.results || [], totalLista: tot?.n || 0 };
+        ctx.waitUntil(caches.default.put(chave, new Response(JSON.stringify(dados), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=86400' } })));
+      }
+      return html(renderDinheiroPublico({ uf, cargo, ...dados }));
+    }
+
+    if (url.pathname === '/quanto-vale-seu-voto' && request.method === 'GET') {
+      const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
+      return html(renderPesoVoto({ uf: UF_NOMES[ufParam] ? ufParam : 'SP' }));
+    }
+
     if (url.pathname === '/judiciario' && request.method === 'GET') {
       return html(renderJudiciario());
     }
@@ -872,6 +907,8 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
         { loc: '/quiz', prioridade: '0.8' },
         { loc: '/cola', prioridade: '0.8' },
         { loc: '/partidos', prioridade: '0.6' },
+        { loc: '/dinheiro-publico', prioridade: '0.7' },
+        { loc: '/quanto-vale-seu-voto', prioridade: '0.7' },
         { loc: '/judiciario', prioridade: '0.4' },
         { loc: '/termos', prioridade: '0.3' },
         { loc: '/faq', prioridade: '0.4' },
@@ -1156,15 +1193,18 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
       let bens = [];
       let redes = [];
+      let fin = null;
       try {
         const cand = (candidaturasRes.results || []).find((c) => c.ano_eleicao === ANO_ATUAL);
         if (cand) {
-          const [bRes, rRes] = await Promise.all([
+          const [bRes, rRes, fRes] = await Promise.all([
             db.prepare(`SELECT tipo, descricao, valor FROM bem_candidato WHERE candidatura_id = ? ORDER BY valor DESC`).bind(cand.id).all(),
             db.prepare(`SELECT url FROM rede_social_candidato WHERE candidatura_id = ? ORDER BY ordem`).bind(cand.id).all(),
+            db.prepare(`SELECT * FROM financiamento_campanha WHERE candidatura_id = ?`).bind(cand.id).first(),
           ]);
           bens = bRes.results || [];
           redes = rRes.results || [];
+          fin = fRes || { total: 0, data_referencia: null };
         }
       } catch (e) {
         console.error('perfil: falha ao carregar bens/redes', e);
@@ -1178,6 +1218,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
       return html(
         renderPerfil({
+          fin,
           temas,
           bens,
           redes,

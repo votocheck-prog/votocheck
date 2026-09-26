@@ -118,6 +118,16 @@ function renderHero(uf, contagemUf, atualizadoEm) {
 
 function renderMapa(uf) {
   return `
+  <section class="vc-sec" style="padding:40px 0" id="dinheiro">
+    <div class="vc-wrap">
+      <a href="/dinheiro-publico${uf ? `?uf=${uf}` : ''}" style="display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;background:var(--navy);color:#fff;border-radius:22px;padding:26px 28px;text-decoration:none" class="vc-dp-banner" data-ev="home_dinheiro">
+        <span style="font-family:var(--font-display);font-weight:800;font-size:clamp(30px,4vw,44px);color:#FFB067;line-height:1">R$ 5,3 bi</span>
+        <span><strong style="display:block;font-family:var(--font-display);font-size:clamp(18px,2.2vw,22px)">de dinheiro público já foram para as campanhas de 2026.</strong><span style="color:#C3CDF0;font-size:15px">Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</span></span>
+        <span class="vc-btn vc-btn--pri" style="white-space:nowrap">Ver quanto →</span>
+      </a>
+    </div>
+  </section>
+  <style>@media (max-width:720px){.vc-dp-banner{grid-template-columns:1fr!important;gap:10px!important}}</style>
   <section class="vc-sec vc-sec--branca" id="estados">
     <div class="vc-wrap vc-mapa-grid">
       <div>

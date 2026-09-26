@@ -125,9 +125,14 @@ function renderMapa(uf) {
         <span><strong style="display:block;font-family:var(--font-display);font-size:clamp(18px,2.2vw,22px)">de dinheiro público já foram para as campanhas de 2026.</strong><span style="color:#C3CDF0;font-size:15px">Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</span></span>
         <span class="vc-btn vc-btn--pri" style="white-space:nowrap">Ver quanto →</span>
       </a>
+      <div class="vc-dp-mais" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px">
+        <a href="/2022${uf ? `?uf=${uf}` : ''}" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Em 2022, quem o seu voto elegeu?</strong><span style="font-size:14px;color:var(--muted)">Digite em quem votou e veja para onde o voto foi.</span></a>
+        <a href="/perderam-o-mandato" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Eleitos que perderam o mandato</strong><span style="font-size:14px;color:var(--muted)">E quanto da vaga veio dos votos de outros.</span></a>
+        <a href="/quanto-vale-seu-voto${uf ? `?uf=${uf}` : ''}" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Quanto vale o seu voto?</strong><span style="font-size:14px;color:var(--muted)">Eleitores por vaga de deputado em cada estado.</span></a>
+      </div>
     </div>
   </section>
-  <style>@media (max-width:720px){.vc-dp-banner{grid-template-columns:1fr!important;gap:10px!important}}</style>
+  <style>@media (max-width:720px){.vc-dp-banner{grid-template-columns:1fr!important;gap:10px!important}.vc-dp-mais{grid-template-columns:1fr!important}}</style>
   <section class="vc-sec vc-sec--branca" id="estados">
     <div class="vc-wrap vc-mapa-grid">
       <div>

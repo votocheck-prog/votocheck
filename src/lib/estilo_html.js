@@ -1072,6 +1072,8 @@ export function rodape() {
             <li><a href="/partidos">Partidos</a></li>
             <li><a href="/dinheiro-publico">Dinheiro público</a></li>
             <li><a href="/quanto-vale-seu-voto">Quanto vale seu voto</a></li>
+            <li><a href="/2022">Quem seu voto elegeu em 2022</a></li>
+            <li><a href="/perderam-o-mandato">Eleitos que perderam o mandato</a></li>
           </ul>
         </div>
         <div>

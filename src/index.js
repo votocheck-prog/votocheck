@@ -58,6 +58,7 @@ import { LOGOS_PARTIDOS, LOGOS_COMMONS, urlCommons } from './lib/partidos_logos.
 import { renderJudiciario } from './lib/judiciario_html.js';
 import { renderDinheiroPublico, CARGOS_DINHEIRO } from './lib/dinheiro_html.js';
 import { renderPesoVoto } from './lib/peso_voto_html.js';
+import { renderVoto2022, renderPerderamMandato } from './lib/eleicao2022_html.js';
 import { calcularSelos } from './lib/selos.js';
 import { renderQuizEscolhaCargo, renderQuiz, renderQuizResultado, cargoQuizPorSlug } from './lib/quiz_html.js';
 import { PERGUNTAS, ESPECTRO, PARAMETROS_QUIZ, avaliarCandidato, resumoResposta } from './lib/quiz_config.js';
@@ -794,6 +795,18 @@ async function fetchInterno(request, env, ctx) {
       return html(renderPesoVoto({ uf: UF_NOMES[ufParam] ? ufParam : 'SP' }));
     }
 
+    if (url.pathname === '/2022' && request.method === 'GET') {
+      const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
+      const uf = UF_NOMES[ufParam] ? ufParam : 'SP';
+      const cargo = url.searchParams.get('cargo') === 'est' ? 'est' : 'fed';
+      const dados = env.OG ? await env.OG.get(`r22:${uf}:${cargo}`, { type: 'json', cacheTtl: 86400 }) : null;
+      if (!dados) return html404(render404(url.pathname));
+      return html(renderVoto2022({ uf, cargo, dados, n: (url.searchParams.get('n') || '').replace(/\D/g, '') || null }));
+    }
+    if (url.pathname === '/perderam-o-mandato' && request.method === 'GET') {
+      return html(renderPerderamMandato());
+    }
+
     if (url.pathname === '/judiciario' && request.method === 'GET') {
       return html(renderJudiciario());
     }
@@ -909,6 +922,8 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
         { loc: '/partidos', prioridade: '0.6' },
         { loc: '/dinheiro-publico', prioridade: '0.7' },
         { loc: '/quanto-vale-seu-voto', prioridade: '0.7' },
+        { loc: '/2022', prioridade: '0.7' },
+        { loc: '/perderam-o-mandato', prioridade: '0.7' },
         { loc: '/judiciario', prioridade: '0.4' },
         { loc: '/termos', prioridade: '0.3' },
         { loc: '/faq', prioridade: '0.4' },
@@ -1173,16 +1188,22 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           const valor = federacao ? cand.sq_coligacao : cand.partido_id;
           const [itensRes, totRes] = await Promise.all([
             db.prepare(
-              `SELECT c.pessoa_id, p.nome_urna_atual, c.numero_urna FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id
+              // 26/09/2026: ordem pela força eleitoral real, a pedido do Rodrigo (mostrar quem "puxa" e
+              // quem "pega carona"): primeiro quem tem mandato no Congresso, depois votos recebidos em
+              // 2022 para deputado (dado oficial do TSE), depois o resto em ordem alfabética.
+              `SELECT c.pessoa_id, p.nome_urna_atual, c.numero_urna,
+                      (SELECT MAX(v.votos) FROM votos_2022 v WHERE v.pessoa_id = c.pessoa_id) AS votos_2022,
+                      EXISTS (SELECT 1 FROM mandato m WHERE m.pessoa_id = c.pessoa_id AND m.data_fim IS NULL) AS tem_mandato
+               FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id
                WHERE c.ano_eleicao = ? AND c.cargo_id = ? AND c.sg_uf = ? AND ${filtro} AND c.pessoa_id != ?
-               ORDER BY p.nome_urna_atual LIMIT 30`
+               ORDER BY tem_mandato DESC, COALESCE(votos_2022, -1) DESC, p.nome_urna_atual LIMIT 30`
             ).bind(ANO_ATUAL, cand.cargo_id, cand.sg_uf, valor, pessoaId).all(),
             db.prepare(`SELECT COUNT(*) as n FROM candidatura c WHERE c.ano_eleicao = ? AND c.cargo_id = ? AND c.sg_uf = ? AND ${filtro}`)
               .bind(ANO_ATUAL, cand.cargo_id, cand.sg_uf, valor).first(),
           ]);
           mesmaLista = {
             federacao: Boolean(federacao),
-            rotulo: federacao ? cand.nome_coligacao : cand.partido_sigla || '',
+            rotulo: federacao ? (cand.composicao_coligacao || cand.nome_coligacao) : cand.partido_sigla || '',
             total: totRes?.n || 0,
             itens: itensRes.results || [],
           };

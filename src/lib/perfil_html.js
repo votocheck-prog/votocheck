@@ -170,6 +170,17 @@ export function nomeProprio(txt) {
     .join('');
 }
 
+/** "FEDERAÇÃO BRASIL DA ESPERANÇA - FE BRASIL (PT / PC do B / PV)" → "Federação Brasil da Esperança (PT, PCdoB e PV)". */
+function nomeFederacao(txt) {
+  const m = String(txt || '').match(/^(.*?)(?:\s*-\s*[^(]*)?\s*\(([^)]*)\)\s*$/);
+  if (!m) return nomeProprio(txt);
+  const siglas = m[2].split('/').map((x) => x.trim().replace(/^PC do B$/i, 'PCdoB'));
+  const fmtSigla = (x) => (x.length <= 5 || /^PCdoB$/.test(x) ? x : nomeProprio(x));
+  const up = new Set(siglas.map((x) => x.toUpperCase()));
+  const nome = m[1].split(/\s+/).map((w) => (up.has(w.toUpperCase()) && w.length <= 5 ? w.toUpperCase() : nomeProprio(w))).join(' ').replace(/\b(Da|De|Do|Das|Dos|E)\b/g, (x) => x.toLowerCase());
+  const lista = siglas.map(fmtSigla);
+  return `${nome} (${lista.length > 1 ? `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}` : lista[0]})`;
+}
 export function brl(v) {
   const n = Number(v) || 0;
   if (n >= 1e6) return `R$ ${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`;
@@ -268,6 +279,8 @@ const ESTILO_FICHA = `
   .fx-lista a { font-size: 13.5px; text-decoration: none; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--ink-2); }
   .fx-lista a:hover { border-color: var(--blue); color: var(--blue); }
   .fx-lista a b { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .fx-lista a small { font-size: 11.5px; color: var(--muted); margin-left: 6px; }
+  .fx-tag-m { font-style: normal; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #00735F; background: var(--teal-50); border-radius: 999px; padding: 1px 6px; margin-left: 6px; }
   .fx-dl { display: grid; grid-template-columns: 200px 1fr; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   .fx-dl dt, .fx-dl dd { margin: 0; padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
   .fx-dl dt { color: var(--muted); background: var(--paper); }
@@ -327,9 +340,10 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
       ? `
     <section class="fx-sec">
       <h2>Seu voto também conta para esta lista</h2>
-      <p class="fx-sub">Para ${escapeHtml(principal.cargo_nome.toLowerCase())}, o voto soma primeiro para ${mesmaLista.federacao ? 'a federação' : 'o partido'} <strong>${escapeHtml(mesmaLista.rotulo)}</strong>. Ele pode ajudar a eleger qualquer um destes ${mesmaLista.total.toLocaleString('pt-BR')} candidatos em ${escapeHtml(principal.sg_uf)}. <a href="/#seu-voto">Entenda</a></p>
+      <p class="fx-sub">Para ${escapeHtml(principal.cargo_nome.toLowerCase())}, o voto soma primeiro para ${mesmaLista.federacao ? '' : 'o partido '}<strong>${escapeHtml(mesmaLista.federacao ? nomeFederacao(mesmaLista.rotulo) : mesmaLista.rotulo)}</strong>. Ele pode ajudar a eleger qualquer um destes ${mesmaLista.total.toLocaleString('pt-BR')} candidatos em ${escapeHtml(principal.sg_uf)}. <a href="/#seu-voto">Entenda</a></p>
+      <p class="fx-sub" style="font-size:13px;margin-top:-6px">Primeiro quem já tem mandato no Congresso, depois quem teve mais votos para deputado em 2022 (resultado oficial do TSE). Quem puxa votos para a lista aparece antes; quem se beneficia deles, depois.</p>
       <div class="fx-lista">${mesmaLista.itens
-        .map((i) => `<a href="/candidato/${i.pessoa_id}">${escapeHtml(nomeProprio(i.nome_urna_atual))}<b>${escapeHtml(i.numero_urna ?? '')}</b></a>`)
+        .map((i) => `<a href="/candidato/${i.pessoa_id}">${escapeHtml(nomeProprio(i.nome_urna_atual))}${i.tem_mandato ? '<em class="fx-tag-m">mandato</em>' : ''}${i.votos_2022 ? `<small>${i.votos_2022 >= 1000 ? `${Math.round(i.votos_2022 / 1000).toLocaleString('pt-BR')} mil` : i.votos_2022} votos em 2022</small>` : ''}<b>${escapeHtml(i.numero_urna ?? '')}</b></a>`)
         .join('')}${mesmaLista.total > mesmaLista.itens.length ? `<a href="/buscar?cargo=${cargoSlug}&uf=${principal.sg_uf}&ordenar=partido">e mais ${(mesmaLista.total - mesmaLista.itens.length).toLocaleString('pt-BR')} →</a>` : ''}</div>
     </section>`
       : '';

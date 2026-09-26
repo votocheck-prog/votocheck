@@ -1031,8 +1031,8 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     // Mídia pública das peças (26/09/2026): o Buffer busca os arquivos por URL pública no horário
     // da publicação. Mesmo conteúdo de /social, sem token.
     const midiaMatch = url.pathname.match(/^\/midia\/(\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_.-]+)$/);
-    if (midiaMatch && request.method === 'GET') {
-      return (await servirArquivoSocial(env, midiaMatch[1])) || html404(render404(url.pathname));
+    if (midiaMatch && (request.method === 'GET' || request.method === 'HEAD')) {
+      return (await servirArquivoSocial(env, midiaMatch[1], { publico: true, metodo: request.method })) || new Response('Not found', { status: 404 });
     }
     const socialMatch = url.pathname.match(/^\/social\/(\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_.-]+)$/);
     if (socialMatch && request.method === 'GET') {

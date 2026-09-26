@@ -13,11 +13,13 @@ export function dataSP(d = new Date()) {
   return new Date(d.getTime() - 3 * 3600000).toISOString().slice(0, 10);
 }
 
-export async function servirArquivoSocial(env, caminho) {
+export async function servirArquivoSocial(env, caminho, { publico = false, metodo = 'GET' } = {}) {
   const obj = env.OG ? await env.OG.getWithMetadata(`s:${caminho}`, 'arrayBuffer') : null;
   if (!obj || !obj.value) return null;
   const tipo = caminho.endsWith('.mp4') ? 'video/mp4' : caminho.endsWith('.png') ? 'image/png' : 'image/jpeg';
-  return new Response(obj.value, { headers: { 'Content-Type': tipo, 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': `inline; filename="${caminho.split('/').pop()}"` } });
+  // Mídia pública (Buffer): HEAD, tamanho e faixas (Range) — plataformas de vídeo checam isso antes de baixar.
+  const cab = { 'Content-Type': tipo, 'Cache-Control': publico ? 'public, max-age=86400' : 'private, max-age=3600', 'Content-Disposition': `inline; filename="${caminho.split('/').pop()}"`, 'Accept-Ranges': 'bytes', 'Content-Length': String(obj.value.byteLength) };
+  return new Response(metodo === 'HEAD' ? null : obj.value, { headers: cab });
 }
 
 export async function lerPauta(env, data) {
@@ -46,7 +48,7 @@ export async function decidirPeca(env, data, id, decisao) {
     for (const b of item.buffer || []) {
       if (b.removido) continue;
       try {
-        const d = await bufferGql(env, 'mutation Del($id: PostId!) { deletePost(input: { id: $id }) { ... on DeletePostSuccess { id } ... on MutationError { message } } }', { id: b.id });
+        const d = await bufferGql(env, 'mutation Del($id: PostId!) { deletePost(input: { id: $id }) { ... on DeletePostSuccess { id } ... on VoidMutationError { message } } }', { id: b.id });
         if (d?.deletePost?.message) erros.push(`${b.rede}: ${d.deletePost.message}`);
         else b.removido = true;
       } catch (e) {

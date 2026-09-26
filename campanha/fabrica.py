@@ -273,8 +273,13 @@ def buffer_agendar(item, canais, redes, arquivos, hhmm, titulo_video=None):
         else:
             assets = [{'image': {'url': f'{MIDIA}/{HOJE}/{a}'}} for a in arquivos if a.endswith('.png') and not a.endswith('_v.png')][:10]
         entrada = {'text': item['legenda'], 'channelId': cid, 'schedulingType': 'automatic', 'mode': 'customScheduled', 'dueAt': item['publicar_em'], 'assets': assets}
-        if rede == 'youtube' and titulo_video:
-            entrada['metadata'] = {'youtube': {'title': titulo_video[:95], 'privacy': 'public', 'categoryId': '25'}}
+        # Campos conferidos por introspecção do GraphQL do Buffer em 26/09/2026.
+        if rede == 'instagram':
+            entrada['metadata'] = {'instagram': {'type': 'reel' if video else 'post', 'shouldShareToFeed': True}}
+        elif rede == 'youtube':
+            entrada['metadata'] = {'youtube': {'title': (titulo_video or item['titulo'])[:95], 'privacy': 'public', 'categoryId': '25', 'madeForKids': False, 'notifySubscribers': True}}
+        elif rede == 'tiktok':
+            entrada['metadata'] = {'tiktok': {'title': item['titulo'][:90]}}
         try:
             d = buffer_gql('mutation P($i: CreatePostInput!) { createPost(input: $i) { ... on PostActionSuccess { post { id dueAt } } ... on MutationError { message } } }', {'i': entrada})['createPost']
             if d.get('message'):

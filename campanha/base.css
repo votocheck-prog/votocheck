@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1080px;height:1350px;overflow:hidden;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+body.story{height:1920px}
+.s{position:relative;width:100%;height:100%;padding:150px 84px 190px;display:flex;flex-direction:column;justify-content:center;color:#fff;
+background:radial-gradient(900px 600px at 95% -10%,#1C3FA8 0%,rgba(28,63,168,0) 60%),radial-gradient(700px 500px at -10% 110%,rgba(0,180,149,.30) 0%,rgba(0,180,149,0) 60%),#0A1440}
+.s::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:54px 54px;pointer-events:none}
+.s>*{position:relative;z-index:1}
+.claro{background:#F6F8FB;color:#0A1440}
+.claro::after{background-image:linear-gradient(rgba(10,20,64,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(10,20,64,.04) 1px,transparent 1px)}
+.eyebrow{font-size:28px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7FB0FF;margin-bottom:28px}
+.claro .eyebrow{color:#0059F5}
+h1,h2{font-family:"Plus Jakarta Sans",sans-serif;letter-spacing:-.03em;line-height:1.04}
+h1{font-size:112px;font-weight:800}
+h2{font-size:86px;font-weight:800;margin-bottom:28px}
+em{font-style:normal;background:linear-gradient(90deg,#5B9BFF,#3FE0C0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.claro em{background:linear-gradient(90deg,#0059F5,#00A585);-webkit-background-clip:text;background-clip:text}
+p.lead{font-size:44px;line-height:1.4;color:#C3CDF0;max-width:880px}
+.claro p.lead{color:#3A4461}
+.rod{position:absolute;left:84px;right:84px;bottom:64px;display:flex;justify-content:space-between;align-items:flex-end;z-index:2}
+.rod img{height:54px}
+.rod .fonte{font-size:23px;color:#8C99CC;max-width:640px;line-height:1.35}
+.claro .rod .fonte{color:#5B6478}
+.pag{position:absolute;top:88px;right:84px;font-size:26px;font-weight:700;color:#7FB0FF;z-index:2}
+.claro .pag{color:#0059F5}
+.voto{display:grid;grid-template-columns:78px 1fr auto;gap:28px;align-items:center;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);border-radius:26px;padding:24px 28px;margin-bottom:16px}
+.voto .n{width:78px;height:78px;border-radius:20px;background:#0059F5;display:grid;place-items:center;font-weight:800;font-size:38px}
+.voto b{font-family:"Plus Jakarta Sans";font-size:42px;display:block;line-height:1.1}
+.voto small{font-size:26px;color:#9AA7D6}
+.dig{display:flex;gap:8px}.dig span{width:40px;height:58px;border-radius:10px;background:#050B2A;border:2px solid rgba(255,255,255,.18)}
+.big{font-family:"Plus Jakarta Sans";font-weight:800;font-size:220px;letter-spacing:-.05em;line-height:1}
+.card{background:#fff;border:2px solid #E3E7EE;border-radius:30px;padding:36px 40px;box-shadow:0 20px 50px -30px rgba(10,20,64,.35)}
+.passo{display:grid;grid-template-columns:90px 1fr;gap:28px;align-items:start;margin-bottom:34px}
+.passo .n{width:90px;height:90px;border-radius:24px;background:#0059F5;color:#fff;display:grid;place-items:center;font-weight:800;font-size:44px;font-family:"Plus Jakarta Sans"}
+.passo b{display:block;font-family:"Plus Jakarta Sans";font-size:46px;line-height:1.1;margin-bottom:8px}
+.passo span{font-size:31px;line-height:1.35;color:#9AA7D6}
+.claro .passo span{color:#5B6478}
+.aviso{display:flex;gap:26px;align-items:center;background:rgba(255,196,0,.12);border:2px solid rgba(255,196,0,.45);border-radius:28px;padding:30px 34px;font-size:36px;line-height:1.35;color:#FFE7A3}
+.chip{display:inline-block;font-size:28px;font-weight:700;padding:12px 24px;border-radius:999px;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);margin:0 10px 12px 0}
+.btn{display:inline-flex;align-items:center;gap:16px;background:#0059F5;color:#fff;font-weight:700;font-size:40px;padding:28px 46px;border-radius:999px;box-shadow:0 20px 40px -18px rgba(0,89,245,.9)}

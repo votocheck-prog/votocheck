@@ -14,6 +14,9 @@ import { renderResumoCargos } from './cargos_guia.js';
 import { renderBanners } from './banners_html.js';
 import { renderJornada, renderObtencaoDados, renderMonitoramentoCobranca, renderCtaApoio, faseEleitoral } from './jornada_html.js';
 import { Icone } from './icones.js';
+import { renderPublicidade } from './publicidade.js';
+import { UF_NOMES } from './home_html.js';
+import { nomeProprio } from './perfil_html.js';
 
 // Frase-síntese da hero — resume em 1 frase o que o VotoCheck faz (o "porquê" mais longo vem
 // logo abaixo, no parágrafo de contexto).
@@ -164,7 +167,7 @@ export function renderHomepage({ totalCandidaturas, totalPessoas, atualizadoEm, 
 // mesma lógica de cálculo de idade usada em perfil_html.js — duplicada aqui de propósito
 // (arquivo server-rendered isolado, sem módulo compartilhado de "utils" ainda) para não
 // criar acoplamento prematuro entre as duas páginas.
-function calcularIdade(dataNascimento) {
+export function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null;
   let d;
   const iso = String(dataNascimento).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -180,23 +183,65 @@ function calcularIdade(dataNascimento) {
   return idade;
 }
 
+export const SLOT_COLA = { deputado_federal: 1, deputado_estadual: 2, deputado_distrital: 2, senador: 3, governador: 5, presidente: 6 };
+
 function linhaResultado(c) {
-  const situacao = c.situacao_totalizacao_turno || c.situacao_candidatura;
   const idade = calcularIdade(c.data_nascimento);
+  const nome = nomeProprio(c.nome_urna_atual || c.nome_completo);
+  const slot = SLOT_COLA[c.cargo_slug];
   return `
-    <a href="/candidato/${c.pessoa_id}" style="display:flex; gap:14px; align-items:center; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:var(--surface); text-decoration:none; color:inherit; margin-bottom:10px;">
-      <div style="width:44px; height:44px; border-radius:50%; background:var(--primary-soft); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); flex-shrink:0; overflow:hidden;">
-        ${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" style="width:100%; height:100%; object-fit:cover;">` : escapeHtml((c.nome_urna_atual || c.nome_completo || '?').slice(0, 1))}
+    <div class="bx-card">
+      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true">${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
+      <div class="bx-info">
+        <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
+        <div class="bx-meta">${escapeHtml(c.cargo_nome)} · ${escapeHtml(c.sg_uf)}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>
       </div>
-      <div style="flex:1; min-width:0;">
-        <div style="font-weight:600;">${escapeHtml(c.nome_urna_atual || c.nome_completo)}</div>
-        <div style="font-size:13px; color:var(--text-muted);">
-          ${escapeHtml(c.cargo_nome)} · ${escapeHtml(c.sg_uf)}${c.numero_urna ? ` · nº ${escapeHtml(c.numero_urna)}` : ''}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}
-        </div>
+      <div class="bx-dir">
+        ${c.numero_urna ? `<span class="bx-num">${escapeHtml(c.numero_urna)}</span>` : ''}
+        ${slot && c.numero_urna ? `<button type="button" class="bx-cola" data-cola-add data-slot="${slot}" data-cargo="${escapeHtml(c.cargo_slug)}" data-nome="${escapeHtml(nome)}" data-numero="${escapeHtml(c.numero_urna)}" data-partido="${escapeHtml(c.partido_sigla || '')}" aria-label="Adicionar ${escapeHtml(nome)} à cola">+ cola</button>` : ''}
       </div>
-      ${situacao ? `<span class="status-pill">${escapeHtml(situacao)}</span>` : ''}
-    </a>`;
+    </div>`;
 }
+
+export const ESTILO_BUSCA = `
+  .bx-topo { background: var(--navy); color: #fff; padding: 36px 0 28px; }
+  .bx-topo h1 { color: #fff; font-size: clamp(24px, 3.2vw, 34px); margin: 0 0 16px; }
+  .bx-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .bx-filtros a { font-size: 13.5px; font-weight: 600; text-decoration: none; color: #C8D2F5; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 13px; }
+  .bx-filtros a:hover { border-color: #fff; color: #fff; }
+  .bx-filtros a.ativo { background: #fff; color: var(--navy); border-color: #fff; }
+  .bx-corpo { padding: 28px 0 56px; }
+  .bx-info-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+  .bx-info-linha select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line-2); font-size: 14px; }
+  .bx-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .bx-grid > .vc-pub { grid-column: 1 / -1; margin: 10px 0; }
+  @media (max-width: 760px) { .bx-grid { grid-template-columns: 1fr; } }
+  .bx-card { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; transition: border-color .15s ease, box-shadow .15s ease; }
+  .bx-card:hover { border-color: var(--line-2); box-shadow: var(--shadow-sm); }
+  .bx-foto { width: 52px; height: 52px; border-radius: 12px; background: var(--blue-50); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--blue); overflow: hidden; text-decoration: none; }
+  .bx-foto img { width: 100%; height: 100%; object-fit: cover; }
+  .bx-info { min-width: 0; }
+  .bx-nome { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 16px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bx-nome:hover { color: var(--blue); }
+  .bx-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bx-dir { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .bx-num { font-family: var(--font-display); font-weight: 800; font-size: 19px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+  .bx-cola { font-size: 12px; font-weight: 700; color: var(--blue); background: var(--blue-50); border: 0; border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .bx-cola:hover { background: var(--blue); color: #fff; }
+  .bx-cola.ok { background: var(--teal-50); color: #00735F; }
+  .bx-vazio { text-align: center; padding: 40px 16px; background: #fff; border: 1px dashed var(--line-2); border-radius: 14px; color: var(--muted); }
+`;
+
+const CARGOS_CHIPS = [
+  { slug: '', label: 'Todos' },
+  { slug: 'deputado_federal', label: 'Dep. Federal' },
+  { slug: 'deputado_estadual', label: 'Dep. Estadual' },
+  { slug: 'senador', label: 'Senador' },
+  { slug: 'governador', label: 'Governador' },
+  { slug: 'presidente', label: 'Presidente' },
+  { slug: 'deputado_distrital', label: 'Dep. Distrital' },
+];
+const NOMES_CARGO_PLURAL = { deputado_federal: 'Deputado Federal', deputado_estadual: 'Deputado Estadual', deputado_distrital: 'Deputado Distrital', senador: 'Senador', governador: 'Governador', presidente: 'Presidente' };
 
 function linkPagina({ q, cargo, uf, ordenar, pagina: p, label, ativo, desabilitado }) {
   const params = new URLSearchParams();
@@ -231,27 +276,69 @@ const DESCRICAO_ORDENACAO = {
 export function renderResultados({ q, cargo, uf, ordenar = 'nome', resultados, totalResultados, paginaAtual = 1, porPagina = 30, caminho = '/buscar' }) {
   const total = totalResultados ?? resultados.length;
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+  const ehNumero = /^\d{2,5}$/.test(q || '');
+  const ufNome = uf && UF_NOMES[uf] ? UF_NOMES[uf] : '';
+  const titulo = q
+    ? ehNumero
+      ? `Candidatos com o número ${q}${ufNome ? ` em ${ufNome}` : ''}`
+      : `Resultados para “${q}”`
+    : cargo
+    ? `Candidatos a ${NOMES_CARGO_PLURAL[cargo] || 'cargo'}${ufNome ? ` em ${ufNome}` : cargo === 'presidente' ? '' : ' no Brasil'}`
+    : ufNome
+    ? `Candidatos em ${ufNome}`
+    : 'Todos os candidatos de 2026';
+
+  const cards = resultados.map(linhaResultado);
+  if (cards.length > 8) cards.splice(8, 0, renderPublicidade('A2', `${cargo}${uf}${paginaAtual}`));
   const lista = resultados.length
-    ? resultados.map(linhaResultado).join('')
-    : `<p style="color:var(--text-muted); text-align:center; padding:32px 0;">
-         Nenhum resultado para essa busca ainda. A cobertura está em expansão — tente o nome completo
-         ou volte em breve.
-       </p>`;
+    ? `<div class="bx-grid">${cards.join('')}</div>`
+    : `<div class="bx-vazio"><strong style="color:var(--ink)">Nenhum candidato encontrado.</strong><br>${ehNumero ? 'Confira se o estado está certo: o mesmo número pode existir em estados diferentes.' : 'Tente só o sobrenome ou o nome de urna, sem acentos.'}</div>`;
+
+  const hrefChip = (slug) => {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (slug) p.set('cargo', slug);
+    if (uf && slug !== 'presidente') p.set('uf', uf);
+    return `/buscar?${p.toString()}`;
+  };
 
   const corpo = `
-    <h2 style="margin-top:0;">Resultados da busca</h2>
-    ${formularioBusca({ q, cargo, uf, ordenar })}
-    <p style="color:var(--text-muted); font-size:13px; margin:24px 0 8px;">
-      ${total.toLocaleString('pt-BR')} candidatura(s) encontrada(s), ${DESCRICAO_ORDENACAO[ordenar] || DESCRICAO_ORDENACAO.nome} —
-      é só um critério de organização, nunca uma recomendação ou ranking de qualidade.
-    </p>
-    <div style="margin-top:8px;">${lista}</div>
-    ${controlesPaginacao({ q, cargo, uf, ordenar, paginaAtual, totalPaginas })}
+    <style>${ESTILO_BUSCA}</style>
+    <section class="bx-topo">
+      <div class="vc-wrap">
+        <h1>${escapeHtml(titulo)}</h1>
+        <form class="vc-busca" method="GET" action="/buscar" role="search" style="max-width:760px">
+          <span class="vc-busca-ico">${Icone.busca(20)}</span>
+          <label class="sr-only" for="q-busca">Nome ou número</label>
+          <input id="q-busca" type="search" name="q" value="${escapeHtml(q || '')}" placeholder="Nome ou número do candidato" />
+          <select name="uf" aria-label="Estado"><option value="">Todos os estados</option>${Object.keys(UF_NOMES).sort().map((u) => `<option value="${u}" ${u === uf ? 'selected' : ''}>${u}</option>`).join('')}</select>
+          ${cargo ? `<input type="hidden" name="cargo" value="${escapeHtml(cargo)}" />` : ''}
+          <button class="vc-btn vc-btn--pri" type="submit">Buscar</button>
+        </form>
+        <nav class="bx-filtros" aria-label="Filtrar por cargo">${CARGOS_CHIPS.map((c) => `<a href="${hrefChip(c.slug)}" class="${(cargo || '') === c.slug ? 'ativo' : ''}">${c.label}</a>`).join('')}</nav>
+      </div>
+    </section>
+    <section class="bx-corpo">
+      <div class="vc-wrap">
+        <div class="bx-info-linha">
+          <span><strong style="color:var(--ink)">${total.toLocaleString('pt-BR')}</strong> candidatura(s), ${DESCRICAO_ORDENACAO[ordenar] || DESCRICAO_ORDENACAO.nome}. É só uma forma de organizar, não um ranking.</span>
+          <form method="GET" action="/buscar">
+            ${q ? `<input type="hidden" name="q" value="${escapeHtml(q)}" />` : ''}${cargo ? `<input type="hidden" name="cargo" value="${escapeHtml(cargo)}" />` : ''}${uf ? `<input type="hidden" name="uf" value="${escapeHtml(uf)}" />` : ''}
+            <label class="sr-only" for="ord">Ordenar</label>
+            <select id="ord" name="ordenar" onchange="this.form.submit()">${ORDENACOES.map((o) => `<option value="${o.valor}" ${ordenar === o.valor ? 'selected' : ''}>Ordenar: ${o.label}</option>`).join('')}</select>
+          </form>
+        </div>
+        ${lista}
+        ${controlesPaginacao({ q, cargo, uf, ordenar, paginaAtual, totalPaginas })}
+      </div>
+    </section>
+    <div class="fx-toast" id="toast-cola" role="status" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 18px;border-radius:999px;font-weight:600;display:none;z-index:90">Adicionado à sua cola ✓ <a href="/cola" style="color:#9EC0FF;margin-left:8px">Ver cola</a></div>
   `;
   return pagina({
-    titulo: `Busca: ${q || 'candidatos'} — VotoCheck`,
-    descricao: 'Resultados de busca de candidatos no VotoCheck.',
+    titulo: `${titulo} — Eleições 2026 | VotoCheck`,
+    descricao: `${titulo}: nome, número, partido e dados oficiais do TSE, com a fonte de cada informação. Sem ranking.`,
     caminho,
+    larga: true,
     // busca por texto livre e páginas além da 1ª têm pouco valor pra indexação (conteúdo
     // fino/duplicado) — mas navegação por cargo/UF na página 1 continua indexável.
     noindex: Boolean(q) || paginaAtual > 1,

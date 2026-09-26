@@ -13,6 +13,7 @@
  * em aberto.
  */
 import { Icone } from './icones.js';
+import { renderCtaTriplo } from './apoio_html.js';
 
 const ETAPAS = [
   {
@@ -286,54 +287,10 @@ const PIX_CONFIG = {
 // abertura: "home" (padrão) ou "perfil" (fim de página de candidato/representante).
 // NUNCA colocar links de redes sociais (Insta/Face/TikTok) aqui sem o Rodrigo passar as URLs
 // reais — mesma regra da chave PIX: não inventar.
-export function renderCtaApoio({ contexto = 'home' } = {}) {
-  const temPix = Boolean(PIX_CONFIG.chave || PIX_CONFIG.qrImagemUrl);
-  const linkCompartilhar = `https://wa.me/?text=${encodeURIComponent('Antes de votar, eu confiro o histórico de candidatos e representantes no VotoCheck: https://votocheck.com.br')}`;
-  const abertura =
-    contexto === 'perfil'
-      ? 'Esse perfil ajudou você a se decidir sobre esse candidato ou representante?'
-      : contexto === 'quiz'
-      ? 'Esse resultado ajudou você a encontrar candidatos alinhados com o que você procura?'
-      : 'Esse conteúdo ajudou você a se decidir sobre um candidato ou representante?';
-  return `
-    <section class="cta-apoio" aria-labelledby="apoio-titulo">
-      <div class="etapa-icone">${Icone.coracao(28)}</div>
-      <h2 id="apoio-titulo" class="secao-titulo">Como o VotoCheck se sustenta</h2>
-      <p class="secao-subtitulo">
-        ${abertura} Considere compartilhar o VotoCheck — quanto mais gente decide com informação,
-        melhor pra todo mundo. Somos independentes: não recebemos recurso público e nenhum partido
-        ou candidato influencia o que é mostrado aqui.
-      </p>
-      <div style="display:flex; justify-content:center; margin-bottom:20px;">
-        <a href="${linkCompartilhar}" target="_blank" rel="noopener"
-           style="display:inline-block; padding:8px 18px; border:1px solid var(--primary); border-radius:999px; color:var(--primary); font-size:13.5px; font-weight:600; text-decoration:none;">
-          Compartilhar no WhatsApp
-        </a>
-      </div>
-      <div class="cta-apoio-grid">
-        <div class="cta-apoio-card">
-          <strong>Doações individuais</strong>
-          <p>Qualquer valor ajuda a manter o site no ar e a cobertura em expansão.</p>
-          ${
-            temPix
-              ? `<img src="${PIX_CONFIG.qrImagemUrl}" alt="QR Code PIX para doação" style="width:140px;height:140px;" />
-                 ${
-                   PIX_CONFIG.chave
-                     ? `<div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Chave PIX: <code>${PIX_CONFIG.chave}</code></div>`
-                     : ''
-                 }
-                 <div style="font-size:11px; color:#9a9a9a; margin-top:4px;">Conta de recebimento em nome do idealizador do projeto, Rodrigo Gavioli Baggini.</div>`
-              : `<div class="pix-placeholder">${Icone.qrcode(40)}<span>QR Code PIX em breve</span></div>`
-          }
-        </div>
-        <div class="cta-apoio-card">
-          <strong>Cota publicitária</strong>
-          <p>
-            Uma pequena cota de anúncios de empresas apoiadoras, sem viés ideológico ou partidário —
-            interesse em apoiar a causa e expor a marca, nada além disso.
-          </p>
-          <a href="mailto:contato@votocheck.com.br">Quero apoiar como empresa →</a>
-        </div>
-      </div>
-    </section>`;
+/** v2 (27/09/2026): delega para o bloco novo "Siga · Compartilhe · Apoie" (apoio_html.js). */
+export function renderCtaApoio({ contexto = 'home', url } = {}) {
+  return renderCtaTriplo({ contexto, url });
 }
+
+/** Base64 do QR Pix verificado — servido em /static/pix-qr.png por index.js. */
+export const PIX_QR_B64 = PIX_CONFIG.qrImagemUrl.split(',')[1];

@@ -8,3 +8,6 @@ node_modules/
 # (achado em 25/09/2026, tentando commitar o SQL gerado pelo importar_local.mjs).
 scripts/output/
 scripts/input/
+
+# Peças geradas pela fábrica diária (ficam no KV e no artefato do GitHub Actions, não no código).
+campanha/saida/

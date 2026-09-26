@@ -10,7 +10,10 @@
  *   - Assinatura: "Confira antes de decidir."
  */
 
-import { FAVICON_32_B64, LOGO_HEADER_B64 } from './assets_data.js';
+import { FAVICON_32_B64 } from './assets_data.js';
+import { ESTILO_DS, FONTES_HEAD } from './ds.js';
+import { Icone } from './icones.js';
+import { REDES, renderApoiadores } from './publicidade.js';
 
 export const SITE_URL = 'https://votocheck.com.br';
 
@@ -1003,41 +1006,135 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// 1º turno / 2º turno (horário de Brasília). Usado pela faixa de contagem e pela fase da home.
+export const DATA_1T = new Date('2026-10-04T08:00:00-03:00');
+export const DATA_2T = new Date('2026-10-25T08:00:00-03:00');
+
+/** Faixa fina de contagem regressiva — some sozinha depois do 2º turno. */
+export function faixaContagem(agora = new Date()) {
+  const dia = 86400000;
+  const hojeSP = new Date(agora.getTime() - 3 * 3600000);
+  const diasAte = (d) => Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(hojeSP.getUTCFullYear(), hojeSP.getUTCMonth(), hojeSP.getUTCDate())) / dia);
+  const alvo = agora < new Date(DATA_1T.getTime() + 12 * 3600000) ? { d: DATA_1T, nome: '1º turno', data: '4 de outubro' } : agora < new Date(DATA_2T.getTime() + 12 * 3600000) ? { d: DATA_2T, nome: '2º turno', data: '25 de outubro' } : null;
+  if (!alvo) return '';
+  const n = diasAte(alvo.d);
+  const quando = n <= 0 ? `<strong>Hoje é dia de votar</strong> · ${alvo.nome}` : n === 1 ? `<strong>Amanhã</strong> é o ${alvo.nome}` : `Faltam <strong class="tabnum">${n} dias</strong> para o ${alvo.nome} · ${alvo.data}`;
+  return `<div class="vc-faixa">${quando}<a href="/cola">Monte sua cola →</a></div>`;
+}
+
 export function cabecalho() {
   return `<header class="topo">
     <a class="logo" href="/" aria-label="VotoCheck — página inicial">
-      <img src="data:image/png;base64,${LOGO_HEADER_B64}" alt="VotoCheck" width="204" height="73" />
+      <img src="/static/logo-h.png" alt="VotoCheck" width="150" height="36" />
     </a>
-    <nav class="nav">
-      <a class="link-sobre" href="/quiz" style="color:var(--primary); font-weight:600;">Meu VotoCheck</a>
-      <a class="link-sobre" href="/sobre">Sobre</a>
-      <span class="tagline">Confira antes de decidir.</span>
+    <nav class="nav" aria-label="Principal">
+      <a class="nav-link" href="/buscar">Candidatos</a>
+      <a class="nav-link" href="/quiz">Meu VotoCheck</a>
+      <a class="nav-link" href="/partidos">Partidos</a>
+      <a class="nav-link" href="/sobre">Como funciona</a>
+      <a class="nav-social" href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="VotoCheck no Instagram" data-ev="seguir" data-ev-chave="instagram:header">${Icone.instagram(20)}</a>
+      <a class="nav-social" href="${REDES.tiktok}" target="_blank" rel="noopener" aria-label="VotoCheck no TikTok" data-ev="seguir" data-ev-chave="tiktok:header">${Icone.tiktok(20)}</a>
+      <a class="nav-link nav-cta" href="/cola">Minha cola</a>
+      <details class="nav-mobile">
+        <summary>Menu</summary>
+        <div class="nav-mobile-painel">
+          <a href="/buscar">Candidatos</a>
+          <a href="/quiz">Meu VotoCheck</a>
+          <a href="/cola">Minha cola</a>
+          <a href="/partidos">Partidos</a>
+          <a href="/sobre">Como funciona</a>
+          <a href="${REDES.instagram}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:menu">Instagram @votocheck</a>
+          <a href="${REDES.tiktok}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="tiktok:menu">TikTok @votocheck</a>
+        </div>
+      </details>
     </nav>
   </header>`;
 }
 
 export function rodape() {
   return `<footer class="rodape">
-    Dados de fontes públicas oficiais (TSE, Câmara dos Deputados, Senado Federal), com origem e histórico rastreáveis.
-    Nenhuma informação aqui é opinião do VotoCheck — veja sempre a fonte de cada dado.
-    <br>
-    <a href="/sobre" style="color:var(--text-muted);">Sobre o VotoCheck</a> ·
-    <a href="/quiz" style="color:var(--text-muted);">Meu VotoCheck</a> ·
-    <a href="/partidos" style="color:var(--text-muted);">Partidos Políticos</a> ·
-    <a href="/judiciario" style="color:var(--text-muted);">O Judiciário</a> ·
-    <a href="/termos" style="color:var(--text-muted);">Termos e Condições</a> ·
-    <a href="/faq" style="color:var(--text-muted);">Perguntas Frequentes</a>
-    <br>&copy; VotoCheck
+    <div class="vc-wrap">
+      <div class="rod-grid">
+        <div class="rod-marca">
+          <img src="/static/logo-h-branco.png" alt="VotoCheck" width="141" height="34" />
+          <p>Informação oficial sobre candidatos e eleitos, com a fonte de cada dado. Sem ranking, sem nota, sem torcida. Você decide.</p>
+          <div class="rod-redes">
+            <a href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="Instagram" data-ev="seguir" data-ev-chave="instagram:rodape">${Icone.instagram(18)}</a>
+            <a href="${REDES.tiktok}" target="_blank" rel="noopener" aria-label="TikTok" data-ev="seguir" data-ev-chave="tiktok:rodape">${Icone.tiktok(18)}</a>
+          </div>
+        </div>
+        <div>
+          <h4>Eleição 2026</h4>
+          <ul>
+            <li><a href="/buscar">Candidatos</a></li>
+            <li><a href="/quiz">Meu VotoCheck</a></li>
+            <li><a href="/cola">Monte sua cola</a></li>
+            <li><a href="/partidos">Partidos</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Entenda</h4>
+          <ul>
+            <li><a href="/cargo/deputado_federal">O que faz cada cargo</a></li>
+            <li><a href="/judiciario">O Judiciário</a></li>
+            <li><a href="/faq">Perguntas frequentes</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>VotoCheck</h4>
+          <ul>
+            <li><a href="/sobre">Como funciona</a></li>
+            <li><a href="/sobre#metodo">Como verificamos</a></li>
+            <li><a href="/termos">Termos e privacidade</a></li>
+            <li><a href="mailto:contato@votocheck.com.br">Contato e correções</a></li>
+          </ul>
+        </div>
+      </div>
+      ${renderApoiadores()}
+      <div class="rod-base">
+        <span>Dados públicos do TSE, da Câmara dos Deputados e do Senado Federal. Encontrou um erro? <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a></span>
+        <span>© ${new Date().getFullYear()} VotoCheck</span>
+      </div>
+    </div>
   </footer>`;
 }
+
+// Script mínimo e opcional (o site funciona sem JS): conta eventos (sem cookie, sem ID) e liga
+// o botão de compartilhar nativo do celular. Eventos: elementos com data-ev="nome" data-ev-chave="x".
+const SCRIPT_BASE = `
+(function(){
+  function ev(n,k){try{navigator.sendBeacon('/e',JSON.stringify({e:n,k:k||'',p:location.pathname}))}catch(_){}}
+  window.vcEv=ev;
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('[data-ev]'); if(a&&a.dataset.ev!=='pub_impressao') ev(a.dataset.ev,a.dataset.evChave);
+    var s=e.target.closest('[data-share]');
+    if(s){ var t=s.dataset.shareTexto||document.title, u=s.dataset.shareUrl||location.href;
+      if(navigator.share){ e.preventDefault(); navigator.share({title:document.title,text:t,url:u}).then(function(){ev('compartilhar','nativo:'+location.pathname)}).catch(function(){}); }
+      else { ev('compartilhar','whatsapp:'+location.pathname); }
+    }
+    var ca=e.target.closest('[data-cola-add]');
+    if(ca){ e.preventDefault(); var K='vc_cola_2026',d={};try{d=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){}
+      var sl=ca.dataset.slot; if(ca.dataset.cargo==='senador'){ sl=(d['3']&&d['3'].numero&&d['3'].numero!==ca.dataset.numero)?'4':'3'; }
+      d[sl]={nome:ca.dataset.nome,numero:ca.dataset.numero,partido:ca.dataset.partido}; try{localStorage.setItem(K,JSON.stringify(d))}catch(_){}
+      ev('cola_add',ca.dataset.cargo); ca.classList.add('ok'); ca.textContent='na cola ✓';
+      var t=document.getElementById('toast-cola'); if(t){t.style.display='block';setTimeout(function(){t.style.display='none'},4000);} }
+    var c=e.target.closest('[data-copiar]');
+    if(c){ e.preventDefault(); navigator.clipboard&&navigator.clipboard.writeText(c.dataset.copiar).then(function(){var o=c.innerHTML;c.innerHTML='Copiado ✓';setTimeout(function(){c.innerHTML=o},1600)}); ev('copiar',c.dataset.evChave||''); }
+  });
+  var vistos=document.querySelectorAll('[data-ev="pub_impressao"]');
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){ev('pub_impressao',x.target.dataset.evChave);io.unobserve(x.target)}})},{threshold:.5});vistos.forEach(function(v){io.observe(v)});}
+})();`;
 
 /**
  * Wrapper de página compartilhado. `caminho` (ex.: "/buscar") é opcional — usado só para
  * montar a URL canônica e a URL de og:url; sem ele, cai no "/" (aceitável para páginas sem
  * estado próprio de URL, como a 404).
+ * Opções novas (v2): `larga` (sem container de 920px — a página controla as próprias seções),
+ * `ogImagem` (URL absoluta da imagem de preview), `jsonLd` (objeto schema.org), `faixa` (contagem).
  */
-export function pagina({ titulo, descricao, corpo, caminho = '/', noindex = false }) {
+export function pagina({ titulo, descricao, corpo, caminho = '/', noindex = false, larga = false, ogImagem = null, jsonLd = null, faixa = true }) {
   const urlCompleta = `${SITE_URL}${caminho}`;
+  const og = ogImagem || `${SITE_URL}/og-image.png`;
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1048,25 +1145,32 @@ export function pagina({ titulo, descricao, corpo, caminho = '/', noindex = fals
 ${noindex ? '<meta name="robots" content="noindex, nofollow" />\n' : ''}<link rel="canonical" href="${urlCompleta}" />
 <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,${FAVICON_32_B64}" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<meta name="theme-color" content="#0A1440" />
 <meta property="og:type" content="website" />
 <meta property="og:locale" content="pt_BR" />
 <meta property="og:site_name" content="VotoCheck" />
 <meta property="og:title" content="${escapeHtml(titulo)}" />
 <meta property="og:description" content="${escapeHtml(descricao)}" />
 <meta property="og:url" content="${urlCompleta}" />
-<meta property="og:image" content="${SITE_URL}/og-image.png" />
+<meta property="og:image" content="${escapeHtml(og)}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${escapeHtml(titulo)}" />
 <meta name="twitter:description" content="${escapeHtml(descricao)}" />
-<meta name="twitter:image" content="${SITE_URL}/og-image.png" />
-<style>${ESTILO_BASE}</style>
+<meta name="twitter:image" content="${escapeHtml(og)}" />
+${FONTES_HEAD}
+<style>${ESTILO_BASE}${ESTILO_DS}</style>
+${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
+${faixa ? faixaContagem() : ''}
 ${cabecalho()}
-<main class="container">
+<main class="container${larga ? ' vc-full' : ''}">
 ${corpo}
 </main>
 ${rodape()}
+<script>${SCRIPT_BASE}</script>
 </body>
 </html>`;
 }

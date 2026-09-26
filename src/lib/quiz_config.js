@@ -41,72 +41,66 @@ export const TANTO_FAZ = 'tanto_faz';
 
 /** As 6 perguntas pontuadas + a pergunta de espectro (integrada ao fluxo principal — deixou de
  *  ser "Rodada 2/opcional", ver doc seção "mecânica final"). `ordem` = ordem de exibição no quiz. */
+// v2 (26/09/2026) — decisões D06/D07 e verificação de dados: saíram as perguntas que não filtravam
+// ninguém (dívida ativa: 0 casos confirmados; "declarou bens": campo que o TSE deixou de publicar
+// em 2026; alinhamento com a bancada: orientação de bancada não coletada). Entraram faixa de idade
+// e patrimônio declarado (dados do TSE para todos os candidatos). Escolaridade virou filtro opcional
+// no último passo. As definições antigas ficam em PERGUNTAS_ARQUIVADAS para voltar quando houver dado.
 export const PERGUNTAS = [
   {
-    slug: 'divida_ativa_uniao_confirmada',
+    slug: 'ja_ocupou_cargo',
     ordem: 1,
-    tipo: 'sim_nao',
-    texto: 'Ter pendência confirmada na Dívida Ativa da União pesa contra, pra você?',
-    ajuda: 'Considera só pendências que já passaram por checagem manual do CPF (nem toda pendência aparece — a curadoria está em andamento).',
+    tipo: 'tres_opcoes',
+    texto: 'Você prefere quem já está no Congresso ou alguém que nunca esteve lá?',
+    ajuda: 'Considera mandato atual de deputado federal ou senador (dados da Câmara e do Senado). Mandatos em Assembleias estaduais ainda não estão na nossa base.',
     opcoes: [
-      { valor: 'sim', label: 'Sim, pesa contra' },
-      { valor: 'nao', label: 'Não, não pesa' },
+      { valor: 'ja_ocupou', label: 'Prefiro quem já tem mandato' },
+      { valor: 'nunca_ocupou', label: 'Prefiro alguém novo' },
     ],
   },
   {
-    slug: 'ja_ocupou_cargo',
+    slug: 'faixa_idade',
     ordem: 2,
     tipo: 'tres_opcoes',
-    texto: 'Você prefere quem já ocupou esse cargo antes, ou dar chance a quem nunca ocupou?',
-    ajuda: 'Baseado no registro oficial do TSE de candidatura à reeleição no mesmo cargo.',
+    texto: 'Tem alguma faixa de idade que você prefere?',
+    ajuda: 'Pela data de nascimento declarada ao TSE.',
     opcoes: [
-      { valor: 'ja_ocupou', label: 'Prefiro quem já ocupou' },
-      { valor: 'nunca_ocupou', label: 'Prefiro dar chance a quem nunca ocupou' },
+      { valor: 'ate40', label: 'Até 40 anos' },
+      { valor: '41a59', label: 'De 41 a 59 anos' },
+      { valor: '60mais', label: '60 anos ou mais' },
     ],
   },
   {
-    slug: 'alinhamento_bancada',
+    slug: 'patrimonio',
     ordem: 3,
-    tipo: 'escala',
-    texto: 'Você valoriza mais um representante que vota alinhado com o próprio partido, ou que vota independente disso?',
-    ajuda: 'Só considera candidatos em exercício com votações nominais já coletadas — cobertura ainda parcial.',
-    extremoEsquerdo: 'Vota independente',
-    extremoDireito: 'Vota alinhado com o partido',
+    tipo: 'tres_opcoes',
+    texto: 'O tamanho do patrimônio declarado pesa na sua escolha?',
+    ajuda: 'Soma dos bens que o próprio candidato declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
+    opcoes: [
+      { valor: 'ate1mi', label: 'Prefiro até R$ 1 milhão' },
+      { valor: 'acima1mi', label: 'Prefiro acima de R$ 1 milhão' },
+    ],
   },
   {
     slug: 'trocou_de_partido',
     ordem: 4,
     tipo: 'sim_nao',
-    texto: 'Trocar de partido durante o mandato pesa negativamente pra você?',
-    ajuda: 'Baseado no número de filiações partidárias já registradas para essa pessoa.',
+    texto: 'Trocar de partido durante o mandato pesa contra, pra você?',
+    ajuda: 'Histórico de filiação disponível só para quem tem mandato no Congresso; para os demais, a pergunta não exclui ninguém.',
     opcoes: [
       { valor: 'sim', label: 'Sim, pesa contra' },
-      { valor: 'nao', label: 'Não, não pesa' },
-    ],
-  },
-  {
-    slug: 'declarou_bens',
-    ordem: 5,
-    tipo: 'sim_nao',
-    texto: 'Importa pra você que o candidato tenha declarado bens em todos os ciclos em que concorreu?',
-    ajuda: 'Baseado na declaração de bens da candidatura de 2026 registrada no TSE.',
-    opcoes: [
-      { valor: 'sim', label: 'Sim, importa' },
-      { valor: 'nao', label: 'Não importa' },
-    ],
-  },
-  {
-    slug: 'formacao_superior',
-    ordem: 6,
-    tipo: 'sim_nao',
-    texto: 'Ter uma formação com ensino superior (ou maior) é relevante no preparo do candidato pra assumir a posição?',
-    ajuda: 'Baseado na escolaridade declarada ao TSE, já exibida no perfil de cada candidato.',
-    opcoes: [
-      { valor: 'sim', label: 'Sim, é relevante' },
-      { valor: 'nao', label: 'Não é relevante' },
+      { valor: 'nao', label: 'Não pesa' },
     ],
   },
 ];
+
+/** Filtro opcional do último passo (D06) — avaliado como "sim, importa". */
+export const FILTRO_ESCOLARIDADE = {
+  slug: 'formacao_superior',
+  tipo: 'sim_nao',
+  texto: 'Mostrar só quem tem ensino superior completo',
+  opcoes: [{ valor: 'sim', label: 'Sim' }],
+};
 
 /**
  * Pergunta de espectro — cursor de escala dupla, integrada ao mesmo fluxo das 6 acima (deixou de
@@ -121,17 +115,18 @@ export const PERGUNTAS = [
  */
 export const ESPECTRO = {
   slug: 'espectro_estado_mercado',
-  ordem: 7,
+  ordem: 5,
   tipo: 'espectro',
   textoIntro: 'Como você acredita que o Estado/poder público deve interferir na vida das pessoas?',
   opcaoA:
     'Alto controle e atuação, cuidando não só de assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, mas também controlando e monopolizando recursos naturais (petróleo, energia, minerais etc.) e infraestrutura (telecomunicações, estradas, ferrovias etc.), podendo indicar diretamente os gestores responsáveis por essas áreas — com uma estrutura administrativa maior, de maior custo, tributos mais altos, mas com o Estado no controle total das frentes não essenciais (recursos e infraestrutura).',
   opcaoB:
     'Atuação focada em assuntos essenciais como segurança, educação, saúde, regulação econômica e previdência, delegando o controle de outros assuntos a empresas privadas — ficando com a fiscalização e regulação, com uma estrutura de pessoas, ativos e custo mais enxuta, ágil e focada, mas com menor poder de controle sobre as frentes não essenciais (recursos e infraestrutura).',
-  aviso: 'Usa a família ideológica do partido do candidato (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra na sua recomendação se você tocar no cursor.',
+  aviso: 'Usa a família ideológica do partido do candidato (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra no seu resultado se você tocar no cursor.',
 };
 
 export const TODAS_PERGUNTAS = [...PERGUNTAS, ESPECTRO];
+export const PARAMETROS_QUIZ = [...PERGUNTAS, FILTRO_ESCOLARIDADE, ESPECTRO];
 
 // ============================================================
 // Filtro de partido/ideologia — não pontuado, exclui/inclui candidatos (ver seção "Filtro de
@@ -191,16 +186,25 @@ function avaliarEspectro(posicaoUsuario, zonaCandidato) {
 
 /** Descreve, em linguagem natural, o que o usuário escolheu numa pergunta — usado só no "seu
  *  perfil de eleitor" (nunca perto de um candidato específico). Nunca lança exceção. */
+const TEMA_CURTO = {
+  ja_ocupou_cargo: 'Mandato no Congresso',
+  faixa_idade: 'Idade',
+  patrimonio: 'Patrimônio declarado',
+  trocou_de_partido: 'Troca de partido',
+  formacao_superior: 'Escolaridade',
+};
+
 export function resumoResposta(slug, valor) {
   if (slug === ESPECTRO.slug) {
     const v = Number(valor);
     if (Number.isNaN(v)) return null;
-    if (v <= 2) return `Sobre o papel do Estado: mais perto de "${ESPECTRO.opcaoA}"`;
-    if (v >= 4) return `Sobre o papel do Estado: mais perto de "${ESPECTRO.opcaoB}"`;
-    return 'Sobre o papel do Estado: ficou no meio-termo entre as duas opções.';
+    if (v <= 2) return `Papel do Estado: mais perto de "${ESPECTRO.opcaoA}"`;
+    if (v >= 4) return `Papel do Estado: mais perto de "${ESPECTRO.opcaoB}"`;
+    return 'Papel do Estado: meio-termo';
   }
-  const p = PERGUNTAS.find((q) => q.slug === slug);
+  const p = PERGUNTAS.find((q) => q.slug === slug) || (slug === FILTRO_ESCOLARIDADE.slug ? { texto: 'Só candidatos com ensino superior completo', tipo: 'filtro', opcoes: [{ valor: 'sim', label: 'sim' }] } : null);
   if (!p) return null;
+  if (p.tipo === 'filtro') return p.texto;
   if (p.tipo === 'escala') {
     const v = Number(valor);
     if (Number.isNaN(v)) return null;
@@ -210,7 +214,7 @@ export function resumoResposta(slug, valor) {
   }
   const opcao = p.opcoes.find((o) => o.valor === valor);
   if (!opcao) return null;
-  return `${p.texto} → ${opcao.label}`;
+  return TEMA_CURTO[slug] ? `${TEMA_CURTO[slug]}: ${opcao.label}` : `${p.texto} → ${opcao.label}`;
 }
 
 /**
@@ -244,6 +248,19 @@ export function avaliarCandidato(respostas, sinais) {
   }
   if ('formacao_superior' in respostas) {
     porPergunta.formacao_superior = avaliarSimNaoImporta(respostas.formacao_superior, sinais.grauInstrucaoSuperior);
+  }
+  if ('faixa_idade' in respostas) {
+    const i = sinais.idade;
+    if (i === null || i === undefined) porPergunta.faixa_idade = 'sem_dado';
+    else {
+      const faixa = i <= 40 ? 'ate40' : i < 60 ? '41a59' : '60mais';
+      porPergunta.faixa_idade = faixa === respostas.faixa_idade ? 'match' : 'diverge';
+    }
+  }
+  if ('patrimonio' in respostas) {
+    const v = sinais.patrimonio ?? 0;
+    const faixa = v <= 1000000 ? 'ate1mi' : 'acima1mi';
+    porPergunta.patrimonio = faixa === respostas.patrimonio ? 'match' : 'diverge';
   }
   if ('espectro_estado_mercado' in respostas) {
     const r = avaliarEspectro(respostas.espectro_estado_mercado, sinais.zonaEspectro);

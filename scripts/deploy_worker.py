@@ -57,40 +57,17 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")  # opcional — ver aviso no docstri
 SCRIPT_NAME = "votocheck-coletor"
 SRC_ROOT = sys.argv[1] if len(sys.argv) > 1 else "src"
 
-# Árvore completa de módulos alcançáveis a partir de index.js (auditada em 21/09/2026).
-MODULES = [
-    "vendor_unzipit.js",
-    "collectors/camara.js",
-    "collectors/senado.js",
-    "collectors/tse_bens.js",
-    "collectors/tse_candidatos.js",
-    "lib/tse_parser.js",
-    "lib/curadoria.js",
-    "lib/curadoria_html.js",
-    "lib/divida_ativa.js",
-    "lib/divida_ativa_html.js",
-    "lib/estilo_html.js",
-    "lib/assets_data.js",
-    "lib/icones.js",
-    "lib/mapa_brasil.js",
-    "lib/banners_html.js",
-    "lib/cargos_guia.js",
-    "lib/jornada_html.js",
-    "lib/busca_html.js",
-    "lib/perfil_html.js",
-    "lib/sobre_html.js",
-    "lib/institucional_html.js",
-    "lib/partidos_html.js",
-    "lib/partidos_logos.js",
-    "lib/judiciario_html.js",
-    "lib/acompanhamento.js",
-    "lib/clipping_mensal.js",
-    "lib/acompanhamento_email.js",
-    "lib/email.js",
-    "lib/quiz_config.js",
-    "lib/quiz_html.js",
-    "lib/selos.js",
-]
+# 27/09/2026: a lista MODULES deixou de ser manual. Ela causou pelo menos 3 deploys "que não
+# mudaram nada" (arquivo novo esquecido na lista). Agora o script envia TODO .js dentro de src/
+# (exceto index.js, enviado à parte como main_module). Arquivo órfão enviado a mais não quebra
+# nada; arquivo esquecido quebrava.
+MODULES = sorted(
+    os.path.relpath(os.path.join(raiz, nome), SRC_ROOT).replace(os.sep, "/")
+    for raiz, _, nomes in os.walk(SRC_ROOT)
+    for nome in nomes
+    if nome.endswith(".js") and os.path.relpath(os.path.join(raiz, nome), SRC_ROOT) != "index.js"
+)
+print(f"[deploy_worker] {len(MODULES)} módulos encontrados em {SRC_ROOT}/ (+ index.js)")
 
 for nome, valor in (("RESEND_API_KEY", RESEND_API_KEY), ("ADMIN_TOKEN", ADMIN_TOKEN)):
     if not valor:
@@ -103,7 +80,11 @@ for nome, valor in (("RESEND_API_KEY", RESEND_API_KEY), ("ADMIN_TOKEN", ADMIN_TO
             f"  logo depois do deploy e avisa se sumiu.\n"
         )
 
-bindings = [{"type": "d1", "name": "DB", "id": DB_ID}]
+bindings = [
+    {"type": "d1", "name": "DB", "id": DB_ID},
+    # 26/09/2026: imagens de preview (og:image) pré-geradas de cada ficha — ver scripts/og/.
+    {"type": "kv_namespace", "name": "OG", "namespace_id": os.environ.get("CF_KV_OG", "58aea9d36a9c4055bbcff72f7c08c3bd")},
+]
 if RESEND_API_KEY:
     bindings.append({"type": "secret_text", "name": "RESEND_API_KEY", "text": RESEND_API_KEY})
 if ADMIN_TOKEN:

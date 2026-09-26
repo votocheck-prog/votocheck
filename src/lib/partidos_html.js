@@ -90,8 +90,10 @@
  * cargo (maior primeiro) e só depois por nome, atendendo ao pedido original do Rodrigo de que "os
  * principais representantes do partido devem vir de hierarquia política".
  */
+import { nomeProprio } from './perfil_html.js';
 import { pagina, escapeHtml } from './estilo_html.js';
 import { LOGOS_PARTIDOS } from './partidos_logos.js';
+import { Icone } from './icones.js';
 
 export const LINK_LIDERANCAS_CAMARA = 'https://www.camara.leg.br/deputados/liderancas-e-bancadas/liderancas';
 export const LIDERANCA_VERIFICADA_EM = '23/09/2026';
@@ -121,7 +123,7 @@ export const PARTIDOS_INFO = [
     presidenteNacional: { nome: 'Paula Coradi', fonteUrl: 'https://psol50.org.br/presidencia/', nota: 'O PSOL criou o cargo único de presidência recentemente — antes o partido era dirigido por coordenação coletiva.', risco: true } },
   { sigla: 'PCdoB', numero: 65, nome: 'Partido Comunista do Brasil', familiaIdeologica: 'Esquerda', fundacao: '1962', historico: 'Fundado em 1962, a partir de uma cisão do antigo Partido Comunista Brasileiro (PCB).',
     presidenteNacional: { nome: 'Luciana Santos', fonteUrl: 'https://pcdob.org.br/congressos/pcdob-elege-nova-direcao-e-reconduz-luciana-santos-a-presidencia/' } },
-  { sigla: 'Podemos', numero: 19, nome: 'Podemos', familiaIdeologica: 'Centro', fundacao: '1945 (como PTN; renomeado Podemos em 2017)', historico: 'Sigla renomeada em 2017 — antes chamava-se PTN.',
+  { sigla: 'Podemos', numero: 20, nome: 'Podemos', familiaIdeologica: 'Centro', fundacao: '1945 (como PTN; renomeado Podemos em 2017)', historico: 'Sigla renomeada em 2017 — antes chamava-se PTN.',
     presidenteNacional: { nome: 'Renata Abreu', fonteUrl: 'https://www.metropoles.com/brasil/eleicoes-2026-presidentes-de-17-dos-30-partidos-do-brasil-tentam-se-eleger' } },
   { sigla: 'Novo', numero: 30, nome: 'Partido Novo', familiaIdeologica: 'Direita liberal', fundacao: '2015', historico: 'Fundado em 2015, com plataforma declaradamente liberal na economia.',
     presidenteNacional: { nome: 'Eduardo Ribeiro', fonteUrl: 'https://novo.org.br/diretorio-nacional/' } },
@@ -179,7 +181,7 @@ export function zonaPrincipal(familia) {
 }
 
 /** Slug estável pro anchor do card (usado tanto pelos chips do diagrama quanto pelo card em si). */
-function siglaSlug(sigla) {
+export function siglaSlug(sigla) {
   return sigla
     .toLowerCase()
     .normalize('NFD')
@@ -200,175 +202,172 @@ function anoFundacaoCurto(fundacao) {
 function logoPartidoHtml(sigla) {
   const logo = LOGOS_PARTIDOS[sigla];
   if (logo && logo.base64) {
-    return `<img class="partido-logo" src="data:${escapeHtml(logo.mime)};base64,${logo.base64}" alt="Logo do ${escapeHtml(sigla)}" width="40" height="40" loading="lazy" />`;
+    return `<img class="partido-logo" src="/static/partido/${siglaSlug(sigla)}" alt="Logo do ${escapeHtml(sigla)}" width="48" height="48" loading="lazy" />`;
   }
   // Fallback sem logo: iniciais num círculo, nunca uma imagem quebrada.
   const iniciais = sigla.replace(/[^A-Za-zÀ-ÿ]/g, '').slice(0, 3).toUpperCase();
   return `<span class="partido-logo partido-logo--fallback" aria-hidden="true">${escapeHtml(iniciais)}</span>`;
 }
 
-/** Diagrama de espectro: 5 zonas, cada uma com os chips dos partidos cujo centro da faixa cai ali. Sem JS: cada chip é um link `<a href="#partido-...">` comum. */
+const CARGOS_ORDEM = [
+  ['presidente', 'Presidente'], ['governador', 'Governador'], ['senador', 'Senador'],
+  ['deputado_federal', 'Dep. federal'], ['deputado_estadual', 'Dep. estadual'], ['deputado_distrital', 'Dep. distrital'],
+];
+
+const ESTILO_PARTIDOS = `
+  .pt-hero { background: var(--navy); color: #fff; padding: 52px 0 40px; position: relative; overflow: hidden; }
+  .pt-hero h1 { color: #fff; font-size: clamp(32px, 4.6vw, 52px); margin: 0 0 12px; }
+  .pt-hero p { color: #C3CDF0; font-size: 18px; max-width: 700px; margin: 0; }
+  .pt-kpis { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 26px; }
+  .pt-kpis b { display: block; font-family: var(--font-display); font-size: 34px; color: #fff; }
+  .pt-kpis span { font-size: 13.5px; color: #9AA7D6; }
+  .pt-espectro { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-top: -28px; position: relative; z-index: 2; box-shadow: var(--shadow); }
+  .pt-eixo { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; }
+  .pt-zona { border-radius: 12px; padding: 12px 10px; background: var(--paper); }
+  .pt-zona h3 { font-family: var(--font-body); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; text-align: center; }
+  .pt-zona .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .pt-zona a { font-size: 13px; font-weight: 700; text-decoration: none; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; }
+  .pt-zona a:hover { border-color: var(--blue); color: var(--blue); }
+  .pt-grad { height: 6px; border-radius: 999px; margin: 14px 0 6px; background: linear-gradient(90deg, #7A8BD6, #B9C4EA 50%, #7A8BD6); opacity: .6; }
+  .pt-grad-rot { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  @media (max-width: 760px) { .pt-eixo { grid-template-columns: 1fr; } .pt-zona .chips { justify-content: flex-start; } .pt-zona h3 { text-align: left; } }
+  .pt-ferramentas { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 28px 0 8px; }
+  .pt-ferramentas input { flex: 1; min-width: 220px; padding: 13px 16px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 15px; }
+  .pt-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; margin-top: 14px; }
+  @media (max-width: 860px) { .pt-grid { grid-template-columns: 1fr; } }
+  .pt-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px; scroll-margin-top: 90px; display: flex; flex-direction: column; }
+  .pt-card:target { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,89,245,.15); }
+  .pt-topo { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; }
+  .pt-topo .partido-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; background: #fff; border: 1px solid var(--line); padding: 4px; }
+  .pt-topo .partido-logo--fallback { display: grid; place-items: center; font-weight: 800; font-size: 15px; color: var(--blue); background: var(--blue-50); border: 0; }
+  .pt-sigla { font-family: var(--font-display); font-weight: 800; font-size: 22px; line-height: 1.1; }
+  .pt-nome { font-size: 13.5px; color: var(--muted); }
+  .pt-num { text-align: center; background: var(--navy); color: #fff; border-radius: 12px; padding: 6px 12px; }
+  .pt-num small { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #93A2D8; }
+  .pt-num b { font-family: var(--font-display); font-size: 24px; line-height: 1; }
+  .pt-fam { display: inline-block; margin: 14px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 4px 10px; }
+  .pt-hist { font-size: 14.5px; color: var(--ink-2); margin: 0 0 12px; }
+  .pt-linha { font-size: 13.5px; color: var(--ink-2); padding: 8px 0; border-top: 1px solid var(--line); }
+  .pt-linha a { font-weight: 600; }
+  .pt-cands { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+  .pt-cands-tit { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .pt-cands-tit b { color: var(--ink); font-size: 15px; }
+  .pt-mini { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; margin-bottom: 10px; }
+  .pt-mini div { background: var(--paper); border-radius: 10px; padding: 7px 8px; font-size: 12px; color: var(--muted); }
+  .pt-mini b { display: block; font-size: 16px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .pt-reps { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pt-reps a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+  .pt-reps a:hover { border-color: var(--blue); color: var(--blue); }
+`;
+
+/** Diagrama de espectro: 5 zonas com os partidos (links para o card). */
 function renderDiagramaEspectro() {
   const porZona = ZONAS_ESPECTRO.map(() => []);
-  for (const p of partidosOrdenados()) {
-    porZona[zonaPrincipal(p.familiaIdeologica) - 1].push(p);
-  }
-  const colunas = porZona
-    .map((partidos, i) => {
-      const chips = partidos
-        .map(
-          (p) =>
-            `<a class="espectro-chip" href="#partido-${siglaSlug(p.sigla)}" title="${escapeHtml(p.familiaIdeologica)}">${escapeHtml(p.sigla)}</a>`
-        )
+  for (const p of partidosOrdenados()) porZona[zonaPrincipal(p.familiaIdeologica) - 1].push(p);
+  return `
+  <section class="pt-espectro" aria-labelledby="espectro-titulo">
+    <h2 id="espectro-titulo" style="font-size:20px;margin:0 0 4px">Onde cada partido fica no espectro</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 16px">Pela família ideológica atribuída por ciência política e imprensa especializada. Toque num partido para ver o card.</p>
+    <div class="pt-eixo">${porZona
+      .map(
+        (ps, i) => `<div class="pt-zona"><h3>${ZONAS_ESPECTRO[i]}</h3><div class="chips">${ps
+          .map((p) => `<a href="#partido-${siglaSlug(p.sigla)}" title="${escapeHtml(p.familiaIdeologica)}">${escapeHtml(p.sigla)}</a>`)
+          .join('') || '<span style="color:var(--muted)">—</span>'}</div></div>`
+      )
+      .join('')}</div>
+    <div class="pt-grad"></div><div class="pt-grad-rot"><span>Mais Estado</span><span>Estado no essencial</span></div>
+  </section>`;
+}
+
+/** Monta a página de partidos (v2, 26/09/2026). */
+export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {}, contagemPorSigla = {} } = {}) {
+  const lista = partidosOrdenados();
+  const totalCands = Object.values(contagemPorSigla).reduce((a, c) => a + (c.total || 0), 0);
+  const cards = lista
+    .map((p) => {
+      const reps = representantesPorSigla[p.sigla] || [];
+      const cont = contagemPorSigla[p.sigla] || {};
+      const pres = p.presidenteNacional;
+      const presidencia = pres
+        ? pres.semPresidenteUnico
+          ? `<div class="pt-linha">Sem presidente único: ${escapeHtml(pres.nota)}</div>`
+          : `<div class="pt-linha">Presidência nacional: <strong>${escapeHtml(pres.nome)}</strong> <a href="${escapeHtml(pres.fonteUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12.5px">fonte ↗</a>${pres.risco ? ` <span title="${escapeHtml(pres.nota)}" style="color:var(--amber);font-size:12.5px">· pode ter mudado</span>` : ''}</div>`
+        : '';
+      const lider = liderancaCargoPorSigla[p.sigla];
+      const liderHtml = lider
+        ? `<div class="pt-linha">Filiado com mandato no Congresso: <a href="/candidato/${lider.pessoa_id}">${escapeHtml(nomeProprio(lider.nome_urna_atual))}</a> · ${escapeHtml(lider.cargo_nome)}${lider.sg_uf && lider.sg_uf !== 'BR' ? ` (${escapeHtml(lider.sg_uf)})` : ''}</div>`
+        : '';
+      const mini = CARGOS_ORDEM.filter(([slug]) => cont[slug])
+        .map(([slug, rot]) => `<div><b>${Number(cont[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
         .join('');
       return `
-        <div class="espectro-coluna">
-          <span class="espectro-zona-nome">${ZONAS_ESPECTRO[i]}</span>
-          <div class="espectro-chips">${chips || '<span class="espectro-vazia">—</span>'}</div>
-        </div>`;
+      <article class="pt-card" id="partido-${siglaSlug(p.sigla)}" data-busca="${escapeHtml(`${p.sigla} ${p.nome} ${p.numero}`.toLowerCase())}" data-zona="${zonaPrincipal(p.familiaIdeologica)}">
+        <div class="pt-topo">
+          ${logoPartidoHtml(p.sigla)}
+          <div><div class="pt-sigla">${escapeHtml(p.sigla)}</div><div class="pt-nome">${escapeHtml(p.nome)} · desde ${escapeHtml(anoFundacaoCurto(p.fundacao))}</div></div>
+          <div class="pt-num"><small>Número</small><b>${p.numero}</b></div>
+        </div>
+        <span class="pt-fam">${escapeHtml(p.familiaIdeologica)}</span>
+        <p class="pt-hist">${escapeHtml(p.historico)}</p>
+        ${presidencia}
+        ${liderHtml}
+        <div class="pt-cands">
+          <div class="pt-cands-tit"><span>Candidaturas em 2026</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
+          ${mini ? `<div class="pt-mini">${mini}</div>` : ''}
+          ${reps.length ? `<div style="font-size:12px;color:var(--muted);margin:2px 0 6px">Alguns candidatos em 2026 (por cargo):</div><div class="pt-reps">${reps.map((r) => `<a href="/candidato/${r.pessoa_id}">${escapeHtml(nomeProprio(r.nome_urna_atual))} · ${escapeHtml(r.cargo_nome)}${r.sg_uf && r.sg_uf !== 'BR' ? `-${escapeHtml(r.sg_uf)}` : ''}</a>`).join('')}</div>` : ''}
+        </div>
+      </article>`;
     })
     .join('');
 
-  return `
-    <section class="espectro-wrap" aria-labelledby="espectro-titulo">
-      <h2 id="espectro-titulo" class="secao-titulo" style="text-align:left;">Espectro político</h2>
-      <p class="secao-subtitulo" style="text-align:left; max-width:none; margin-bottom:16px;">
-        Posição derivada da mesma classificação de família ideológica de cada card abaixo (ciência
-        política/imprensa especializada — não é opinião do VotoCheck). Partidos com classificação
-        composta (ex.: "Centro-esquerda / esquerda") aparecem na zona central dessa faixa — passe
-        o mouse ou toque no chip pra ver a classificação completa. Clique num partido pra ir
-        direto ao card dele.
-      </p>
-      <div class="espectro-eixo">
-        <div class="espectro-linha"></div>
-        ${colunas}
-      </div>
-    </section>`;
-}
-
-/** Monta o corpo da página a partir de PARTIDOS_INFO + os representantes carregados do D1. */
-export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {} } = {}) {
-  const cards = partidosOrdenados().map((p) => {
-    const reps = representantesPorSigla[p.sigla] || [];
-    const repsHtml = reps.length
-      ? `<div class="partido-representantes">
-          ${reps
-            .map(
-              (r) =>
-                `<a class="partido-representante" href="/candidato/${r.pessoa_id}">${escapeHtml(r.nome_urna_atual)} (${escapeHtml(r.cargo_nome)}-${escapeHtml(r.sg_uf)})</a>`
-            )
-            .join('')}
-        </div>`
-      : `<p class="partido-sem-representante">Ainda sem candidaturas de 2026 cadastradas para este partido na nossa base.</p>`;
-
-    const pres = p.presidenteNacional;
-    const presidenciaHtml = pres
-      ? pres.semPresidenteUnico
-        ? `<p class="partido-presidencia partido-presidencia--nota">Sem presidente único: ${escapeHtml(pres.nota)}</p>`
-        : `<p class="partido-presidencia">
-             Presidência nacional: <strong title="${escapeHtml(pres.nota || '')}">${escapeHtml(pres.nome)}</strong>
-             <a class="partido-presidencia-fonte" href="${escapeHtml(pres.fonteUrl)}" target="_blank" rel="noopener noreferrer">fonte ↗</a>
-             ${pres.risco ? `<span class="partido-presidencia-alerta" title="${escapeHtml(pres.nota)}">⚠ pode estar desatualizado</span>` : ''}
-           </p>`
-      : '';
-
-    // Maior cargo público em exercício entre filiados atuais — dado dinâmico do D1, ver nota no
-    // topo do arquivo e `carregarLiderancaPorCargoPorPartido` em src/index.js. Pode ser uma pessoa
-    // diferente do presidente do partido acima — de propósito, ver rationale no topo do arquivo.
-    const liderCargo = liderancaCargoPorSigla[p.sigla];
-    const liderancaCargoHtml = liderCargo
-      ? `<p class="partido-lideranca-cargo">
-           Maior cargo público em exercício entre filiados: <a href="/candidato/${liderCargo.pessoa_id}"><strong>${escapeHtml(liderCargo.nome_urna_atual)}</strong></a>
-           — ${escapeHtml(liderCargo.cargo_nome)}${liderCargo.sg_uf && liderCargo.sg_uf !== 'BR' ? ` (${escapeHtml(liderCargo.sg_uf)})` : ''}
-         </p>`
-      : '';
-
-    return `
-      <div class="partido-card" id="partido-${siglaSlug(p.sigla)}" data-busca="${escapeHtml(`${p.sigla} ${p.nome}`.toLowerCase())}">
-        <div class="partido-cabecalho">
-          ${logoPartidoHtml(p.sigla)}
-          <div class="partido-titulo-grupo">
-            <span class="partido-sigla">${escapeHtml(p.sigla)}</span>
-            <span class="partido-numero">nº ${p.numero}</span>
-          </div>
-          <span class="partido-familia">${escapeHtml(p.familiaIdeologica)}</span>
-        </div>
-        <p class="partido-nome">
-          ${escapeHtml(p.nome)}
-          <span class="partido-fundacao" title="Fundação: ${escapeHtml(p.fundacao)}">· fundado em ${escapeHtml(anoFundacaoCurto(p.fundacao))}</span>
-        </p>
-        <p class="partido-historico">${escapeHtml(p.historico)}</p>
-        ${presidenciaHtml}
-        ${liderancaCargoHtml}
-        ${repsHtml}
-      </div>`;
-  }).join('');
-
   const corpo = `
-    <div style="max-width:760px; margin:0 auto;">
-      <h1 style="font-size:clamp(26px,4vw,34px); margin-bottom:8px;">Partidos Políticos</h1>
-      <p style="color:var(--text-muted); font-size:15px; margin-bottom:12px;">
-        Entender o partido e as alianças de um Representante Público é parte de "Entender" antes
-        de decidir — ver <a href="/#jornada-titulo">a jornada CONHEÇA → COBRE</a>.
-      </p>
-      <p class="cargo-sem-cobertura" style="display:block; margin-bottom:12px;">
-        Esta é uma primeira versão: a classificação de família ideológica segue leituras correntes
-        de ciência política e imprensa especializada (não é opinião do VotoCheck), e as notas
-        históricas são resumos simplificados — ainda não é a árvore completa de fusões e cisões
-        de cada partido. Antes de tratar qualquer dado aqui como definitivo, ele deve ser
-        conferido contra fontes oficiais (TSE) e bibliografia especializada.
-      </p>
-      <p class="cargo-sem-cobertura" style="display:block; margin-bottom:12px;">
-        Presidência nacional verificada em cada fonte oficial listada em ${escapeHtml(LIDERANCA_VERIFICADA_EM)} —
-        cargo político sujeito a mudar (alguns partidos, sinalizados com ⚠, tiveram disputa ou
-        sucessão recente). Não mostramos líder de bancada aqui: esse cargo muda a cada sessão
-        legislativa, rápido demais pra manter atualizado com curadoria manual — consulte a
-        <a href="${escapeHtml(LINK_LIDERANCAS_CAMARA)}" target="_blank" rel="noopener noreferrer">página oficial de lideranças da Câmara dos Deputados</a>,
-        sempre corrente.
-      </p>
-      <p class="cargo-sem-cobertura" style="display:block; margin-bottom:28px;">
-        "Maior cargo público em exercício" é calculado automaticamente a partir da nossa base (não
-        é curadoria manual) e considera só os 6 cargos eletivos que o VotoCheck cobre hoje
-        (presidente, governador, senador, deputado federal, deputado estadual, deputado distrital).
-        Ainda não cobrimos ministério nem prefeituras/câmaras municipais (mandatos de 2024, fora do
-        ciclo eleitoral atual) — um filiado que só ocupa um desses cargos ainda não aparece aqui.
-      </p>
-
-      ${renderDiagramaEspectro()}
-
-      <div class="partido-filtro-wrap">
-        <label for="partido-filtro" class="partido-filtro-label">Filtrar por sigla ou nome</label>
-        <input type="text" id="partido-filtro" class="partido-filtro" placeholder="Ex.: PT, União Brasil..." autocomplete="off" />
-        <p id="partido-filtro-vazio" class="partido-filtro-vazio" hidden>Nenhum partido encontrado com esse termo.</p>
+    <style>${ESTILO_PARTIDOS}</style>
+    <section class="pt-hero">
+      <div class="vc-wrap">
+        <span class="vc-eyebrow" style="color:#7FB0FF">${Icone.pessoas(16)} Partidos · Eleições 2026</span>
+        <h1>Seu voto para deputado começa no partido</h1>
+        <p>Para deputado, o voto soma primeiro para o partido ou federação. Conheça cada um: número, origem, quem preside, onde fica no espectro e quem são seus candidatos.</p>
+        <div class="pt-kpis">
+          <div><b>${lista.length}</b><span>partidos com guia completo</span></div>
+          <div><b>${totalCands ? totalCands.toLocaleString('pt-BR') : '—'}</b><span>candidaturas desses partidos</span></div>
+          <div><b>5</b><span>faixas no espectro</span></div>
+        </div>
       </div>
-
-      <p class="cargo-sem-cobertura" style="display:block; margin-bottom:16px;">${escapeHtml(LEGENDA_ORDENACAO)}</p>
-
-      <div class="partido-lista" id="partido-lista">${cards}</div>
+    </section>
+    <div class="vc-wrap" style="padding-bottom:56px">
+      ${renderDiagramaEspectro()}
+      <div class="pt-ferramentas">
+        <label class="sr-only" for="partido-filtro">Filtrar partidos</label>
+        <input type="search" id="partido-filtro" placeholder="Filtrar por sigla, nome ou número (ex.: PT, Novo, 22)" autocomplete="off" />
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin:0">Em ordem do número oficial de urna: critério neutro, não é ranking de tamanho ou relevância.</p>
+      <p id="partido-filtro-vazio" hidden style="color:var(--muted)">Nenhum partido encontrado com esse termo.</p>
+      <div class="pt-grid" id="partido-lista">${cards}</div>
+      <details class="vc-card" style="margin-top:28px; padding:14px 18px;">
+        <summary style="cursor:pointer; font-weight:600;">Sobre estes dados: fontes, classificação e limites</summary>
+        <p style="margin-top:10px">A família ideológica segue leituras correntes de ciência política e imprensa especializada; não é opinião do VotoCheck. As notas históricas são resumos simplificados.</p>
+        <p style="margin-top:8px">Presidência nacional verificada nas fontes oficiais listadas em ${escapeHtml(LIDERANCA_VERIFICADA_EM)}; pode mudar. Liderança de bancada muda a cada sessão: consulte a <a href="${escapeHtml(LINK_LIDERANCAS_CAMARA)}" target="_blank" rel="noopener noreferrer">página oficial da Câmara</a>.</p>
+        <p style="margin-top:8px">"Filiado com mandato no Congresso" é calculado automaticamente a partir de mandatos atuais na Câmara e no Senado; ministérios, prefeituras e câmaras municipais ainda não entram. Partidos sem guia completo aparecem na busca de candidatos normalmente.</p>
+      </details>
     </div>
     <script>
       (function () {
-        var input = document.getElementById('partido-filtro');
-        if (!input) return;
-        var cards = Array.prototype.slice.call(document.querySelectorAll('.partido-card'));
+        var input = document.getElementById('partido-filtro'); if (!input) return;
+        var cards = Array.prototype.slice.call(document.querySelectorAll('.pt-card'));
         var vazio = document.getElementById('partido-filtro-vazio');
         input.addEventListener('input', function () {
-          var termo = input.value.trim().toLowerCase();
-          var visiveis = 0;
-          cards.forEach(function (card) {
-            var bate = !termo || card.getAttribute('data-busca').indexOf(termo) !== -1;
-            card.hidden = !bate;
-            if (bate) visiveis++;
-          });
-          vazio.hidden = visiveis !== 0;
+          var t = input.value.trim().toLowerCase(), n = 0;
+          cards.forEach(function (c) { var ok = !t || c.getAttribute('data-busca').indexOf(t) !== -1; c.hidden = !ok; if (ok) n++; });
+          vazio.hidden = n !== 0;
         });
       })();
     </script>
   `;
   return pagina({
-    titulo: 'Partidos Políticos — VotoCheck',
-    descricao: 'Guia de partidos políticos brasileiros: espectro político, família ideológica, histórico resumido e candidaturas de 2026 cadastradas no VotoCheck, sempre com a fonte de cada dado.',
+    titulo: 'Partidos políticos 2026: número, espectro e candidatos | VotoCheck',
+    descricao: 'Guia dos partidos nas eleições 2026: número de urna, espectro político, origem, presidência e candidaturas por cargo, com a fonte de cada dado.',
     caminho: '/partidos',
+    larga: true,
     corpo,
   });
 }

@@ -19,6 +19,7 @@
  * aprofunda o texto.
  */
 import { pagina } from './estilo_html.js';
+import { Icone } from './icones.js';
 
 const COMO_INGRESSAM = [
   'Juízes de primeira instância entram por concurso público de provas e títulos.',
@@ -100,53 +101,85 @@ function renderDiagramaHierarquia() {
     </div>`;
 }
 
+const ESTILO_JUD = `
+  .jd-hero { background: var(--navy); color: #fff; padding: 52px 0 84px; }
+  .jd-hero h1 { color: #fff; font-size: clamp(32px, 4.6vw, 52px); margin: 0 0 12px; max-width: 900px; }
+  .jd-hero p { color: #C3CDF0; font-size: 18px; max-width: 720px; margin: 0; }
+  .jd-fatos { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: -52px; position: relative; z-index: 2; }
+  @media (max-width: 820px) { .jd-fatos { grid-template-columns: 1fr; } }
+  .jd-fato { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
+  .jd-fato b { display: block; font-family: var(--font-display); font-size: 34px; letter-spacing: -.02em; }
+  .jd-fato span { font-size: 14.5px; color: var(--ink-2); }
+  .jd-sec { padding: 56px 0 0; }
+  .jd-arvore { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+  .jud-topo { max-width: 520px; margin: 0 auto; text-align: center; }
+  .jud-ramos { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 8px; }
+  @media (max-width: 820px) { .jud-ramos { grid-template-columns: 1fr; } }
+  .jud-ramo { background: var(--paper); border-radius: 16px; padding: 14px; display: flex; flex-direction: column-reverse; gap: 8px; }
+  .jud-ramo-titulo { order: -1; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); text-align: center; }
+  .jud-ramo-base { display: grid; gap: 8px; }
+  .jud-conector { text-align: center; font-size: 12px; color: var(--blue); font-weight: 600; }
+  .jud-conector--topo { margin: 8px 0; }
+  .jud-nodo { background: #fff; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+  .jud-nodo summary { cursor: pointer; list-style: none; padding: 12px 14px; font-weight: 700; font-size: 14.5px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .jud-nodo summary::-webkit-details-marker { display: none; }
+  .jud-nodo summary::after { content: '+'; flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-50); color: var(--blue); font-weight: 800; font-size: 14px; }
+  .jud-nodo[open] summary::after { content: '–'; }
+  .jud-nodo p { margin: 0; padding: 0 14px 14px; font-size: 14px; color: var(--ink-2); }
+  .jud-nodo--destaque { background: var(--navy); border-color: var(--navy); }
+  .jud-nodo--destaque summary { color: #fff; font-size: 16px; }
+  .jud-nodo--destaque p { color: #C3CDF0; }
+  .jud-nodo--destaque summary::after { background: rgba(255,255,255,.14); color: #fff; }
+  .jud-cnj-linha { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line-2); display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+  .jud-cnj-rotulo { font-size: 13px; color: var(--muted); max-width: 240px; }
+  @media (max-width: 620px) { .jud-cnj-linha { grid-template-columns: 1fr; } }
+`;
+
 export function renderJudiciario() {
-  const ingressoHtml = COMO_INGRESSAM.map((i) => `<li>${i}</li>`).join('');
-
   const corpo = `
-    <div style="max-width:760px; margin:0 auto;">
-      <h1 style="font-size:clamp(26px,4vw,34px); margin-bottom:8px;">O Judiciário</h1>
-      <p style="color:var(--text-muted); font-size:15px; margin-bottom:28px;">
-        Diferente dos cargos que o VotoCheck acompanha, ninguém no Judiciário é eleito pelo voto
-        popular — mas o papel dele é decisivo pra todo o resto do sistema, inclusive nas próprias
-        eleições.
-      </p>
+    <style>${ESTILO_JUD}</style>
+    <section class="jd-hero">
+      <div class="vc-wrap">
+        <span class="vc-eyebrow" style="color:#7FB0FF">${Icone.balanca(16)} Entenda · O Judiciário</span>
+        <h1>Ninguém no Judiciário é eleito. Mas ele decide muita coisa sobre a eleição.</h1>
+        <p>É a Justiça Eleitoral que registra candidaturas, organiza a votação e pode cassar mandatos. E é o STF que diz se uma lei aprovada pelos eleitos vale ou não.</p>
+      </div>
+    </section>
+    <div class="vc-wrap" style="padding-bottom:64px">
+      <div class="jd-fatos">
+        <div class="jd-fato"><b>TSE</b><span>Registra as candidaturas e organiza a eleição. É a principal fonte oficial dos dados do VotoCheck.</span></div>
+        <div class="jd-fato"><b>11</b><span>ministros no STF, indicados pelo Presidente e aprovados pelo Senado depois de sabatina.</span></div>
+        <div class="jd-fato"><b>Senado</b><span>Aprova os ministros dos tribunais superiores e é quem julga um eventual impeachment de ministro do STF.</span></div>
+      </div>
 
-      <h2 style="font-size:19px; margin-top:32px;">Por que não tem eleição direta</h2>
-      <p>
-        O desenho constitucional brasileiro separa os Poderes e busca blindar decisões judiciais
-        de pressão eleitoral direta. Isso não significa ausência de controle: concursos públicos,
-        decisões colegiadas (vários juízes decidindo juntos), possibilidade de recurso a uma
-        instância superior, fiscalização do CNJ e — no caso dos ministros do STF — a possibilidade
-        de impeachment, de competência exclusiva do Senado Federal, são os principais freios.
-      </p>
+      <section class="jd-sec">
+        <span class="vc-eyebrow">${Icone.grafico(16)} Como se organiza</span>
+        <h2 class="vc-h2">Três ramos, um topo</h2>
+        <p class="vc-lead">Cada ramo sobe da primeira instância até seu tribunal superior. O STF, no topo, julga as questões constitucionais de qualquer um deles. Toque numa caixa para ver o que ela faz.</p>
+        <div class="jd-arvore">${renderDiagramaHierarquia()}</div>
+      </section>
 
-      <h2 style="font-size:19px; margin-top:32px;">Como se ingressa na carreira</h2>
-      <ul>${ingressoHtml}</ul>
-
-      <h2 class="secao-titulo" style="text-align:left; margin-top:48px;">Como o Judiciário se organiza</h2>
-      <p class="secao-subtitulo" style="text-align:left; max-width:none; margin-bottom:8px;">
-        Três ramos, cada um subindo de uma primeira instância até seu tribunal superior, com o STF
-        no topo julgando questão constitucional vinda de qualquer um deles. Toque em cada caixa
-        pra ver o que ela faz.
-      </p>
-      ${renderDiagramaHierarquia()}
-
-      <h2 style="font-size:19px; margin-top:48px;">Onde isso cruza com o que o VotoCheck cobre</h2>
-      <p>
-        A Justiça Eleitoral (TSE e TREs) é a principal fonte oficial de dados do VotoCheck sobre
-        candidaturas — veja o <a href="/#obtencao-titulo">bloco "Obtenção de dados"</a> na home. O
-        STF, por sua vez, tem a palavra final sobre a constitucionalidade de leis aprovadas pelos
-        cargos eletivos que acompanhamos (Congresso Nacional, assembleias estaduais), e o Senado
-        Federal participa diretamente da aprovação dos ministros dos tribunais superiores — ver o
-        <a href="/cargo/senador">guia do cargo de Senador</a>.
-      </p>
+      <section class="jd-sec">
+        <div class="vc-grid vc-grid-3">
+          <div class="vc-card"><div class="vc-ico">${Icone.escudoCheck(22)}</div><h3>Por que não tem eleição</h3>
+            <p>A Constituição separa os Poderes e protege as decisões judiciais da pressão eleitoral. O controle vem de concurso público, decisões em colegiado, recursos, fiscalização do CNJ e, para ministros do STF, impeachment pelo Senado.</p></div>
+          <div class="vc-card"><div class="vc-ico">${Icone.usuario(22)}</div><h3>Como se entra</h3>
+            <p>${COMO_INGRESSAM.map((i) => escapeHtmlSimples(i)).join(' ')}</p></div>
+          <div class="vc-card"><div class="vc-ico vc-ico--teal">${Icone.votoCaixa(22)}</div><h3>Onde cruza com o seu voto</h3>
+            <p>Os senadores que você elege aprovam ministros dos tribunais superiores. Os deputados e senadores fazem as leis que o STF pode derrubar. <a href="/cargo/senador">Veja o que faz um senador</a>.</p></div>
+        </div>
+      </section>
     </div>
   `;
   return pagina({
-    titulo: 'O Judiciário — VotoCheck',
-    descricao: 'Como funciona o Judiciário brasileiro, por que não tem eleição direta, e como ele se relaciona com os cargos eletivos e com as eleições que o VotoCheck acompanha.',
+    titulo: 'O Judiciário e a eleição: quem decide o quê | VotoCheck',
+    descricao: 'Como funciona o Judiciário brasileiro, por que não tem eleição direta e como ele se relaciona com os cargos eletivos e com as eleições.',
     caminho: '/judiciario',
+    larga: true,
     corpo,
   });
+}
+
+function escapeHtmlSimples(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 }

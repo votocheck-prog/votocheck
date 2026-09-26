@@ -53,17 +53,26 @@ import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
 import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
-import { renderPartidos, PARTIDOS_INFO, zonaPrincipal } from './lib/partidos_html.js';
+import { renderPartidos, PARTIDOS_INFO, zonaPrincipal, siglaSlug } from './lib/partidos_html.js';
+import { LOGOS_PARTIDOS } from './lib/partidos_logos.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
 import { calcularSelos } from './lib/selos.js';
 import { renderQuizEscolhaCargo, renderQuiz, renderQuizResultado, cargoQuizPorSlug } from './lib/quiz_html.js';
-import { PERGUNTAS, ESPECTRO, avaliarCandidato, resumoResposta } from './lib/quiz_config.js';
+import { PERGUNTAS, ESPECTRO, PARAMETROS_QUIZ, avaliarCandidato, resumoResposta } from './lib/quiz_config.js';
 import { RUBRICA_CURTA } from './lib/quiz_html.js';
 import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
 import { emailConfirmacaoAcompanhamento } from './lib/acompanhamento_email.js';
 import { enviarEmail } from './lib/email.js';
 import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
+import { LOGO_H_B64, LOGO_H_BRANCO_B64, ICONE_B64 } from './lib/marca_assets.js';
+import { LOGOS_ANUNCIANTES } from './lib/anunciantes_logos.js';
+import { PIX_QR_B64 } from './lib/jornada_html.js';
+import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
+import { renderCola } from './lib/cola_html.js';
+import { registrarVisita, registrarEvento, contar, resumoMetricas } from './lib/metricas.js';
+import { urlDestinoAnunciante } from './lib/publicidade.js';
+import { renderPauta, lerPauta, decidirPeca, servirArquivoSocial, dataSP } from './lib/pauta.js';
 
 const ANO_ATUAL = 2026;
 const html = (body) => new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
@@ -174,28 +183,34 @@ async function carregarRepresentantesPorPartido(env, ctx) {
   if (cacheado) return cacheado.json();
 
   const db = env.DB;
-  const siglas = PARTIDOS_INFO.map((p) => p.sigla);
-  const placeholders = siglas.map(() => '?').join(',');
+  // 27/09/2026: liga pelo NÚMERO do partido (oficial do TSE), não pela sigla — a sigla em
+  // PARTIDOS_INFO ("Republicanos", "Novo", "Podemos", "União Brasil") não bate com a do TSE
+  // ("REPUBLICANOS", "NOVO", "PODE", "UNIÃO"), e vários partidos apareciam "sem candidaturas".
+  const numeros = PARTIDOS_INFO.map((p) => p.numero);
+  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
+  const placeholders = numeros.map(() => '?').join(',');
   const { results } = await db
     .prepare(
-      `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
-         SELECT c.pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf, pa.sigla,
-                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY ca.id ASC, p.nome_urna_atual ASC) as rn
+      `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, numero FROM (
+         SELECT c.pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf, pa.numero,
+                ROW_NUMBER() OVER (PARTITION BY pa.numero ORDER BY ca.id ASC, p.nome_urna_atual ASC) as rn
          FROM candidatura c
          JOIN pessoa p ON p.id = c.pessoa_id
          JOIN cargo ca ON ca.id = c.cargo_id
          JOIN partido pa ON pa.id = c.partido_id
-         WHERE c.ano_eleicao = ? AND pa.sigla IN (${placeholders})
+         WHERE c.ano_eleicao = ? AND pa.numero IN (${placeholders})
        ) WHERE rn <= 10
-       ORDER BY sigla, rn`
+       ORDER BY numero, rn`
     )
-    .bind(ANO_ATUAL, ...siglas)
+    .bind(ANO_ATUAL, ...numeros)
     .all();
 
   const porSigla = {};
   for (const row of results || []) {
-    if (!porSigla[row.sigla]) porSigla[row.sigla] = [];
-    porSigla[row.sigla].push(row);
+    const sigla = siglaPorNumero[row.numero];
+    if (!sigla) continue;
+    if (!porSigla[sigla]) porSigla[sigla] = [];
+    porSigla[sigla].push(row);
   }
 
   const resposta = new Response(JSON.stringify(porSigla), {
@@ -226,8 +241,12 @@ async function carregarLiderancaPorCargoPorPartido(env, ctx) {
   if (cacheado) return cacheado.json();
 
   const db = env.DB;
-  const siglas = PARTIDOS_INFO.map((p) => p.sigla);
-  const placeholders = siglas.map(() => '?').join(',');
+  // Mesmo ajuste de 27/09/2026: liga pelo número do partido, não pela sigla (ver acima).
+  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
+  const siglasTse = await db.prepare(`SELECT sigla, numero FROM partido WHERE numero IS NOT NULL`).all();
+  const siglas = (siglasTse.results || []).filter((r) => siglaPorNumero[r.numero]).map((r) => r.sigla);
+  const infoPorSiglaTse = Object.fromEntries((siglasTse.results || []).map((r) => [r.sigla, siglaPorNumero[r.numero]]));
+  const placeholders = siglas.map(() => '?').join(',') || "''";
   const { results } = await db
     .prepare(
       `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
@@ -246,7 +265,8 @@ async function carregarLiderancaPorCargoPorPartido(env, ctx) {
 
   const porSigla = {};
   for (const row of results || []) {
-    porSigla[row.sigla] = row;
+    const sigla = infoPorSiglaTse[row.sigla] || row.sigla;
+    porSigla[sigla] = row;
   }
 
   const resposta = new Response(JSON.stringify(porSigla), {
@@ -329,7 +349,7 @@ function temFormacaoSuperior(grauInstrucao) {
   return null;
 }
 
-const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado';
+const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado-v3';
 
 /**
  * GET /quiz/resultado — calcula, dentro do recorte de cargo (+UF), quais candidatos "combinam"
@@ -351,7 +371,7 @@ async function rotaQuizResultado(url, env, ctx) {
   // Respostas efetivamente dadas (perguntas "tanto faz"/não tocadas não chegam à querystring —
   // ver quiz_html.js: o campo hidden só recebe valor quando o usuário toca no card/slider).
   const respostas = {};
-  for (const p of [...PERGUNTAS, ESPECTRO]) {
+  for (const p of PARAMETROS_QUIZ) {
     const v = url.searchParams.get(p.slug);
     if (v !== null && v !== '') {
       respostas[p.slug] = p.tipo === 'escala' || p.tipo === 'espectro' ? Number(v) : v;
@@ -392,16 +412,20 @@ async function rotaQuizResultado(url, env, ctx) {
     params.push(uf);
   }
   if (filtroPartidoAtivo) {
-    condicoes.push(`pa.sigla IN (${siglasMarcadas.map(() => '?').join(',')})`);
-    params.push(...siglasMarcadas);
+    // 27/09/2026: filtra pelo número do partido (a sigla de PARTIDOS_INFO não bate com a do TSE).
+    const numerosMarcados = PARTIDOS_INFO.filter((p) => siglasMarcadas.includes(p.sigla)).map((p) => p.numero);
+    condicoes.push(`pa.numero IN (${numerosMarcados.map(() => '?').join(',') || "''"})`);
+    params.push(...numerosMarcados);
   }
 
   const chaveCache = `${CACHE_KEY_QUIZ_PREFIX}${url.search}`;
 
   const buscarNoD1 = async () => {
     const { results } = await env.DB.prepare(
-      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, c.sg_uf, ca.nome as cargo_nome,
-              pa.sigla as partido_sigla, c.reeleicao, c.declarou_bens
+      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
+              pa.sigla as partido_sigla, pa.numero as partido_numero, c.reeleicao, c.declarou_bens,
+              p.data_nascimento, c.bens_declarados_total,
+              EXISTS (SELECT 1 FROM mandato m WHERE m.pessoa_id = c.pessoa_id AND m.data_fim IS NULL) as tem_mandato
               ${colunasExtra.length ? ', ' + colunasExtra.join(', ') : ''}
        FROM candidatura c
        JOIN pessoa p ON p.id = c.pessoa_id
@@ -409,7 +433,7 @@ async function rotaQuizResultado(url, env, ctx) {
        LEFT JOIN partido pa ON pa.id = c.partido_id
        WHERE ${condicoes.join(' AND ')}
        ORDER BY p.nome_urna_atual ASC
-       LIMIT 1000`
+       LIMIT 3000`
     )
       .bind(...params)
       .all();
@@ -443,9 +467,11 @@ async function rotaQuizResultado(url, env, ctx) {
 
   if (totalPerguntasRespondidas > 0) {
     for (const c of candidatos) {
-      const partidoInfo = PARTIDOS_INFO.find((p) => p.sigla === c.partido_sigla);
+      const partidoInfo = PARTIDOS_INFO.find((p) => p.numero === c.partido_numero);
       const sinais = {
-        reeleicao: c.reeleicao ?? null,
+        reeleicao: c.tem_mandato ? 'S' : 'N',
+        idade: idadeDe(c.data_nascimento),
+        patrimonio: c.bens_declarados_total ?? 0,
         declarouBens: c.declarou_bens === 'S' ? true : c.declarou_bens === 'N' ? false : null,
         grauInstrucaoSuperior: temFormacaoSuperior(c.grau_instrucao),
         trocouPartido: precisaTrocaPartido ? Boolean(c.trocou_partido) : null,
@@ -529,21 +555,80 @@ function paginaErroGenerico(caminho) {
   });
 }
 
+/** Candidatos por cargo numa UF (+ total de presidenciáveis), com cache de 10 min por UF. */
+/** Idade a partir de 'DD/MM/AAAA' (TSE) ou 'AAAA-MM-DD'; null se não der pra calcular. */
+function idadeDe(dn) {
+  if (!dn) return null;
+  const br = String(dn).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  const iso = String(dn).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const [a, m, d] = br ? [+br[3], +br[2], +br[1]] : iso ? [+iso[1], +iso[2], +iso[3]] : [null];
+  if (!a) return null;
+  const hoje = new Date();
+  let i = hoje.getFullYear() - a;
+  if (hoje.getMonth() + 1 < m || (hoje.getMonth() + 1 === m && hoje.getDate() < d)) i--;
+  return i;
+}
+
+/** Candidaturas 2026 por partido (ligado pelo número) e por cargo, com cache de 10 min. */
+async function contagemPorPartidoComCache(env, ctx) {
+  const chave = new Request('https://cache.interno.votocheck/contagem-partido-v1');
+  const cache = caches.default;
+  const cacheado = await cache.match(chave);
+  if (cacheado) return cacheado.json();
+  const { results } = await env.DB.prepare(
+    `SELECT pa.numero, ca.slug, COUNT(*) as n FROM candidatura c JOIN partido pa ON pa.id = c.partido_id JOIN cargo ca ON ca.id = c.cargo_id
+     WHERE c.ano_eleicao = ? GROUP BY pa.numero, ca.slug`
+  ).bind(ANO_ATUAL).all();
+  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
+  const out = {};
+  for (const r of results || []) {
+    const s = siglaPorNumero[r.numero];
+    if (!s) continue;
+    out[s] = out[s] || { total: 0 };
+    out[s][r.slug] = r.n;
+    out[s].total += r.n;
+  }
+  ctx.waitUntil(cache.put(chave, new Response(JSON.stringify(out), { headers: { 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` } })));
+  return out;
+}
+
+async function contagemPorUfComCache(env, ctx, uf) {
+  const chave = new Request(`https://cache.interno.votocheck/contagem-uf-${uf || 'BR'}`);
+  const cache = caches.default;
+  const cacheado = await cache.match(chave);
+  if (cacheado) return cacheado.json();
+  const { results } = await env.DB.prepare(
+    `SELECT ca.slug, COUNT(*) as n FROM candidatura c JOIN cargo ca ON ca.id = c.cargo_id
+     WHERE c.ano_eleicao = ? AND (c.sg_uf = ? OR ca.slug = 'presidente') GROUP BY ca.slug`
+  ).bind(ANO_ATUAL, uf || '--').all();
+  const out = {};
+  for (const r of results || []) out[r.slug] = r.n;
+  ctx.waitUntil(cache.put(chave, new Response(JSON.stringify(out), { headers: { 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` } })));
+  return out;
+}
+
 async function fetchInterno(request, env, ctx) {
   const url = new URL(request.url);
 
     if (url.pathname === '/' && request.method === 'GET') {
-      // Defensivo (23/09/2026 — ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 25): esta era
-      // a única rota de alto tráfego sem nenhuma proteção contra falha do D1 (ex.: cota diária
-      // estourada) — uma falha aqui derrubava a HOMEPAGE inteira com erro cru (1101), não só uma
-      // funcionalidade secundária. Degrada pra estatísticas zeradas em vez de 500.
+      // Defensivo (23/09/2026): falha do D1 nunca derruba a home — degrada para números zerados.
       let stats = { totalCandidaturas: 0, totalPessoas: 0, atualizadoEm: null, porCargo: [] };
       try {
         stats = await estatisticasHomepageComCache(env, ctx);
       } catch (e) {
         console.error('Falha em estatisticasHomepageComCache:', e);
       }
-      return html(renderHomepage(stats));
+      // Estado do visitante: ?uf= tem prioridade; senão, a região detectada pela Cloudflare (só BR).
+      const ufParam = (url.searchParams.get('uf') || '').toUpperCase();
+      const ufCf = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
+      const uf = UF_NOMES[ufParam] ? ufParam : UF_NOMES[ufCf] ? ufCf : '';
+      let contagemUf = null;
+      try {
+        contagemUf = await contagemPorUfComCache(env, ctx, uf);
+      } catch (e) {
+        console.error('Falha em contagemPorUfComCache:', e);
+      }
+      return html(renderHomeV2({ ...stats, uf, contagemUf }));
     }
 
     if (url.pathname === '/buscar' && request.method === 'GET') {
@@ -559,7 +644,11 @@ async function fetchInterno(request, env, ctx) {
 
       const condicoes = ['c.ano_eleicao = ?'];
       const params = [ANO_ATUAL];
-      if (q) {
+      if (q && /^\d{2,5}$/.test(q)) {
+        // Busca por número de urna (santinho) — caso de uso nº 1 da última semana (F3).
+        condicoes.push('c.numero_urna = ?');
+        params.push(Number(q));
+      } else if (q) {
         condicoes.push('(p.nome_completo LIKE ? OR p.nome_urna_atual LIKE ?)');
         params.push(`%${q}%`, `%${q}%`);
       }
@@ -593,7 +682,7 @@ async function fetchInterno(request, env, ctx) {
           db
             .prepare(
               `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento,
-                      ca.nome as cargo_nome, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
+                      ca.nome as cargo_nome, ca.slug as cargo_slug, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
                       pa.sigla as partido_sigla
                FROM candidatura c
                JOIN pessoa p ON p.id = c.pessoa_id
@@ -682,12 +771,19 @@ async function fetchInterno(request, env, ctx) {
       } catch (e) {
         console.error('Falha em carregarLiderancaPorCargoPorPartido:', e);
       }
-      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla }));
+      let contagemPorSigla = {};
+      try {
+        contagemPorSigla = await contagemPorPartidoComCache(env, ctx);
+      } catch (e) {
+        console.error('Falha em contagemPorPartidoComCache:', e);
+      }
+      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla, contagemPorSigla }));
     }
 
     if (url.pathname === '/quiz' && request.method === 'GET') {
       const cargoSlug = (url.searchParams.get('cargo') || '').trim();
-      if (!cargoSlug) return html(renderQuizEscolhaCargo());
+      const ufCfQuiz = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
+      if (!cargoSlug) return html(renderQuizEscolhaCargo({ uf: (url.searchParams.get('uf') || ufCfQuiz).toUpperCase() }));
       const cargoInfo = cargoQuizPorSlug(cargoSlug);
       const ufParam = (url.searchParams.get('uf') || '').trim().toUpperCase();
       if (!cargoInfo || (!cargoInfo.semUf && !ufParam)) {
@@ -724,6 +820,40 @@ async function fetchInterno(request, env, ctx) {
     }
 
     if (url.pathname === '/sitemap.xml' && request.method === 'GET') {
+      // Índice de sitemaps (F2, 27/09/2026): páginas fixas + todas as fichas de candidato 2026 em
+      // blocos de 5.000 (limite do Google: 50.000 por arquivo). A busca "nome + número" no Google
+      // é a maior fonte de tráfego da última semana de campanha.
+      let total = 0;
+      try {
+        total = (await env.DB.prepare(`SELECT COUNT(DISTINCT pessoa_id) as n FROM candidatura WHERE ano_eleicao = ?`).bind(ANO_ATUAL).first())?.n || 0;
+      } catch (e) {
+        console.error('sitemap index: falha ao contar', e);
+      }
+      const blocos = Math.max(1, Math.ceil(total / 5000));
+      const hoje = new Date().toISOString().slice(0, 10);
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>${SITE_URL}/sitemap-paginas.xml</loc><lastmod>${hoje}</lastmod></sitemap>
+${Array.from({ length: blocos }, (_, i) => `  <sitemap><loc>${SITE_URL}/sitemap-candidatos-${i + 1}.xml</loc><lastmod>${hoje}</lastmod></sitemap>`).join('\n')}
+</sitemapindex>`;
+      return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
+
+    const sitemapCandMatch = url.pathname.match(/^\/sitemap-candidatos-(\d+)\.xml$/);
+    if (sitemapCandMatch && request.method === 'GET') {
+      const bloco = Math.max(1, Number(sitemapCandMatch[1]));
+      const { results } = await env.DB.prepare(
+        `SELECT DISTINCT pessoa_id FROM candidatura WHERE ano_eleicao = ? ORDER BY pessoa_id LIMIT 5000 OFFSET ?`
+      ).bind(ANO_ATUAL, (bloco - 1) * 5000).all();
+      if (!results || !results.length) return html404(render404(url.pathname));
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>`).join('\n')}
+</urlset>`;
+      return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
+
+    if (url.pathname === '/sitemap-paginas.xml' && request.method === 'GET') {
       // Sitemap com as páginas estáticas + navegação por cargo (estável e de baixo volume).
       // As ~40 mil páginas individuais de candidato não entram aqui por enquanto — são
       // descobertas via link a partir dos resultados de busca, não via sitemap (evita gerar
@@ -738,6 +868,7 @@ async function fetchInterno(request, env, ctx) {
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
         { loc: '/quiz', prioridade: '0.8' },
+        { loc: '/cola', prioridade: '0.8' },
         { loc: '/partidos', prioridade: '0.6' },
         { loc: '/judiciario', prioridade: '0.4' },
         { loc: '/termos', prioridade: '0.3' },
@@ -753,12 +884,108 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     }
 
+    // ===== Arquivos de marca (cache longo) =====
+    const estaticos = {
+      '/static/logo-h.png': LOGO_H_B64,
+      '/static/logo-h-branco.png': LOGO_H_BRANCO_B64,
+      '/static/icone.png': ICONE_B64,
+      '/static/pix-qr.png': PIX_QR_B64,
+    };
+    const logoPartido = url.pathname.match(/^\/static\/partido\/([a-z0-9-]+)$/);
+    if (logoPartido && request.method === 'GET') {
+      const sigla = Object.keys(LOGOS_PARTIDOS).find((k) => siglaSlug(k) === logoPartido[1]);
+      const logo = sigla && LOGOS_PARTIDOS[sigla];
+      if (!logo || !logo.base64) return html404(render404(url.pathname));
+      const bin = atob(logo.base64); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Response(bytes, { headers: { 'Content-Type': logo.mime, 'Cache-Control': 'public, max-age=2592000' } });
+    }
+    const logoAnunciante = url.pathname.match(/^\/static\/anunciante\/([a-z0-9]+)\.png$/);
+    if (logoAnunciante && LOGOS_ANUNCIANTES[logoAnunciante[1]] && request.method === 'GET') {
+      return imagemPng(LOGOS_ANUNCIANTES[logoAnunciante[1]].b64, { cacheSegundos: 2592000 });
+    }
+    if (estaticos[url.pathname] && request.method === 'GET') {
+      return imagemPng(estaticos[url.pathname], { cacheSegundos: 2592000 });
+    }
+
+    // ===== Pauta diária da campanha (D21) — protegida por ADMIN_TOKEN via ?t= =====
+    const tokenOk = () => env.ADMIN_TOKEN && url.searchParams.get('t') === env.ADMIN_TOKEN;
+    if (url.pathname === '/admin/pauta' && request.method === 'GET') {
+      if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
+      const data = url.searchParams.get('d') || dataSP();
+      return html(renderPauta({ pauta: await lerPauta(env, data), data, token: url.searchParams.get('t') }));
+    }
+    if (url.pathname === '/admin/pauta/decidir' && request.method === 'GET') {
+      if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
+      const data = url.searchParams.get('d') || dataSP();
+      await decidirPeca(env, data, url.searchParams.get('id'), url.searchParams.get('acao'));
+      return Response.redirect(`${url.origin}/admin/pauta?t=${encodeURIComponent(url.searchParams.get('t'))}&d=${data}`, 302);
+    }
+    const socialMatch = url.pathname.match(/^\/social\/(\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_.-]+)$/);
+    if (socialMatch && request.method === 'GET') {
+      if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
+      return (await servirArquivoSocial(env, socialMatch[1])) || html404(render404(url.pathname));
+    }
+    if (url.pathname === '/api/pauta' && request.method === 'GET') {
+      // Leitura da pauta pela própria fábrica (ex.: publicar aprovadas no Buffer). Token no header.
+      if (!requireAdminToken(request, env)) return new Response('Unauthorized', { status: 401 });
+      return Response.json(await lerPauta(env, url.searchParams.get('d') || dataSP()));
+    }
+
+    // ===== Medição (D14) =====
+    if (url.pathname === '/e' && request.method === 'POST') {
+      return registrarEvento(env, request);
+    }
+    if (url.pathname === '/admin/metricas' && request.method === 'GET') {
+      if (!requireAdminToken(request, env) && url.searchParams.get('t') !== env.ADMIN_TOKEN) return new Response('Unauthorized', { status: 401 });
+      return Response.json(await resumoMetricas(env, Number(url.searchParams.get('dias')) || 14));
+    }
+
+    // ===== Clique em anúncio: conta e redireciona com UTM =====
+    const pubMatch = url.pathname.match(/^\/p\/([a-z0-9-]+)$/);
+    if (pubMatch && request.method === 'GET') {
+      const espaco = (url.searchParams.get('e') || 'na').slice(0, 4);
+      const destino = urlDestinoAnunciante(pubMatch[1], espaco);
+      if (!destino) return html404(render404(url.pathname));
+      ctx.waitUntil(contar(env, 'pub_clique', `${pubMatch[1]}:${espaco}`).catch(() => {}));
+      return Response.redirect(destino, 302);
+    }
+
+    // ===== Cola eleitoral (F7) — 100% no aparelho, nada é enviado ao servidor =====
+    if (url.pathname === '/cola' && request.method === 'GET') {
+      const ufParam = (url.searchParams.get('uf') || '').toUpperCase();
+      const ufCf = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
+      const uf = UF_NOMES[ufParam] ? ufParam : UF_NOMES[ufCf] ? ufCf : '';
+      return html(renderCola({ uf }));
+    }
+    const colaApiMatch = url.pathname === '/api/cola-candidato' && request.method === 'GET';
+    if (colaApiMatch) {
+      // Dados mínimos de um candidato para a cola (nome de urna, número, partido, cargo, UF).
+      const id = Number(url.searchParams.get('id'));
+      if (!id) return Response.json({ ok: false }, { status: 400 });
+      const row = await env.DB.prepare(
+        `SELECT c.pessoa_id as id, p.nome_urna_atual as nome, c.numero_urna as numero, pa.sigla as partido, ca.slug as cargo, c.sg_uf as uf
+         FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id JOIN cargo ca ON ca.id = c.cargo_id LEFT JOIN partido pa ON pa.id = c.partido_id
+         WHERE c.pessoa_id = ? AND c.ano_eleicao = ? LIMIT 1`
+      ).bind(id, ANO_ATUAL).first();
+      return Response.json({ ok: !!row, candidato: row }, { headers: { 'Cache-Control': 'public, max-age=600' } });
+    }
+
     if (url.pathname === '/favicon.ico' && request.method === 'GET') {
       return imagemPng(FAVICON_32_B64);
     }
 
     if (url.pathname === '/apple-touch-icon.png' && request.method === 'GET') {
       return imagemPng(FAVICON_180_B64);
+    }
+
+    // Imagem de preview (WhatsApp/redes) pré-gerada por ficha e por página, guardada no KV "OG".
+    const ogMatch = url.pathname.match(/^\/og\/(candidato|pagina)\/([a-z0-9_-]+)\.jpg$/);
+    if (ogMatch && request.method === 'GET') {
+      const chave = `${ogMatch[1] === 'candidato' ? 'c' : 'p'}:${ogMatch[2]}`;
+      const img = env.OG ? await env.OG.get(chave, 'arrayBuffer') : null;
+      if (!img) return Response.redirect(`${SITE_URL}/og-image.png`, 302);
+      return new Response(img, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' } });
     }
 
     if (url.pathname === '/og-image.png' && request.method === 'GET') {
@@ -776,7 +1003,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       const [candidaturasRes, mandatosRes, filiacoesRes, atributosRes] = await Promise.all([
         db
           .prepare(
-            `SELECT c.*, ca.nome as cargo_nome, pa.sigla as partido_sigla, pa.nome as partido_nome,
+            `SELECT c.*, ca.nome as cargo_nome, ca.slug as cargo_slug, pa.sigla as partido_sigla, pa.nome as partido_nome,
                     s.codigo as status_codigo, s.descricao as status_descricao,
                     f.nome as fonte_nome, f.url_base as fonte_url, p.data_nascimento
              FROM candidatura c
@@ -837,8 +1064,74 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         }
       }
 
+      // v2 (27/09/2026): últimos votos nominais registrados + "Seu voto também conta para" (mesma
+      // lista partidária/federação no mesmo cargo e UF). Falhas aqui nunca derrubam a ficha.
+      let votos = [];
+      let totalVotos = 0;
+      let mesmaLista = null;
+      try {
+        const [vRes, tRes] = await Promise.all([
+          db.prepare(
+            `SELECT v.voto, vt.data_votacao, vt.descricao, vt.url_origem, vt.casa
+             FROM voto_parlamentar v JOIN votacao vt ON vt.id = v.votacao_id
+             WHERE v.pessoa_id = ? ORDER BY vt.data_votacao DESC, vt.id DESC LIMIT 8`
+          ).bind(pessoaId).all(),
+          db.prepare(`SELECT COUNT(*) as n FROM voto_parlamentar WHERE pessoa_id = ?`).bind(pessoaId).first(),
+        ]);
+        votos = vRes.results || [];
+        totalVotos = tRes?.n || 0;
+      } catch (e) {
+        console.error('perfil: falha ao carregar votos', e);
+      }
+      try {
+        const cand = (candidaturasRes.results || []).find((c) => c.ano_eleicao === ANO_ATUAL);
+        if (cand && ['deputado_federal', 'deputado_estadual', 'deputado_distrital'].includes(cand.cargo_slug)) {
+          const federacao = cand.nome_coligacao && cand.nome_coligacao !== 'PARTIDO ISOLADO' && cand.sq_coligacao;
+          const filtro = federacao ? 'c.sq_coligacao = ?' : 'c.partido_id = ?';
+          const valor = federacao ? cand.sq_coligacao : cand.partido_id;
+          const [itensRes, totRes] = await Promise.all([
+            db.prepare(
+              `SELECT c.pessoa_id, p.nome_urna_atual, c.numero_urna FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id
+               WHERE c.ano_eleicao = ? AND c.cargo_id = ? AND c.sg_uf = ? AND ${filtro} AND c.pessoa_id != ?
+               ORDER BY p.nome_urna_atual LIMIT 30`
+            ).bind(ANO_ATUAL, cand.cargo_id, cand.sg_uf, valor, pessoaId).all(),
+            db.prepare(`SELECT COUNT(*) as n FROM candidatura c WHERE c.ano_eleicao = ? AND c.cargo_id = ? AND c.sg_uf = ? AND ${filtro}`)
+              .bind(ANO_ATUAL, cand.cargo_id, cand.sg_uf, valor).first(),
+          ]);
+          mesmaLista = {
+            federacao: Boolean(federacao),
+            rotulo: federacao ? cand.nome_coligacao : cand.partido_sigla || '',
+            total: totRes?.n || 0,
+            itens: itensRes.results || [],
+          };
+        }
+      } catch (e) {
+        console.error('perfil: falha ao carregar mesma lista', e);
+      }
+
+      let bens = [];
+      let redes = [];
+      try {
+        const cand = (candidaturasRes.results || []).find((c) => c.ano_eleicao === ANO_ATUAL);
+        if (cand) {
+          const [bRes, rRes] = await Promise.all([
+            db.prepare(`SELECT tipo, descricao, valor FROM bem_candidato WHERE candidatura_id = ? ORDER BY valor DESC`).bind(cand.id).all(),
+            db.prepare(`SELECT url FROM rede_social_candidato WHERE candidatura_id = ? ORDER BY ordem`).bind(cand.id).all(),
+          ]);
+          bens = bRes.results || [];
+          redes = rRes.results || [];
+        }
+      } catch (e) {
+        console.error('perfil: falha ao carregar bens/redes', e);
+      }
+
       return html(
         renderPerfil({
+          bens,
+          redes,
+          votos,
+          totalVotos,
+          mesmaLista,
           pessoa,
           candidaturas: candidaturasRes.results || [],
           mandatos: mandatosRes.results || [],
@@ -1028,7 +1321,13 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 export default {
   async fetch(request, env, ctx) {
     try {
-      return await fetchInterno(request, env, ctx);
+      const resposta = await fetchInterno(request, env, ctx);
+      // Medição (D14): conta visitas de páginas HTML públicas, sem cookie. Nunca atrasa a resposta.
+      if (request.method === 'GET' && resposta.status === 200 && (resposta.headers.get('Content-Type') || '').startsWith('text/html')) {
+        const p = new URL(request.url).pathname;
+        if (!p.startsWith('/admin')) ctx.waitUntil(registrarVisita(env, request, p));
+      }
+      return resposta;
     } catch (e) {
       // Rede de segurança final — ver `paginaErroGenerico` acima. Qualquer rota que já tenha
       // seu próprio try/catch (ex.: `/`, `/buscar`, `/acompanhar`) nunca chega aqui; isso só

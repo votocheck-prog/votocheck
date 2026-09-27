@@ -179,10 +179,23 @@ export const ESTILO_DS = `
      ajustado depois do 1º retorno do Rodrigo: título em CAPS, dourado, no MESMO tamanho da fonte
      do texto abaixo — CAPS + cor já dão o destaque, não precisa de tamanho maior. O número
      ("R$ 5,3 bi") deixou de ter tratamento de estatística grande e virou parte do próprio título,
-     do mesmo tamanho do resto. */
+     do mesmo tamanho do resto.
+     27/09/2026 (tarde, ajuste fino): título deixou de ser dourado — virou o mesmo azul claro já
+     usado em ".vc-mais"/eyebrow sobre fundo navy (#7FB0FF), pra ficar mais alinhado com a paleta
+     do site (o dourado ficou reservado pra outros usos). Nome da classe ("navy/dourado") ficou
+     como estava só por não valer a pena renomear em cascata; a cor real do título agora é azul.
+     27/09/2026 (tarde, mesma rodada, 2ª tentativa): essa mudança tinha sido gravada e confirmada
+     no repositório do Rodrigo, mas ele reportou com print que o card continuava dourado — conferi
+     direto no arquivo dele via ponte e o conteúdo realmente tinha voltado ao texto antigo (sem
+     essa nota, sem a cor nova), então algo do lado dele desfez a gravação depois de feita (git
+     discard/checkout, um pull, ou o editor sobrescrevendo — não deu pra confirmar qual). Gravado
+     de novo nesta rodada, junto com 2 pedidos novos: título centralizado, texto (p) em branco
+     puro (era #C3CDF0). Se sumir de novo, é sinal de alguma operação de git desfazendo mudança
+     não commitada no repositório dele — vale checar o histórico do GitHub Desktop antes de mexer
+     de novo. */
   .vc-card--navy { background: var(--navy); border-color: rgba(255,255,255,.12); }
-  .vc-card--navy h3 { color: #FFB067; font-size: 15px; text-transform: uppercase; letter-spacing: .02em; font-weight: 800; line-height: 1.35; }
-  .vc-card--navy p { color: #C3CDF0; }
+  .vc-card--navy h3 { color: #7FB0FF; font-size: 15px; text-transform: uppercase; letter-spacing: .02em; font-weight: 800; line-height: 1.35; text-align: center; }
+  .vc-card--navy p { color: #fff; }
   .vc-card--navy .vc-mais { color: #7FB0FF; }
   a.vc-card--navy:hover { border-color: #5B9BFF; box-shadow: 0 8px 24px -12px rgba(0,0,0,.4); }
   a.vc-card--navy:hover .vc-mais { color: #fff; }

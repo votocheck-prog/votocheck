@@ -117,22 +117,32 @@ function renderHero(uf, contagemUf, atualizadoEm) {
 }
 
 function renderMapa(uf) {
+  // 27/09/2026: o banner do dinheiro público virou uma caixa igual às outras 2 (mesmo tamanho,
+  // mesmo estilo — título em dourado, fundo navy, texto claro), e a fileira caiu de "banner +
+  // 3 caixas" para só 3 caixas (a de "quanto vale o seu voto" foi pro bloco "Voto para deputado",
+  // como uma 3ª opção ao lado das outras 2). Cada caixa ganhou um "saiba mais →" no rodapé, como
+  // se fossem notícias — ver .vc-card--navy em ds.js.
   return `
   <section class="vc-sec" style="padding:40px 0" id="dinheiro">
-    <div class="vc-wrap">
-      <a href="/dinheiro-publico${uf ? `?uf=${uf}` : ''}" style="display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;background:var(--navy);color:#fff;border-radius:22px;padding:26px 28px;text-decoration:none" class="vc-dp-banner" data-ev="home_dinheiro">
-        <span style="font-family:var(--font-display);font-weight:800;font-size:clamp(30px,4vw,44px);color:#FFB067;line-height:1">R$ 5,3 bi</span>
-        <span><strong style="display:block;font-family:var(--font-display);font-size:clamp(18px,2.2vw,22px)">de dinheiro público já foram para as campanhas de 2026.</strong><span style="color:#C3CDF0;font-size:15px">Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</span></span>
-        <span class="vc-btn vc-btn--pri" style="white-space:nowrap">Ver quanto →</span>
+    <div class="vc-wrap vc-grid vc-grid-3">
+      <a href="/dinheiro-publico${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy" data-ev="home_dinheiro">
+        <span class="vc-card-num">R$ 5,3 bi</span>
+        <h3>em dinheiro público nas campanhas de 2026</h3>
+        <p>Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</p>
+        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
       </a>
-      <div class="vc-dp-mais" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px">
-        <a href="/2022${uf ? `?uf=${uf}` : ''}" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Em 2022, quem o seu voto elegeu?</strong><span style="font-size:14px;color:var(--muted)">Digite em quem votou e veja para onde o voto foi.</span></a>
-        <a href="/perderam-o-mandato" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Eleitos que perderam o mandato</strong><span style="font-size:14px;color:var(--muted)">E quanto da vaga veio dos votos de outros.</span></a>
-        <a href="/quanto-vale-seu-voto${uf ? `?uf=${uf}` : ''}" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink)"><strong style="font-family:var(--font-display);display:block">Quanto vale o seu voto?</strong><span style="font-size:14px;color:var(--muted)">Eleitores por vaga de deputado em cada estado.</span></a>
-      </div>
+      <a href="/2022${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy">
+        <h3>Em 2022, quem o seu voto elegeu?</h3>
+        <p>Digite em quem votou e veja para onde o voto foi.</p>
+        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
+      </a>
+      <a href="/perderam-o-mandato" class="vc-card vc-card--navy">
+        <h3>Eleitos que perderam o mandato</h3>
+        <p>E quanto da vaga veio dos votos de outros.</p>
+        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
+      </a>
     </div>
   </section>
-  <style>@media (max-width:720px){.vc-dp-banner{grid-template-columns:1fr!important;gap:10px!important}.vc-dp-mais{grid-template-columns:1fr!important}}</style>
   <section class="vc-sec vc-sec--branca" id="estados">
     <div class="vc-wrap vc-mapa-grid">
       <div>
@@ -150,8 +160,11 @@ function renderMapa(uf) {
 }
 
 function renderQuociente(uf) {
+  // 27/09/2026: "Voto para deputado" trocou de fundo com "Meu VotoCheck" (agora branco, era
+  // navy — ver renderHomeV2) e ganhou um 3º botão ("Quanto vale o seu voto?"), que antes era um
+  // dos mini-cards do bloco do mapa.
   return `
-  <section class="vc-sec vc-sec--navy" id="seu-voto">
+  <section class="vc-sec vc-sec--branca" id="seu-voto">
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.votoCaixa(16)} Voto para deputado</span>
       <h2 class="vc-h2">Seu voto em deputado pode eleger outra pessoa</h2>
@@ -164,11 +177,12 @@ function renderQuociente(uf) {
       </div>
       <div class="vc-exemplo">
         <div class="vc-exemplo-num">2002</div>
-        <p><strong style="color:#fff">Exemplo real:</strong> em 2002, os votos do deputado Enéas Carneiro (Prona-SP) levaram mais cinco colegas de partido à Câmara, um deles com menos de 300 votos. A regra do mínimo de 10% do quociente veio depois, na reforma eleitoral de 2015, justamente para limitar esse efeito.</p>
+        <p><strong class="vc-exemplo-titulo">Exemplo real:</strong> em 2002, os votos do deputado Enéas Carneiro (Prona-SP) levaram mais cinco colegas de partido à Câmara, um deles com menos de 300 votos. A regra do mínimo de 10% do quociente veio depois, na reforma eleitoral de 2015, justamente para limitar esse efeito.</p>
       </div>
       <div style="margin-top:24px; display:flex; gap:12px; flex-wrap:wrap;">
         <a class="vc-btn vc-btn--pri" href="/buscar?cargo=deputado_federal${uf ? `&uf=${uf}` : ''}">Ver candidatos a deputado${uf ? ` em ${uf}` : ''}</a>
-        <a class="vc-btn vc-btn--claro" href="/cargo/deputado_federal">O que faz um deputado federal</a>
+        <a class="vc-btn vc-btn--sec" href="/cargo/deputado_federal">O que faz um deputado federal</a>
+        <a class="vc-btn vc-btn--sec" href="/quanto-vale-seu-voto${uf ? `?uf=${uf}` : ''}">Quanto vale o seu voto?</a>
       </div>
     </div>
   </section>`;
@@ -176,8 +190,10 @@ function renderQuociente(uf) {
 
 function renderQuizTeaser(uf) {
   const q = `/quiz${uf ? `?cargo=deputado_federal&uf=${uf}` : ''}`;
+  // 27/09/2026: "Meu VotoCheck" ganhou o destaque navy (era o "Voto para deputado" que tinha) —
+  // ver renderHomeV2 pra ordem nova dos blocos na home.
   return `
-  <section class="vc-sec" id="meu-votocheck">
+  <section class="vc-sec vc-sec--navy" id="meu-votocheck">
     <div class="vc-wrap vc-quiz-grid">
       <div>
         <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck</span>
@@ -233,10 +249,22 @@ function renderMetodo() {
 
 function renderNumeros({ totalCandidaturas, totalPessoas, porCargo }) {
   const max = Math.max(1, ...(porCargo || []).map((c) => c.qtd || 0));
+  const totalBarras = (porCargo || []).reduce((s, c) => s + (c.qtd || 0), 0) || 1;
   const barras = (porCargo || [])
     .slice()
     .sort((a, b) => (b.qtd || 0) - (a.qtd || 0))
-    .map((c) => `<div class="vc-barra"><span>${escapeHtml(c.nome)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, ((c.total || 0) / max) * 100).toFixed(1)}%"></i></span><b>${fmt(c.qtd)}</b></div>`)
+    // 27/09/2026: a barra usava `c.total`, campo que não existe na consulta (só vem `qtd` de
+    // `estatisticasHomepageComCache`, ver src/index.js) — toda barra saía com a largura mínima
+    // (1.5%), fixa, sem refletir a quantidade real de candidaturas por cargo. Corrigido pra usar
+    // `c.qtd`, o mesmo campo já usado pra ordenar e pro número exibido. Na mesma passada, gráfico
+    // ganhou tratamento visual novo (skill dataviz): barra fina, ponta arredondada/base quadrada,
+    // e tooltip com o % do total no hover/foco — o % também vai no aria-label, pra não depender
+    // do mouse pra chegar na informação.
+    .map((c) => {
+      const qtd = c.qtd || 0;
+      const pct = ((qtd / totalBarras) * 100).toFixed(1).replace('.', ',');
+      return `<div class="vc-barra" tabindex="0" aria-label="${escapeHtml(c.nome)}: ${fmt(qtd)} candidaturas, ${pct}% do total"><span class="vc-barra-rotulo">${escapeHtml(c.nome)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, (qtd / max) * 100).toFixed(1)}%"></i><span class="vc-barra-tip" aria-hidden="true">${pct}% do total</span></span><b>${fmt(qtd)}</b></div>`;
+    })
     .join('');
   return `
   <section class="vc-sec">
@@ -255,12 +283,15 @@ function renderNumeros({ totalCandidaturas, totalPessoas, porCargo }) {
 }
 
 export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, totalPessoas, atualizadoEm, porCargo }) {
+  // 27/09/2026: ordem nova pedida pelo Rodrigo — "Meu VotoCheck" passa a vir antes de "Voto para
+  // deputado" (e ganha o destaque navy que era do quociente), com a publicidade A1 continuando
+  // logo depois do bloco do VotoCheck, como já era.
   const corpo = `
     ${renderHero(uf, contagemUf, atualizadoEm)}
     ${renderMapa(uf)}
-    ${renderQuociente(uf)}
     ${renderQuizTeaser(uf)}
     <div class="vc-wrap" style="padding-bottom:56px">${renderPublicidade('A1', 'home')}</div>
+    ${renderQuociente(uf)}
     ${renderMetodo()}
     ${renderNumeros({ totalCandidaturas, totalPessoas, porCargo })}
     ${renderCtaTriplo({ contexto: 'home' })}

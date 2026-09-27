@@ -113,6 +113,10 @@ export function renderCola({ uf = '' } = {}) {
         <p style="font-size:13px;color:var(--muted);margin:0">O convite não mostra suas escolhas, só o link para a pessoa montar a dela.</p>
         <button class="vc-btn vc-btn--sec" type="button" id="btn-card-cola">${Icone.qrcode(18)} Gerar card com minha cola pra compartilhar</button>
         <p style="font-size:13px;color:var(--muted);margin:0">Esse, sim, mostra quem você escolheu — uma imagem pronta pra postar ou mandar direto. Gerada no seu aparelho; o VotoCheck não vê nem guarda isso.</p>
+        <div id="card-cola-acoes" style="display:none;gap:8px;flex-wrap:wrap">
+          <button class="vc-btn vc-btn--pri vc-btn--sm" type="button" id="btn-card-baixar">${Icone.baixar(16)} Baixar imagem</button>
+          <button class="vc-btn vc-btn--sec vc-btn--sm" type="button" id="btn-card-compartilhar">${Icone.compartilhar(16)} Compartilhar</button>
+        </div>
         <p id="card-cola-status" style="font-size:13px;color:var(--muted);margin:0" hidden></p>
       </div>
     </div>
@@ -165,23 +169,27 @@ export function renderCola({ uf = '' } = {}) {
       if(atual) linhas.push(atual);
       return linhas;
     }
-    async function gerarCardCola(){
+    // 27/09/2026: card passou a separar "desenhar" (monta o canvas) de "agir" (baixar ou
+    // compartilhar) — antes o botão decidia por conta própria (compartilhava se o navegador
+    // suportasse, senão baixava), sem dar escolha. Agora sempre gera a imagem e mostra os dois
+    // botões, e o rodapé do card ganhou o mesmo tratamento visual do banner "R$ público" da home
+    // (título em dourado sobre navy, tipografia Plus Jakarta Sans) em vez de um texto simples.
+    var ultimoCanvas=null;
+    var FONTE_TITULO='"Plus Jakarta Sans",system-ui,Arial,sans-serif';
+    var FONTE_TEXTO='system-ui,Arial,sans-serif';
+    async function desenharCard(){
       var itens=[];
       for(var i=0;i<VOTOS_META.length;i++){
         var m=VOTOS_META[i], d=dados[m.slot];
         if(d && (d.numero||d.nome)) itens.push({ cargo:m.nome, nome:d.nome||'', numero:d.numero||'', partido:d.partido||'', foto:d.foto||'' });
       }
-      var status=document.getElementById('card-cola-status');
-      if(!itens.length){
-        if(status){ status.hidden=false; status.style.color='#A12C7B'; status.textContent='Escolha pelo menos um candidato na cola antes de gerar o card.'; }
-        return;
-      }
-      if(status){ status.hidden=false; status.style.color=''; status.textContent='Gerando imagem…'; }
+      if(!itens.length) return null;
+      if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(_){} }
 
       var W=1080,H=1350;
       var canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
       var ctx=canvas.getContext('2d');
-      var NAVY='#0A1440', BLUE='#0059F5', TEAL='#00B495', MUTED='#6F7DB5';
+      var NAVY='#0A1440', BLUE='#0059F5', TEAL='#00B495', GOLD='#FFB067', MUTED='#6F7DB5';
 
       // fundo
       ctx.fillStyle='#F5F6FA'; ctx.fillRect(0,0,W,H);
@@ -191,14 +199,14 @@ export function renderCola({ uf = '' } = {}) {
       ctx.fillStyle=NAVY; ctx.fillRect(0,0,W,topoH);
       var icone=await carregarImagem('data:image/png;base64,${ICONE_B64}');
       if(icone) ctx.drawImage(icone,56,52,86,86);
-      ctx.fillStyle='#fff'; ctx.font='700 40px system-ui,Arial,sans-serif';
-      ctx.fillText('Minha cola',icone?162:56,100);
-      ctx.fillStyle='#B9C4EA'; ctx.font='500 26px system-ui,Arial,sans-serif';
+      ctx.fillStyle='#fff'; ctx.font='800 42px '+FONTE_TITULO;
+      ctx.fillText('Minha cola',icone?162:56,102);
+      ctx.fillStyle='#B9C4EA'; ctx.font='600 25px '+FONTE_TEXTO;
       ctx.fillText('Eleições 2026 · 1º turno',icone?162:56,142);
 
       // linhas dos candidatos
       var n=itens.length;
-      var areaTopo=topoH+30, areaBaixo=220;
+      var areaTopo=topoH+30, areaBaixo=270;
       var alturaLinha=Math.floor((H-areaTopo-areaBaixo)/n);
       var fotoR=Math.min(64,Math.floor(alturaLinha*0.36));
       for(var j=0;j<n;j++){
@@ -210,51 +218,91 @@ export function renderCola({ uf = '' } = {}) {
         ctx.save();
         ctx.beginPath(); ctx.arc(cx,cy,fotoR,0,Math.PI*2); ctx.closePath(); ctx.clip();
         if(imgFoto){ ctx.drawImage(imgFoto,cx-fotoR,cy-fotoR,fotoR*2,fotoR*2); }
-        else { ctx.fillStyle=BLUE+'22'; ctx.fillRect(cx-fotoR,cy-fotoR,fotoR*2,fotoR*2); ctx.fillStyle=BLUE; ctx.font='700 '+Math.floor(fotoR*0.9)+'px system-ui,Arial,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText((it.nome||'?').charAt(0).toUpperCase(),cx,cy+2); ctx.textAlign='left'; ctx.textBaseline='alphabetic'; }
+        else { ctx.fillStyle=BLUE+'22'; ctx.fillRect(cx-fotoR,cy-fotoR,fotoR*2,fotoR*2); ctx.fillStyle=BLUE; ctx.font='700 '+Math.floor(fotoR*0.9)+'px '+FONTE_TITULO; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText((it.nome||'?').charAt(0).toUpperCase(),cx,cy+2); ctx.textAlign='left'; ctx.textBaseline='alphabetic'; }
         ctx.restore();
         ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(cx,cy,fotoR,0,Math.PI*2); ctx.stroke();
 
         var textoX=cx+fotoR+28;
-        ctx.fillStyle=NAVY; ctx.font='700 30px system-ui,Arial,sans-serif';
+        ctx.fillStyle=NAVY; ctx.font='700 30px '+FONTE_TITULO;
         ctx.fillText((it.nome||'Número digitado').slice(0,34), textoX, cy-8);
-        ctx.fillStyle=MUTED; ctx.font='500 22px system-ui,Arial,sans-serif';
+        ctx.fillStyle=MUTED; ctx.font='500 22px '+FONTE_TEXTO;
         ctx.fillText(it.cargo+(it.partido?' · '+it.partido:''), textoX, cy+26);
 
-        ctx.fillStyle=BLUE; ctx.font='800 34px system-ui,Arial,sans-serif'; ctx.textAlign='right';
+        ctx.fillStyle=BLUE; ctx.font='800 34px '+FONTE_TITULO; ctx.textAlign='right';
         ctx.fillText('Nº '+it.numero, W-56, cy+10);
         ctx.textAlign='left';
       }
 
-      // rodapé navy com CTA
+      // rodapé — banner navy com título em dourado, no mesmo estilo do banner "R$ público" da home
       var rodY=H-areaBaixo;
       ctx.fillStyle=NAVY; ctx.fillRect(0,rodY,W,areaBaixo);
-      ctx.fillStyle='#fff'; ctx.font='700 28px system-ui,Arial,sans-serif';
-      var linhasCta=quebrarLinhas(ctx,'Eu verifiquei as informações no votocheck.com.br. Faça o mesmo: vote informado e consciente, e ajude a escolher melhor os Representantes Públicos.',W-112);
-      var cy2=rodY+56;
-      for(var k=0;k<linhasCta.length;k++){ ctx.fillText(linhasCta[k],56,cy2); cy2+=38; }
-      ctx.fillStyle=TEAL; ctx.font='800 32px system-ui,Arial,sans-serif';
-      ctx.fillText('votocheck.com.br',56,rodY+areaBaixo-34);
+      ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,rodY); ctx.lineTo(W,rodY); ctx.stroke();
 
+      var padX=56, larguraTexto=W-padX*2, cy2=rodY+58;
+      ctx.fillStyle=GOLD; ctx.font='800 32px '+FONTE_TITULO;
+      ctx.fillText('Confira antes de decidir.',padX,cy2);
+      cy2+=42;
+      ctx.fillStyle='#E6EBFF'; ctx.font='500 24px '+FONTE_TEXTO;
+      var linhasCta=quebrarLinhas(ctx,'Eu verifiquei as informações no votocheck.com.br. Faça o mesmo: vote informado e consciente, e ajude a escolher melhor nossos representantes.',larguraTexto);
+      for(var k=0;k<linhasCta.length;k++){ ctx.fillText(linhasCta[k],padX,cy2); cy2+=32; }
+      ctx.fillStyle=TEAL; ctx.font='800 34px '+FONTE_TITULO;
+      ctx.fillText('votocheck.com.br',padX,rodY+areaBaixo-34);
+
+      return canvas;
+    }
+    async function gerarCardCola(){
+      var status=document.getElementById('card-cola-status');
+      var acoes=document.getElementById('card-cola-acoes');
+      if(status){ status.hidden=false; status.style.color=''; status.textContent='Gerando imagem…'; }
+      var canvas=await desenharCard();
+      if(!canvas){
+        if(status){ status.style.color='#A12C7B'; status.textContent='Escolha pelo menos um candidato na cola antes de gerar o card.'; }
+        if(acoes) acoes.style.display='none';
+        return;
+      }
+      ultimoCanvas=canvas;
+      if(acoes) acoes.style.display='flex';
+      if(status){ status.style.color=''; status.textContent='Imagem pronta — baixe ou compartilhe abaixo.'; }
+      if(window.vcEv) vcEv('cola_card_gerado','');
+    }
+    var btnCard=document.getElementById('btn-card-cola');
+    if(btnCard) btnCard.addEventListener('click',function(){ gerarCardCola().catch(function(){ var s=document.getElementById('card-cola-status'); if(s){ s.hidden=false; s.style.color='#A12C7B'; s.textContent='Não deu pra gerar a imagem agora — tente de novo.'; } }); });
+    var btnBaixar=document.getElementById('btn-card-baixar');
+    if(btnBaixar) btnBaixar.addEventListener('click',async function(){
+      var status=document.getElementById('card-cola-status');
+      var canvas=ultimoCanvas||await desenharCard().catch(function(){return null});
+      if(!canvas){ if(status){ status.hidden=false; status.style.color='#A12C7B'; status.textContent='Gere o card antes de baixar.'; } return; }
+      ultimoCanvas=canvas;
+      // JPEG: card não usa transparência (fundo sólido), então JPEG dá um arquivo bem menor que
+      // PNG pro mesmo resultado visual — melhor pra anexar em WhatsApp/redes.
       canvas.toBlob(function(blob){
-        if(!blob){ if(status){ status.style.color='#A12C7B'; status.textContent='Não deu pra gerar a imagem agora — tente de novo.'; } return; }
-        var arquivo=new File([blob],'minha-cola-votocheck.png',{type:'image/png'});
+        if(!blob) return;
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement('a'); a.href=url; a.download='minha-cola-votocheck.jpg';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+        if(status){ status.hidden=false; status.style.color=''; status.textContent='Imagem baixada — é só anexar numa conversa ou nos stories.'; }
+      },'image/jpeg',0.92);
+    });
+    var btnCompartilhar=document.getElementById('btn-card-compartilhar');
+    if(btnCompartilhar) btnCompartilhar.addEventListener('click',async function(){
+      var status=document.getElementById('card-cola-status');
+      var canvas=ultimoCanvas||await desenharCard().catch(function(){return null});
+      if(!canvas){ if(status){ status.hidden=false; status.style.color='#A12C7B'; status.textContent='Gere o card antes de compartilhar.'; } return; }
+      ultimoCanvas=canvas;
+      canvas.toBlob(function(blob){
+        if(!blob) return;
+        var arquivo=new File([blob],'minha-cola-votocheck.jpg',{type:'image/jpeg'});
         if(navigator.canShare && navigator.canShare({ files:[arquivo] })){
           navigator.share({ files:[arquivo], title:'Minha cola VotoCheck', text:'Montei minha cola pras eleições 2026 no VotoCheck.' })
             .then(function(){ if(window.vcEv) vcEv('cola_card_compartilhar','share'); })
             .catch(function(){});
-          if(status) status.hidden=true;
-        } else {
-          var url=URL.createObjectURL(blob);
-          var a=document.createElement('a'); a.href=url; a.download='minha-cola-votocheck.png';
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(function(){ URL.revokeObjectURL(url); },4000);
-          if(status){ status.style.color=''; status.textContent='Imagem baixada — é só anexar numa conversa ou nos stories.'; }
+        } else if(status){
+          status.hidden=false; status.style.color='#A12C7B'; status.textContent='Seu navegador não permite compartilhar direto por aqui — use "Baixar imagem" e anexe manualmente.';
         }
-        if(window.vcEv) vcEv('cola_card_gerado','');
-      },'image/png',0.95);
-    }
-    var btnCard=document.getElementById('btn-card-cola');
-    if(btnCard) btnCard.addEventListener('click',function(){ gerarCardCola().catch(function(){ var s=document.getElementById('card-cola-status'); if(s){ s.hidden=false; s.style.color='#A12C7B'; s.textContent='Não deu pra gerar a imagem agora — tente de novo.'; } }); });
+      },'image/jpeg',0.92);
+    });
   })();
   </script>`;
 

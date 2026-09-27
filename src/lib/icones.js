@@ -48,4 +48,5 @@ export const Icone = {
   link: (t = 24) => svg(t, `<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>`),
   pessoas: (t = 24) => svg(t, `<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5.5"/>`),
   votoCaixa: (t = 24) => svg(t, `<path d="M4 12h16v8H4z"/><path d="M7 12l3-8h7l-3 8"/><path d="M9.5 8.5l2 1.5 3-3"/>`),
+  baixar: (t = 24) => svg(t, `<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/>`),
 };

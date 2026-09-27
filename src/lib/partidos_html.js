@@ -283,6 +283,21 @@ const ESTILO_PARTIDOS = `
   .pt-reps { display: flex; flex-wrap: wrap; gap: 6px; }
   .pt-reps a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
   .pt-reps a:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* 27/09/2026 (pedido do Rodrigo): "principais nomes da legenda" (presidência + maior cargo em
+     exercício) passam a ter mais peso visual que a lista de candidatos — pills maiores, 2 por
+     linha, em vez do flex-wrap solto igual aos candidatos. A lista de candidatos, por sua vez,
+     vira um <details> fechado por padrão (mesmo padrão discreto já usado em outras páginas do
+     site, ex. .mapa-brasil-toggle/.cargo-guia-item), só abrindo quando alguém pede pra ver. */
+  .pt-lideres { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .pt-lideres a { display: block; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--ink); background: var(--blue-50); border: 1px solid transparent; border-radius: 10px; padding: 9px 12px; text-align: left; line-height: 1.3; transition: border-color .15s ease, color .15s ease; }
+  .pt-lideres a:hover { border-color: var(--blue); color: var(--blue); }
+  @media (max-width: 420px) { .pt-lideres { grid-template-columns: 1fr; } }
+  .pt-cands-toggle summary { cursor: pointer; list-style: none; font-size: 12.5px; color: var(--muted); font-weight: 600; padding: 4px 0 2px; }
+  .pt-cands-toggle summary::-webkit-details-marker { display: none; }
+  .pt-cands-toggle summary::before { content: '▸ '; color: var(--blue); }
+  .pt-cands-toggle[open] summary::before { content: '▾ '; }
+  .pt-cands-toggle .pt-reps { margin-top: 8px; }
 `;
 
 /** Diagrama de espectro: 5 zonas com os partidos (links para o card). */
@@ -321,7 +336,7 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
       const lideres = liderancaCargoPorSigla[p.sigla] || [];
       const liderHtml = lideres.length
         ? `<div class="pt-linha">Principais filiados com mandato hoje:</div>
-           <div class="pt-reps">${lideres.map((l) => `<a href="/candidato/${l.pessoa_id}">${escapeHtml(nomeProprio(l.nome_urna_atual))} · ${escapeHtml(l.cargo_nome)}${l.sg_uf && l.sg_uf !== 'BR' ? ` (${escapeHtml(l.sg_uf)})` : ''}</a>`).join('')}</div>`
+           <div class="pt-lideres">${lideres.map((l) => `<a href="/candidato/${l.pessoa_id}">${escapeHtml(nomeProprio(l.nome_urna_atual))} · ${escapeHtml(l.cargo_nome)}${l.sg_uf && l.sg_uf !== 'BR' ? ` (${escapeHtml(l.sg_uf)})` : ''}</a>`).join('')}</div>`
         : '';
       const mini = CARGOS_ORDEM.filter(([slug]) => cont[slug])
         .map(([slug, rot]) => `<div><b>${Number(cont[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
@@ -348,7 +363,7 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <div class="pt-cands">
           <div class="pt-cands-tit"><span>Candidaturas em 2026</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
           ${mini ? `<div class="pt-mini">${mini}</div>` : ''}
-          ${reps.length ? `<div style="font-size:12px;color:var(--muted);margin:2px 0 6px">Alguns candidatos em 2026 (por cargo):</div><div class="pt-reps">${reps.map((r) => `<a href="/candidato/${r.pessoa_id}">${escapeHtml(nomeProprio(r.nome_urna_atual))} · ${escapeHtml(r.cargo_nome)}${r.sg_uf && r.sg_uf !== 'BR' ? `-${escapeHtml(r.sg_uf)}` : ''}</a>`).join('')}</div>` : ''}
+          ${reps.length ? `<details class="pt-cands-toggle"><summary>Clique para conhecer os principais candidatos</summary><div class="pt-reps">${reps.map((r) => `<a href="/candidato/${r.pessoa_id}">${escapeHtml(nomeProprio(r.nome_urna_atual))} · ${escapeHtml(r.cargo_nome)}${r.sg_uf && r.sg_uf !== 'BR' ? `-${escapeHtml(r.sg_uf)}` : ''}</a>`).join('')}</div></details>` : ''}
         </div>
       </article>`;
     })

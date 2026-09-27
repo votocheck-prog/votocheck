@@ -175,6 +175,17 @@ export const ESTILO_DS = `
   .vc-ico--teal { background: var(--teal-50); color: #00806A; }
   .vc-mais { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 600; font-size: 14.5px; color: var(--blue); }
 
+  /* ===== Cards navy/dourado (home: R$ público em campanha, 2022, perderam o mandato) — 27/09/2026.
+     Título em dourado sobre fundo navy, como pedido pro bloco "R$ público" — e replicado nos
+     outros 2 cards da mesma fileira pra criar um padrão visual único (como se fossem notícias). */
+  .vc-card--navy { background: var(--navy); border-color: rgba(255,255,255,.12); }
+  .vc-card--navy h3 { color: #FFB067; }
+  .vc-card--navy p { color: #C3CDF0; }
+  .vc-card--navy .vc-card-num { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #FFB067; line-height: 1; margin-bottom: 8px; }
+  .vc-card--navy .vc-mais { color: #7FB0FF; }
+  a.vc-card--navy:hover { border-color: #5B9BFF; box-shadow: 0 8px 24px -12px rgba(0,0,0,.4); }
+  a.vc-card--navy:hover .vc-mais { color: #fff; }
+
   /* ===== Mapa (home) ===== */
   .vc-mapa-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 40px; align-items: center; }
   .vc-mapa-grid .mapa-brasil-wrap { max-width: 520px; margin: 0 auto; }
@@ -200,7 +211,19 @@ export const ESTILO_DS = `
   .vc-exemplo { margin-top: 22px; display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; background: rgba(0,180,149,.1); border: 1px solid rgba(0,180,149,.35); border-radius: var(--radius); padding: 18px 20px; }
   .vc-exemplo-num { font-family: var(--font-display); font-size: 34px; font-weight: 800; color: #3FE0C0; line-height: 1; }
   .vc-exemplo p { margin: 0; font-size: 15px; color: #D5DCF5; }
+  .vc-exemplo-titulo { color: #fff; }
   @media (max-width: 560px) { .vc-exemplo { grid-template-columns: 1fr; } }
+  /* 27/09/2026: "Voto para deputado" e "Meu VotoCheck" agora trocam de fundo (navy ⇄ branco)
+     dependendo de qual seção está em destaque na home — ver renderHomeV2. Como .vc-passo/.vc-exemplo
+     nasceram desenhados só pra fundo escuro, e .vc-pergunta-demo/.vc-opcoes/.vc-lista-check só pra
+     fundo claro, esses componentes agora reagem ao modificador da seção-mãe (.vc-sec--navy ou
+     .vc-sec--branca) em vez de ter a cor fixa no próprio componente. */
+  .vc-sec--branca .vc-passo { background: var(--paper); border-color: var(--line); }
+  .vc-sec--branca .vc-passo p { color: var(--muted); }
+  .vc-sec--branca .vc-passo::after { border-color: var(--blue); }
+  .vc-sec--branca .vc-exemplo { background: var(--teal-50); border-color: rgba(0,180,149,.35); }
+  .vc-sec--branca .vc-exemplo p { color: var(--ink-2); }
+  .vc-sec--branca .vc-exemplo-titulo { color: var(--ink); }
 
   /* ===== Quiz teaser ===== */
   .vc-quiz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
@@ -214,6 +237,15 @@ export const ESTILO_DS = `
   .vc-lista-check li { display: flex; gap: 10px; align-items: flex-start; font-size: 15.5px; color: var(--ink-2); }
   .vc-lista-check li svg { flex: none; color: #00806A; margin-top: 2px; }
   @media (max-width: 900px) { .vc-quiz-grid { grid-template-columns: 1fr; } }
+  /* 27/09/2026: variante escura de .vc-pergunta-demo/.vc-opcoes/.vc-lista-check, pro "Meu
+     VotoCheck" quando cai numa seção navy (ver nota acima sobre a troca de fundo). */
+  .vc-sec--navy .vc-pergunta-demo { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); box-shadow: none; }
+  .vc-sec--navy .vc-pergunta-demo small { color: #93A2D8; }
+  .vc-sec--navy .vc-pergunta-demo strong { color: #fff; }
+  .vc-sec--navy .vc-opcoes a { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.05); }
+  .vc-sec--navy .vc-opcoes a:hover { border-color: #5B9BFF; color: #fff; background: rgba(91,155,255,.16); }
+  .vc-sec--navy .vc-lista-check li { color: #D5DCF5; }
+  .vc-sec--navy .vc-lista-check li svg { color: #3FE0C0; }
 
   /* ===== Método (como verificamos) ===== */
   .vc-fluxo { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; }
@@ -236,12 +268,23 @@ export const ESTILO_DS = `
   .vc-stat b { display: block; font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .vc-stat span { font-size: 14px; color: var(--muted); }
   @media (max-width: 800px) { .vc-stats { grid-template-columns: 1fr 1fr; } }
-  .vc-barras { margin-top: 18px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
-  .vc-barra { display: grid; grid-template-columns: 170px 1fr 70px; gap: 12px; align-items: center; font-size: 14px; margin: 8px 0; }
-  .vc-barra-trilho { height: 10px; border-radius: 999px; background: var(--paper); overflow: hidden; }
-  .vc-barra-trilho i { display: block; height: 100%; border-radius: 999px; background: var(--blue); }
-  .vc-barra b { text-align: right; font-variant-numeric: tabular-nums; }
-  @media (max-width: 560px) { .vc-barra { grid-template-columns: 110px 1fr 56px; font-size: 13px; } }
+  /* 27/09/2026: gráfico "A base" modernizado (skill dataviz — magnitude/série única): barra fina
+     com ponta arredondada e base quadrada (cresce da esquerda), linha inteira reage ao
+     hover/foco (destaca + mostra o % do total num tooltip), e o mesmo % vai no aria-label pra
+     quem usa leitor de tela não depender do hover. Segue o mesmo padrão de "modernizar depois de
+     aprovado" pras outras páginas — combinado com o Rodrigo. */
+  .vc-barras { margin-top: 18px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px 14px; }
+  .vc-barra { position: relative; display: grid; grid-template-columns: 170px 1fr 76px; gap: 14px; align-items: center; font-size: 14px; padding: 9px 4px; border-radius: 8px; transition: background .15s ease; cursor: default; }
+  .vc-barra:hover, .vc-barra:focus-visible { background: var(--blue-50); outline: none; }
+  .vc-barra-rotulo { color: var(--ink-2); font-weight: 500; }
+  .vc-barra-trilho { position: relative; height: 14px; border-radius: 3px; background: var(--paper); overflow: visible; }
+  .vc-barra-trilho i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--blue); transition: filter .15s ease; }
+  .vc-barra:hover .vc-barra-trilho i, .vc-barra:focus-visible .vc-barra-trilho i { filter: brightness(1.1); }
+  .vc-barra b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
+  .vc-barra-tip { position: absolute; left: 0; top: -32px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 7px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; transform: translateY(4px); z-index: 2; }
+  .vc-barra-tip::after { content: ""; position: absolute; left: 14px; top: 100%; border: 5px solid transparent; border-top-color: var(--navy); }
+  .vc-barra:hover .vc-barra-tip, .vc-barra:focus-visible .vc-barra-tip { opacity: 1; transform: translateY(0); }
+  @media (max-width: 560px) { .vc-barra { grid-template-columns: 110px 1fr 60px; font-size: 13px; } }
 
   /* ===== Publicidade (espaços A1–A5) ===== */
   .vc-pub { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; text-decoration: none; color: var(--ink); }
@@ -277,7 +320,9 @@ export const ESTILO_DS = `
   footer.rodape { text-align: left; background: var(--navy); color: #9AA7D6; border-top: 0; margin-top: 0; padding: 56px 0 28px; font-size: 14px; }
   footer.rodape a { color: #C8D2F5; text-decoration: none; }
   footer.rodape a:hover { color: #fff; }
-  .rod-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px; }
+  /* 27/09/2026: rodapé ganhou uma 4ª coluna de links ("O valor do seu voto") — ver rodape() em
+     estilo_html.js. 5 colunas no desktop (marca + 4 listas), 3 num meio-termo, 2 no tablet. */
+  .rod-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr 1fr; gap: 26px; }
   .rod-grid h4 { font-family: var(--font-body); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #6F7DB5; margin: 0 0 12px; }
   .rod-grid ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   .rod-marca img { height: 34px; width: auto; margin-bottom: 14px; }
@@ -288,7 +333,8 @@ export const ESTILO_DS = `
   .rod-apoio { border-top: 1px solid rgba(255,255,255,.08); margin-top: 36px; padding-top: 22px; display: grid; gap: 10px; justify-items: center; }
   .rod-apoio small { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6F7DB5; }
   .rod-base { border-top: 1px solid rgba(255,255,255,.08); margin-top: 22px; padding-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: #6F7DB5; }
-  @media (max-width: 800px) { .rod-grid { grid-template-columns: 1fr 1fr; } .rod-marca { grid-column: 1 / -1; } }
+  @media (max-width: 1020px) { .rod-grid { grid-template-columns: 1fr 1fr 1fr; } .rod-marca { grid-column: 1 / -1; } }
+  @media (max-width: 620px) { .rod-grid { grid-template-columns: 1fr 1fr; } }
 
   /* ===== Utilitários ===== */
   .vc-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--blue-50); color: var(--blue); }

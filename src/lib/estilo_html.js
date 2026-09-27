@@ -1069,10 +1069,13 @@ export function rodape() {
             <li><a href="/buscar">Candidatos</a></li>
             <li><a href="/quiz">Meu VotoCheck</a></li>
             <li><a href="/cola">Monte sua cola</a></li>
-            <li><a href="/partidos">Partidos</a></li>
-            <li><a href="/dinheiro-publico">Dinheiro público</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>O valor do seu voto</h4>
+          <ul>
             <li><a href="/quanto-vale-seu-voto">Quanto vale seu voto</a></li>
-            <li><a href="/2022">Quem seu voto elegeu em 2022</a></li>
+            <li><a href="/2022">Você votou em um, mas elegeu estes</a></li>
             <li><a href="/perderam-o-mandato">Eleitos que perderam o mandato</a></li>
           </ul>
         </div>
@@ -1080,6 +1083,8 @@ export function rodape() {
           <h4>Entenda</h4>
           <ul>
             <li><a href="/cargo/deputado_federal">O que faz cada cargo</a></li>
+            <li><a href="/dinheiro-publico">Dinheiro público em campanha eleitoral</a></li>
+            <li><a href="/partidos">Partidos</a></li>
             <li><a href="/judiciario">O Judiciário</a></li>
             <li><a href="/faq">Perguntas frequentes</a></li>
           </ul>

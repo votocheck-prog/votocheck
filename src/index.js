@@ -929,7 +929,15 @@ async function fetchInterno(request, env, ctx) {
     }
 
     if (url.pathname === '/partidos' && request.method === 'GET') {
-      const representantesPorSigla = await carregarRepresentantesPorPartido(env, ctx);
+      // 27/09/2026: essa consulta ficou sem try/catch, diferente das 3 abaixo — se ela falhar
+      // (D1, mudança de schema, etc.) a página inteira caía com 500 em vez de só perder o bloco
+      // de candidaturas. Corrigido pra seguir o mesmo padrão de resiliência das outras.
+      let representantesPorSigla = {};
+      try {
+        representantesPorSigla = await carregarRepresentantesPorPartido(env, ctx);
+      } catch (e) {
+        console.error('Falha em carregarRepresentantesPorPartido:', e);
+      }
       // Consulta nova (23/09/2026) e ainda não testada contra D1 de produção — falha aqui nunca
       // pode derrubar a página inteira, só faz o card ficar sem essa linha específica.
       let liderancaCargoPorSigla = {};

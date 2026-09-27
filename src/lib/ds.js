@@ -255,7 +255,7 @@ export const ESTILO_DS = `
   .vc-fluxo > div { padding: 20px; border-right: 1px solid var(--line); }
   .vc-fluxo > div:last-child { border-right: 0; }
   .vc-fluxo small { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); }
-  .vc-fluxo strong { display: block; font-family: var(--font-display); font-size: 17px; margin: 6px 0 4px; }
+  .vc-fluxo strong { display: block; font-family: var(--font-display); font-size: 17px; margin: 6px 0 4px; color: var(--navy); }
   .vc-fluxo span { font-size: 14px; color: var(--muted); }
   @media (max-width: 800px) { .vc-fluxo { grid-template-columns: 1fr 1fr; } .vc-fluxo > div:nth-child(2) { border-right: 0; } .vc-fluxo > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
   .vc-passaporte { margin-top: 18px; background: #fff; border: 1px dashed var(--line-2); border-radius: var(--radius); padding: 16px 18px; font-size: 14px; color: var(--ink-2); display: grid; grid-template-columns: repeat(4, auto); gap: 6px 22px; justify-content: start; }
@@ -284,9 +284,6 @@ export const ESTILO_DS = `
   .vc-barra-trilho i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--blue); transition: filter .15s ease; }
   .vc-barra:hover .vc-barra-trilho i, .vc-barra:focus-visible .vc-barra-trilho i { filter: brightness(1.1); }
   .vc-barra b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
-  .vc-barra-tip { position: absolute; left: 0; top: -32px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 7px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; transform: translateY(4px); z-index: 2; }
-  .vc-barra-tip::after { content: ""; position: absolute; left: 14px; top: 100%; border: 5px solid transparent; border-top-color: var(--navy); }
-  .vc-barra:hover .vc-barra-tip, .vc-barra:focus-visible .vc-barra-tip { opacity: 1; transform: translateY(0); }
   @media (max-width: 560px) { .vc-barra { grid-template-columns: 110px 1fr 60px; font-size: 13px; } }
 
   /* ===== Publicidade (espaços A1–A5) ===== */

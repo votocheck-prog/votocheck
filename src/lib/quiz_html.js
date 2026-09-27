@@ -118,7 +118,7 @@ function renderEscolhaCargo(ufPadrao = '') {
         <span class="vc-eyebrow">${Icone.lampada(16)} Como funciona</span>
         <h2 style="font-size:clamp(24px,3vw,32px);margin:6px 0 20px">${PERGUNTAS.length + 1} perguntas. Você pode pular qualquer uma.</h2>
         <div class="qz-passos">
-          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Mandato, idade, sexo declarado, escolaridade, patrimônio declarado, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
+          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Idade, sexo declarado, escolaridade, patrimônio declarado, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
           <div class="qz-passo"><b>2</b><h3>A gente cruza</h3><p>Suas respostas são comparadas com o registro oficial de cada candidatura no TSE e com os mandatos na Câmara e no Senado.</p></div>
           <div class="qz-passo"><b>3</b><h3>Você decide</h3><p>A lista sai em ordem alfabética, dividida entre quem combina e quem diverge, com o motivo. Daí é só abrir a ficha e montar a cola.</p></div>
         </div>
@@ -465,15 +465,44 @@ export function renderQuiz({ cargo, uf }) {
 // Resultado (redesenho 26/09/2026 — mesmo padrão visual da busca)
 // ============================================================
 
+// 27/09/2026: combo de profissão no filtro do resultado (pedido do Rodrigo) — os 8 valores mais
+// frequentes entre os ~20 mil candidatos aos cargos do MVP (levantamento feito em cima do próprio
+// CSV do TSE que o Rodrigo já baixou — consulta_cand_2026, cargos 1/3/5/6/7/8): "OUTROS" (2.723,
+// já é o "não sei classificar" do catálogo do TSE) > EMPRESÁRIO (2.509) > ADVOGADO (1.616) >
+// DEPUTADO (870) > VEREADOR (794) > POLICIAL MILITAR (554) > COMERCIANTE (544) > MÉDICO (542) >
+// SERVIDOR PÚBLICO ESTADUAL (509). "OUTROS" entra dentro do bucket "Outras profissões" do combo
+// (não como uma das 8) — senão a 8ª vaga real (servidor público estadual) ficaria de fora e o
+// combo teria duas opções redundantes. Nenhum dos ~20 mil registros ficou com DS_OCUPACAO vazio
+// (é campo obrigatório no cadastro do TSE) — por isso não existe opção "não declarada": se algum
+// dia aparecer um valor vazio/nulo, ele cai no bucket "outras" também, sem quebrar nada.
+const OCUPACOES_COMBO = [
+  { slug: 'empresario', tse: 'EMPRESÁRIO', label: 'Empresário' },
+  { slug: 'advogado', tse: 'ADVOGADO', label: 'Advogado' },
+  { slug: 'deputado', tse: 'DEPUTADO', label: 'Deputado' },
+  { slug: 'vereador', tse: 'VEREADOR', label: 'Vereador' },
+  { slug: 'policial_militar', tse: 'POLICIAL MILITAR', label: 'Policial militar' },
+  { slug: 'comerciante', tse: 'COMERCIANTE', label: 'Comerciante' },
+  { slug: 'medico', tse: 'MÉDICO', label: 'Médico' },
+  { slug: 'servidor_publico_estadual', tse: 'SERVIDOR PÚBLICO ESTADUAL', label: 'Servidor público estadual' },
+];
+const OCUPACAO_TSE_PARA_SLUG = Object.fromEntries(OCUPACOES_COMBO.map((o) => [o.tse, o.slug]));
+
+function bucketOcupacao(ocupacao) {
+  if (!ocupacao) return 'outras';
+  return OCUPACAO_TSE_PARA_SLUG[ocupacao.toUpperCase()] || 'outras';
+}
+
 function cardCandidato(c, tagsDivergencia) {
   const idade = calcularIdade(c.data_nascimento);
   const nome = nomeProprio(c.nome_urna_atual || '');
   const slot = SLOT_COLA[c.cargo_slug];
-  // 27/09/2026: ocupação declarada entra na busca (não tem coluna própria na lista, mas dá pra
-  // "refinar" a lista pelo mesmo campo de filtro — ver .qr-filtro/ESTILO_RESULTADO abaixo).
+  // 27/09/2026: ocupação declarada entra na busca de texto (não tem coluna própria na lista, mas
+  // dá pra "refinar" a lista pelo mesmo campo de filtro — ver .qr-filtro/ESTILO_RESULTADO abaixo)
+  // e também no combo dedicado de profissão (data-ocupacao, bucketOcupacao acima).
   const busca = `${nome} ${c.numero_urna || ''} ${c.partido_sigla || ''} ${c.ocupacao || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const ocupacaoBucket = bucketOcupacao(c.ocupacao);
   return `
-    <div class="bx-card qr-item" data-busca="${escapeHtml(busca)}">
+    <div class="bx-card qr-item" data-busca="${escapeHtml(busca)}" data-ocupacao="${ocupacaoBucket}">
       <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
@@ -491,7 +520,6 @@ const RUBRICA_PERGUNTA = Object.fromEntries([...PERGUNTAS, ESPECTRO].map((p) => 
 // Rótulos curtos pra usar nas tags "diverge em: ..." — mais legível que repetir a pergunta inteira.
 const RUBRICA_CURTA = {
   divida_ativa_uniao_confirmada: 'dívida ativa',
-  ja_ocupou_cargo: 'mandato no Congresso',
   alinhamento_bancada: 'alinhamento com a bancada',
   trocou_de_partido: 'troca de partido',
   declarou_bens: 'declaração de bens',
@@ -535,8 +563,12 @@ const ESTILO_RESULTADO = `
   .qr-sec-titulo h2 { font-size: 20px; margin: 0; }
   .qr-sec-titulo span { font-size: 13.5px; color: var(--muted); }
   .qr-filtro-legenda { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin: 0 0 8px; }
-  .qr-filtro { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 12px; font-size: 15px; margin-bottom: 16px; background: #fff; }
-  .qr-filtro:focus { outline: none; border-color: var(--blue); }
+  .qr-filtros-linha { display: grid; grid-template-columns: minmax(0,1fr) 220px; gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 560px) { .qr-filtros-linha { grid-template-columns: 1fr; } }
+  .qr-filtro, .qr-filtro-select { padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 12px; font-size: 15px; background: #fff; }
+  .qr-filtro { width: 100%; }
+  .qr-filtro-select { color: var(--ink); }
+  .qr-filtro:focus, .qr-filtro-select:focus { outline: none; border-color: var(--blue); }
   .qr-sec + .qr-sec { margin-top: 36px; }
   .qr-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
   .qr-tags span { font-size: 11.5px; font-weight: 600; color: #8A4B12; background: #FFF3E3; border-radius: 999px; padding: 2px 8px; }
@@ -639,7 +671,14 @@ export function renderQuizResultado({
       <div class="vc-wrap qr-grid">
         <div>
           <p class="qr-filtro-legenda">Muitas opções ainda? Saiba a profissão e trajetória profissional do candidato pra refinar sua pesquisa:</p>
-          <input class="qr-filtro" type="search" placeholder="Filtrar por nome, número, partido ou profissão" aria-label="Filtrar lista" data-qr-filtro>
+          <div class="qr-filtros-linha">
+            <input class="qr-filtro" type="search" placeholder="Filtrar por nome, número ou partido" aria-label="Filtrar lista" data-qr-filtro>
+            <select class="qr-filtro-select" aria-label="Filtrar por profissão" data-qr-profissao>
+              <option value="">Todas as profissões</option>
+              ${OCUPACOES_COMBO.map((o) => `<option value="${o.slug}">${escapeHtml(o.label)}</option>`).join('')}
+              <option value="outras">Outras profissões</option>
+            </select>
+          </div>
           ${secaoCombinam}
           <div style="margin-top:32px">${renderPublicidade('A4', cargo + uf)}</div>
         </div>
@@ -661,14 +700,19 @@ export function renderQuizResultado({
         });
       });
       var f=document.querySelector('[data-qr-filtro]');
-      if(f)f.addEventListener('input',function(){
-        var t=f.value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();
+      var sel=document.querySelector('[data-qr-profissao]');
+      function aplicarFiltros(){
+        var t=(f&&f.value||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();
+        var p=(sel&&sel.value)||'';
         document.querySelectorAll('.qr-item').forEach(function(el){
-          if(!t){el.style.display='';return;}
-          el.style.display=el.dataset.busca.indexOf(t)>=0?'grid':'none';
+          var passaTexto=!t||el.dataset.busca.indexOf(t)>=0;
+          var passaProfissao=!p||el.dataset.ocupacao===p;
+          el.style.display=(passaTexto&&passaProfissao)?'grid':'none';
         });
-        document.querySelectorAll('.qr-mais').forEach(function(b){b.style.display=t?'none':'';});
-      });
+        document.querySelectorAll('.qr-mais').forEach(function(b){b.style.display=(t||p)?'none':'';});
+      }
+      if(f)f.addEventListener('input',aplicarFiltros);
+      if(sel)sel.addEventListener('change',aplicarFiltros);
     })();
     </script>`;
 

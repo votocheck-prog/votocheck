@@ -56,25 +56,23 @@ export const TANTO_FAZ = 'tanto_faz';
 //      removido) e virou pergunta pontuada de verdade, no mesmo framing "importa pra você que
 //      ele tenha X?" que já existia (avaliarSimNaoImporta, sem mudança de lógica — só mudou de
 //      lugar na UI).
-// Nas 3, e em toda pergunta sim_nao/tres_opcoes do quiz, "tanto faz" nunca entra no array
-// `opcoes`: é sempre o botão extra que cardSimNao/cardTresOpcoes acrescenta por conta própria em
-// quiz_html.js, sempre por último — é assim que a regra "tanto faz sempre por último" já valia
-// antes e continua valendo aqui, sem precisar repetir em cada pergunta.
+// v4 (27/09/2026, mesma tarde) — 2 ajustes a mais pedidos pelo Rodrigo:
+//   1) "Você prefere quem já está no Congresso ou alguém que nunca esteve lá?" (era a pergunta 1)
+//      foi removida por decisão dele — sem substituição, sem virar filtro. `avaliarTresOpcoes` só
+//      existia pra essa pergunta, removida junto. `ordem` de todas as perguntas seguintes recuou
+//      1 posição (e a de ESPECTRO, 7→6) pra não deixar buraco na sequência de exibição.
+//   2) patrimonio: as opções de resposta passaram a descrever o candidato diretamente (mesmo
+//      texto que já estava só na `ajuda`) em vez do antigo framing "Prefiro até/acima de X" —
+//      pedido do Rodrigo pra ficar mais claro de cara, sem precisar abrir a ajuda. `valor` (chave
+//      usada por avaliarCandidato) não mudou, só os `label`.
+// Nas perguntas restantes, e em toda pergunta sim_nao/tres_opcoes do quiz, "tanto faz" nunca entra
+// no array `opcoes`: é sempre o botão extra que cardSimNao/cardTresOpcoes acrescenta por conta
+// própria em quiz_html.js, sempre por último — é assim que a regra "tanto faz sempre por último"
+// já valia antes e continua valendo aqui, sem precisar repetir em cada pergunta.
 export const PERGUNTAS = [
   {
-    slug: 'ja_ocupou_cargo',
-    ordem: 1,
-    tipo: 'tres_opcoes',
-    texto: 'Você prefere quem já está no Congresso ou alguém que nunca esteve lá?',
-    ajuda: 'Considera mandato atual de deputado federal ou senador (dados da Câmara e do Senado). Mandatos em Assembleias estaduais ainda não estão na nossa base.',
-    opcoes: [
-      { valor: 'ja_ocupou', label: 'Prefiro quem já tem mandato' },
-      { valor: 'nunca_ocupou', label: 'Prefiro alguém novo' },
-    ],
-  },
-  {
     slug: 'faixa_idade',
-    ordem: 2,
+    ordem: 1,
     tipo: 'tres_opcoes',
     texto: 'Tem alguma faixa de idade que você prefere?',
     ajuda: 'Pela data de nascimento declarada ao TSE.',
@@ -85,7 +83,7 @@ export const PERGUNTAS = [
   },
   {
     slug: 'sexo_declarado',
-    ordem: 3,
+    ordem: 2,
     tipo: 'sim_nao',
     texto: 'Tem alguma preferência quanto ao sexo declarado do candidato?',
     ajuda: 'Sexo declarado ao TSE (DS_GENERO).',
@@ -96,7 +94,7 @@ export const PERGUNTAS = [
   },
   {
     slug: 'formacao_superior',
-    ordem: 4,
+    ordem: 3,
     tipo: 'sim_nao',
     texto: 'Ter ensino superior completo importa pra você?',
     ajuda: 'Grau de instrução declarado ao TSE. Só conta como "tem" quem declarou superior completo, pós-graduação, mestrado ou doutorado.',
@@ -107,18 +105,18 @@ export const PERGUNTAS = [
   },
   {
     slug: 'patrimonio',
-    ordem: 5,
+    ordem: 4,
     tipo: 'tres_opcoes',
     texto: 'O tamanho do patrimônio declarado pesa na sua escolha?',
     ajuda: 'Soma dos bens que o próprio candidato declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
     opcoes: [
-      { valor: 'ate1mi', label: 'Prefiro até R$ 1 milhão' },
-      { valor: 'acima1mi', label: 'Prefiro acima de R$ 1 milhão' },
+      { valor: 'ate1mi', label: 'Não declarou ou declarou até R$ 1 milhão' },
+      { valor: 'acima1mi', label: 'Declarou acima de R$ 1 milhão' },
     ],
   },
   {
     slug: 'trocou_de_partido',
-    ordem: 6,
+    ordem: 5,
     tipo: 'sim_nao',
     texto: 'Trocar de partido durante o mandato pesa contra, pra você?',
     ajuda: 'Histórico de filiação disponível só para quem tem mandato no Congresso; para os demais, a pergunta não exclui ninguém.',
@@ -142,7 +140,7 @@ export const PERGUNTAS = [
  */
 export const ESPECTRO = {
   slug: 'espectro_estado_mercado',
-  ordem: 7,
+  ordem: 6,
   tipo: 'espectro',
   textoIntro: 'Como você acredita que o Estado/poder público deve interferir na vida das pessoas?',
   opcaoA:
@@ -188,15 +186,6 @@ function avaliarSimNaoImporta(resposta, temTraco) {
   return temTraco ? 'match' : 'diverge'; // "sim, importa" → bate com quem TEM o traço
 }
 
-function avaliarTresOpcoes(resposta, valorCandidato) {
-  // valorCandidato: 'S' | 'N' | null (candidatura.reeleicao)
-  if (valorCandidato === null || valorCandidato === undefined) return 'sem_dado';
-  const candidatoJaOcupou = valorCandidato === 'S';
-  if (resposta === 'ja_ocupou') return candidatoJaOcupou ? 'match' : 'diverge';
-  if (resposta === 'nunca_ocupou') return candidatoJaOcupou ? 'diverge' : 'match';
-  return 'match';
-}
-
 /** Escala 0–10: `posicaoUsuario` 0 = extremo esquerdo, 10 = extremo direito, null = não respondida.
  *  `valorCandidato` 0–100 (%) ou null. Tolerância: considera "do mesmo lado" com folga de 1 ponto
  *  na escala normalizada (0–10) em torno do centro — ver nota 2 no topo do arquivo. */
@@ -221,7 +210,6 @@ function avaliarEspectro(posicaoUsuario, zonaCandidato) {
 /** Descreve, em linguagem natural, o que o usuário escolheu numa pergunta — usado só no "seu
  *  perfil de eleitor" (nunca perto de um candidato específico). Nunca lança exceção. */
 const TEMA_CURTO = {
-  ja_ocupou_cargo: 'Mandato no Congresso',
   faixa_idade: 'Idade',
   sexo_declarado: 'Sexo declarado',
   formacao_superior: 'Escolaridade',
@@ -265,9 +253,6 @@ export function avaliarCandidato(respostas, sinais) {
       respostas.divida_ativa_uniao_confirmada,
       sinais.dividaAtivaConfirmada
     );
-  }
-  if ('ja_ocupou_cargo' in respostas) {
-    porPergunta.ja_ocupou_cargo = avaliarTresOpcoes(respostas.ja_ocupou_cargo, sinais.reeleicao);
   }
   if ('alinhamento_bancada' in respostas) {
     const r = avaliarEscala(respostas.alinhamento_bancada, sinais.alinhamentoBancadaPct);

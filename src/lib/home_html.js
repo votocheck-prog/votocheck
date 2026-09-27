@@ -197,7 +197,7 @@ function renderQuizTeaser(uf) {
       <div>
         <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck</span>
         <h2 class="vc-h2">Diga o que importa pra você. A gente mostra quem tem essas características.</h2>
-        <p class="vc-lead">Sete perguntas, cerca de 2 minutos. Você escolhe os critérios e o VotoCheck organiza os candidatos que os atendem, com a fonte de cada dado.</p>
+        <p class="vc-lead">Seis perguntas, cerca de 2 minutos. Você escolhe os critérios e o VotoCheck organiza os candidatos que os atendem, com a fonte de cada dado.</p>
         <ul class="vc-lista-check">
           <li>${Icone.checkCirculo(20)} <span>Sem nota, sem ranking: o resultado mostra em quantos dos <em>seus</em> critérios cada candidato se encaixa</span></li>
           <li>${Icone.checkCirculo(20)} <span>Só entram as perguntas que você responder</span></li>
@@ -206,17 +206,17 @@ function renderQuizTeaser(uf) {
         <a class="vc-btn vc-btn--pri" href="${q}" data-ev="cta_home" data-ev-chave="quiz_secao">Começar agora ${Icone.seta(18)}</a>
       </div>
       <div aria-hidden="false" class="vc-pergunta-demo-col">
-        <div class="vc-pergunta-demo"><small>Pergunta 2 de 7</small><strong>Você prefere quem já ocupou o cargo ou dar chance a quem nunca ocupou?</strong>
-          <div class="vc-opcoes"><a href="${q}">Quem já ocupou</a><a href="${q}">Quem nunca ocupou</a><a href="${q}">Tanto faz</a></div></div>
-        <div class="vc-pergunta-demo"><small>Pergunta 4 de 7</small><strong>Trocar de partido durante o mandato pesa contra, pra você?</strong>
+        <div class="vc-pergunta-demo"><small>Pergunta 2 de 6</small><strong>Tem alguma preferência quanto ao sexo declarado do candidato?</strong>
+          <div class="vc-opcoes"><a href="${q}">Prefiro masculino</a><a href="${q}">Prefiro feminino</a><a href="${q}">Tanto faz</a></div></div>
+        <div class="vc-pergunta-demo"><small>Pergunta 5 de 6</small><strong>Trocar de partido durante o mandato pesa contra, pra você?</strong>
           <div class="vc-opcoes"><a href="${q}">Sim, pesa</a><a href="${q}">Não pesa</a><a href="${q}">Tanto faz</a></div></div>
-        <div class="vc-pergunta-demo"><small>Pergunta 7 de 7</small><strong>Quanto o Estado deve atuar na economia e nos serviços?</strong>
+        <div class="vc-pergunta-demo"><small>Pergunta 6 de 6</small><strong>Quanto o Estado deve atuar na economia e nos serviços?</strong>
           <div class="vc-opcoes"><a href="${q}">Mais Estado</a><a href="${q}">Estado no essencial</a></div></div>
       </div>
     </div>
   </section>`;
-  // Nota (27/09/2026): perguntas de exemplo acima ainda são as 4 da v2 — atualizar assim que o
-  // Rodrigo decidir a lista final da proposta de quiz apresentada nesta rodada.
+  // 27/09/2026: perguntas de exemplo atualizadas pro conjunto v4 (6 perguntas + espectro, "já
+  // ocupou cargo" foi removida pelo Rodrigo nesta rodada e a numeração "de 7" virou "de 6").
 }
 
 function renderMetodo() {
@@ -261,13 +261,13 @@ function renderNumeros({ totalCandidaturas, totalPessoas, porCargo }) {
     // `estatisticasHomepageComCache`, ver src/index.js) — toda barra saía com a largura mínima
     // (1.5%), fixa, sem refletir a quantidade real de candidaturas por cargo. Corrigido pra usar
     // `c.qtd`, o mesmo campo já usado pra ordenar e pro número exibido. Na mesma passada, gráfico
-    // ganhou tratamento visual novo (skill dataviz): barra fina, ponta arredondada/base quadrada,
-    // e tooltip com o % do total no hover/foco — o % também vai no aria-label, pra não depender
-    // do mouse pra chegar na informação.
+    // ganhou tratamento visual novo (skill dataviz): barra fina, ponta arredondada/base quadrada.
+    // 27/09/2026: removida a legenda "% do total" que aparecia num tooltip ao passar o cursor
+    // (pedido do Rodrigo) — o % continua só no aria-label, pra quem usa leitor de tela/teclado.
     .map((c) => {
       const qtd = c.qtd || 0;
       const pct = ((qtd / totalBarras) * 100).toFixed(1).replace('.', ',');
-      return `<div class="vc-barra" tabindex="0" aria-label="${escapeHtml(c.nome)}: ${fmt(qtd)} candidaturas, ${pct}% do total"><span class="vc-barra-rotulo">${escapeHtml(c.nome)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, (qtd / max) * 100).toFixed(1)}%"></i><span class="vc-barra-tip" aria-hidden="true">${pct}% do total</span></span><b>${fmt(qtd)}</b></div>`;
+      return `<div class="vc-barra" tabindex="0" aria-label="${escapeHtml(c.nome)}: ${fmt(qtd)} candidaturas, ${pct}% do total"><span class="vc-barra-rotulo">${escapeHtml(c.nome)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, (qtd / max) * 100).toFixed(1)}%"></i></span><b>${fmt(qtd)}</b></div>`;
     })
     .join('');
   return `

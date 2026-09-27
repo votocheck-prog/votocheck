@@ -4,6 +4,7 @@
  * "Passaporte da evidência" (Mapa Mestre §4): cada bloco de informação mostra explicitamente
  * de onde veio (fonte oficial) — nunca uma afirmação solta sem origem rastreável.
  */
+import { EXECUTIVO_FEDERAL } from './bancada_oficial.js';
 import { pagina, escapeHtml, statusPill } from './estilo_html.js';
 // Seção 34 (24/09/2026): CTA de apoio também no fim da página de perfil, por pedido do
 // Rodrigo ("depois de cada página de esclarecimento e na home") — mesmo componente da home,
@@ -319,9 +320,12 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   // 27/09/2026: presidente/governador no cargo apareciam como "Não tem" mandato (Lula, por exemplo),
   // porque só coletamos mandatos do Congresso. O TSE marca quem concorre à reeleição (ST_REELEICAO):
   // para cargo executivo, isso só acontece com quem está no cargo hoje.
-  const execEmExercicio = !mandatos.length && principal && Number(principal.ano_eleicao) === 2026 && principal.reeleicao === 'S' && ['presidente', 'governador'].includes(cargoSlug);
+  // Conferido em 27/09: o TSE ainda não publicou ST_REELEICAO de 2026 (vem "#NE" para todos no
+  // arquivo complementar), então a Presidência em exercício vem de EXECUTIVO_FEDERAL (bancada_oficial.js).
+  const execFixo = EXECUTIVO_FEDERAL.find((e) => e.pessoaId === Number(pessoa.id));
+  const execEmExercicio = !mandatos.length && principal && ((Number(principal.ano_eleicao) === 2026 && principal.reeleicao === 'S' && ['presidente', 'governador'].includes(cargoSlug)) || Boolean(execFixo));
   kpis.push(execEmExercicio
-    ? `<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${escapeHtml(principal.cargo_nome)}</b><span>${principal.sg_uf && principal.sg_uf !== 'BR' ? escapeHtml(principal.sg_uf) + ' · ' : ''}em exercício, disputa a reeleição (TSE)</span></div>`
+    ? `<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${escapeHtml(execFixo ? execFixo.cargo : principal.cargo_nome)}</b><span>${execFixo ? `${escapeHtml(execFixo.mandato)} · em exercício, disputa a reeleição` : `${principal.sg_uf && principal.sg_uf !== 'BR' ? escapeHtml(principal.sg_uf) + ' · ' : ''}em exercício, disputa a reeleição (TSE)`}</span></div>`
     : `<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${mandatos.length ? escapeHtml(mandatos[0].cargo_nome) : 'Não tem'}</b><span>${mandatos.length ? `${mandatos[0].sg_uf ? escapeHtml(mandatos[0].sg_uf) + ' · ' : ''}fonte: ${escapeHtml(mandatos[0].fonte_nome || 'Câmara/Senado')}` : 'sem mandato no Congresso registrado'}</span></div>`);
   kpis.push(`<div class="fx-kpi"><small>${Icone.votoCaixa(14)} Votos registrados</small><b class="tabnum">${totalVotos ? totalVotos.toLocaleString('pt-BR') : '—'}</b><span>${totalVotos ? 'em votações nominais do Plenário' : mandatos.length ? 'nenhum voto nominal coletado ainda' : execEmExercicio ? 'só existe para mandato no Congresso' : 'só existe para quem tem mandato'}</span></div>`);
   const totalBens = bens.reduce((a, b) => a + (Number(b.valor) || 0), 0);

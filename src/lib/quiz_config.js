@@ -86,7 +86,7 @@ export const PERGUNTAS = [
     ordem: 2,
     tipo: 'sim_nao',
     texto: 'Tem alguma preferência quanto ao sexo declarado do candidato?',
-    ajuda: 'Sexo declarado ao TSE (DS_GENERO).',
+    ajuda: 'Como consta no registro da candidatura no TSE.',
     opcoes: [
       { valor: 'masculino', label: 'Prefiro masculino' },
       { valor: 'feminino', label: 'Prefiro feminino' },
@@ -212,7 +212,7 @@ function avaliarEspectro(posicaoUsuario, zonaCandidato) {
 const TEMA_CURTO = {
   faixa_idade: 'Idade',
   sexo_declarado: 'Sexo declarado',
-  formacao_superior: 'Escolaridade',
+  formacao_superior: 'Ensino superior completo',
   patrimonio: 'Patrimônio declarado',
   trocou_de_partido: 'Troca de partido',
 };

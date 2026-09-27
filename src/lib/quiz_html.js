@@ -435,7 +435,18 @@ export function renderQuiz({ cargo, uf }) {
           }
         });
         window.vcEv && vcEv('quiz_inicio', '${escapeHtml(cargo)}');
-        form.addEventListener('submit', function () { window.vcEv && vcEv('quiz_fim', '${escapeHtml(cargo)}'); });
+        form.addEventListener('submit', function () {
+          // 27/09: com todos (ou nenhum) partido marcado não há filtro — não manda os 30 parâmetros,
+          // o link do resultado fica curto e compartilhável.
+          var cx = Array.prototype.slice.call(form.querySelectorAll('input[type=checkbox][name^="partido_"]'));
+          var marcados = cx.filter(function (c) { return c.checked; }).length;
+          if (marcados === 0 || marcados === cx.length) {
+            cx.forEach(function (c) { c.disabled = true; });
+            var tot = form.querySelector('input[name="partidos_total"]'); if (tot) tot.disabled = true;
+          }
+          window.vcEv && vcEv('quiz_fim', '${escapeHtml(cargo)}');
+        });
+        window.addEventListener('pageshow', function () { form.querySelectorAll('input:disabled').forEach(function (c) { c.disabled = false; }); });
         document.querySelectorAll('[data-bloco]').forEach(function (bl) {
           var chave = bl.querySelector('[data-bloco-chave]'), rot = bl.querySelector('[data-bloco-rotulo]');
           var itens = bl.querySelectorAll('.quiz-partido-chip input');
@@ -574,6 +585,10 @@ const ESTILO_RESULTADO = `
   .qr-tags span { font-size: 11.5px; font-weight: 600; color: #8A4B12; background: #FFF3E3; border-radius: 999px; padding: 2px 8px; }
   .qr-tags span::before { content: '≠ '; }
   .qr-oculto { display: none !important; }
+  .qr-filtrando .qr-item.qr-oculto { display: grid !important; }
+  .qr-filtrando .qr-item.qr-fora { display: none !important; }
+  .qr-filtro-info { font-size: 13.5px; color: var(--muted); margin: -6px 0 14px; }
+  .qr-filtro-info b { color: var(--ink); }
   .qr-mais { display: block; margin: 14px auto 0; }
   .qr-vazio { background: #fff; border: 1px dashed var(--line-2); border-radius: 14px; padding: 22px; color: var(--muted); font-size: 14.5px; }
   .qr-vazio strong { color: var(--ink); }
@@ -679,6 +694,7 @@ export function renderQuizResultado({
               <option value="outras">Outras profissões</option>
             </select>
           </div>
+          <p class="qr-filtro-info" data-qr-info hidden></p>
           ${secaoCombinam}
           <div style="margin-top:32px">${renderPublicidade('A4', cargo + uf)}</div>
         </div>
@@ -704,12 +720,22 @@ export function renderQuizResultado({
       function aplicarFiltros(){
         var t=(f&&f.value||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();
         var p=(sel&&sel.value)||'';
+        var ativo=!!(t||p);
+        // 27/09: o filtro agora procura em TODOS os candidatos, inclusive os que ainda estão atrás
+        // do "Mostrar mais" (antes só filtrava os 40 primeiros de cada lista).
+        document.body.classList.toggle('qr-filtrando',ativo);
+        var n1=0,n2=0;
         document.querySelectorAll('.qr-item').forEach(function(el){
-          var passaTexto=!t||el.dataset.busca.indexOf(t)>=0;
-          var passaProfissao=!p||el.dataset.ocupacao===p;
-          el.style.display=(passaTexto&&passaProfissao)?'grid':'none';
+          var ok=(!t||el.dataset.busca.indexOf(t)>=0)&&(!p||el.dataset.ocupacao===p);
+          el.classList.toggle('qr-fora',ativo&&!ok);
+          if(ativo&&ok){ if(el.closest('#qr-l2')) n2++; else n1++; }
         });
-        document.querySelectorAll('.qr-mais').forEach(function(b){b.style.display=(t||p)?'none':'';});
+        document.querySelectorAll('.qr-mais').forEach(function(b){b.style.display=ativo?'none':'';});
+        var info=document.querySelector('[data-qr-info]');
+        if(info){
+          info.hidden=!ativo;
+          if(ativo) info.innerHTML=(n1+n2)?('Com esse filtro: <b>'+n1+'</b> '+(n1===1?'combina':'combinam')+(document.getElementById('qr-l2')?' e <b>'+n2+'</b> '+(n2===1?'diverge':'divergem')+' em algo':'')+'.'):'Nenhum candidato com esse filtro. Tente outra profissão ou limpe a busca.';
+        }
       }
       if(f)f.addEventListener('input',aplicarFiltros);
       if(sel)sel.addEventListener('change',aplicarFiltros);

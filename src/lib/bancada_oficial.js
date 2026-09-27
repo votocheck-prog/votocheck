@@ -23,7 +23,7 @@ const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', '
 
 /** Chefia do Executivo federal em exercício. pessoaId = ficha no VotoCheck (conferida em 27/09/2026). */
 export const EXECUTIVO_FEDERAL = [
-  { sigla: 'PT', nome: 'Lula', cargo: 'Presidente da República', curto: 'Presidente', pessoaId: 5092, urlOficial: 'https://www.gov.br/planalto/pt-br/conheca-a-presidencia/presidente' },
+  { sigla: 'PT', nome: 'Lula', cargo: 'Presidente da República', curto: 'Presidente', mandato: 'mandato 2023–2026', pessoaId: 5092, urlOficial: 'https://www.gov.br/planalto/pt-br/conheca-a-presidencia/presidente' },
 ];
 
 // Siglas das fontes oficiais que não batem com a sigla usada em PARTIDOS_INFO.

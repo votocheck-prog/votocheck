@@ -887,7 +887,9 @@ export const ESTILO_BASE = `
   .quiz-opcao:hover { border-color: var(--primary); }
   .quiz-opcao--ativa { background: var(--primary); border-color: var(--primary); color: #fff; }
   .quiz-opcao--tantofaz {
-    flex: 0 0 auto;
+    /* 27/09: sempre numa linha própria, com a mesma largura em toda pergunta (antes ficava estreito
+       nas perguntas de 2 opções lado a lado e largo nas de coluna). */
+    flex: 1 0 100%;
     min-width: 0;
     color: var(--text-muted);
     background: transparent;

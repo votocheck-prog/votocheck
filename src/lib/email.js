@@ -34,7 +34,7 @@ export const REMETENTE_PADRAO = 'VotoCheck <naoresponda@updates.votocheck.com.br
  * chamou decidir o que fazer. Uso esperado: disparado via `ctx.waitUntil(...)` a partir de uma
  * rota, nunca bloqueando a resposta ao usuário.
  */
-export async function enviarEmail(env, { to, subject, html, text, from = REMETENTE_PADRAO }) {
+export async function enviarEmail(env, { to, subject, html, text, from = REMETENTE_PADRAO, replyTo }) {
   if (!env.RESEND_API_KEY) {
     return { ok: false, motivo: 'sem_api_key' };
   }
@@ -43,13 +43,17 @@ export async function enviarEmail(env, { to, subject, html, text, from = REMETEN
   }
 
   try {
+    const corpoReq = { from, to, subject, html, text };
+    // `replyTo` (opcional, 27/09/2026 — form de /anuncie): deixa quem recebe o e-mail responder
+    // direto pra quem preencheu o formulário, sem expor o remetente técnico do Resend.
+    if (replyTo) corpoReq.reply_to = replyTo;
     const resposta = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to, subject, html, text }),
+      body: JSON.stringify(corpoReq),
     });
 
     if (!resposta.ok) {

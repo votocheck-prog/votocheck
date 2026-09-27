@@ -263,7 +263,7 @@ const ESTILO_PARTIDOS = `
   .pt-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px; scroll-margin-top: 90px; display: flex; flex-direction: column; }
   .pt-card:target { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,89,245,.15); }
   .pt-topo { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; }
-  .pt-topo .partido-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; background: #fff; border: 1px solid var(--line); padding: 4px; }
+  .pt-topo .partido-logo { width: 56px; height: 56px; border-radius: 50%; object-fit: contain; background: #fff; border: 1px solid var(--line); padding: 4px; }
   .pt-topo .partido-logo--fallback { display: grid; place-items: center; font-weight: 800; font-size: 15px; color: var(--blue); background: var(--blue-50); border: 0; }
   .pt-sigla { font-family: var(--font-display); font-weight: 800; font-size: 22px; line-height: 1.1; }
   .pt-nome { font-size: 13.5px; color: var(--muted); }
@@ -305,7 +305,7 @@ function renderDiagramaEspectro() {
 }
 
 /** Monta a página de partidos (v2, 26/09/2026). */
-export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {}, contagemPorSigla = {} } = {}) {
+export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {}, contagemPorSigla = {}, bancadaPorSigla = {} } = {}) {
   const lista = partidosOrdenados();
   const totalCands = Object.values(contagemPorSigla).reduce((a, c) => a + (c.total || 0), 0);
   const cards = lista
@@ -318,12 +318,17 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
           ? `<div class="pt-linha">Sem presidente único: ${escapeHtml(pres.nota)}</div>`
           : `<div class="pt-linha">Presidência nacional: <strong>${escapeHtml(pres.nome)}</strong> <a href="${escapeHtml(pres.fonteUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12.5px">fonte ↗</a>${pres.risco ? ` <span title="${escapeHtml(pres.nota)}" style="color:var(--amber);font-size:12.5px">· pode ter mudado</span>` : ''}</div>`
         : '';
-      const lider = liderancaCargoPorSigla[p.sigla];
-      const liderHtml = lider
-        ? `<div class="pt-linha">Filiado com mandato no Congresso: <a href="/candidato/${lider.pessoa_id}">${escapeHtml(nomeProprio(lider.nome_urna_atual))}</a> · ${escapeHtml(lider.cargo_nome)}${lider.sg_uf && lider.sg_uf !== 'BR' ? ` (${escapeHtml(lider.sg_uf)})` : ''}</div>`
+      const lideres = liderancaCargoPorSigla[p.sigla] || [];
+      const liderHtml = lideres.length
+        ? `<div class="pt-linha">Principais filiados com mandato hoje:</div>
+           <div class="pt-reps">${lideres.map((l) => `<a href="/candidato/${l.pessoa_id}">${escapeHtml(nomeProprio(l.nome_urna_atual))} · ${escapeHtml(l.cargo_nome)}${l.sg_uf && l.sg_uf !== 'BR' ? ` (${escapeHtml(l.sg_uf)})` : ''}</a>`).join('')}</div>`
         : '';
       const mini = CARGOS_ORDEM.filter(([slug]) => cont[slug])
         .map(([slug, rot]) => `<div><b>${Number(cont[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
+        .join('');
+      const banc = bancadaPorSigla[p.sigla] || {};
+      const miniBancada = CARGOS_ORDEM.filter(([slug]) => banc[slug])
+        .map(([slug, rot]) => `<div><b>${Number(banc[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
         .join('');
       return `
       <article class="pt-card" id="partido-${siglaSlug(p.sigla)}" data-busca="${escapeHtml(`${p.sigla} ${p.nome} ${p.numero}`.toLowerCase())}" data-zona="${zonaPrincipal(p.familiaIdeologica)}">
@@ -336,6 +341,10 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <p class="pt-hist">${escapeHtml(p.historico)}</p>
         ${presidencia}
         ${liderHtml}
+        <div class="pt-cands">
+          <div class="pt-cands-tit"><span>Bancada atual (mandato em exercício)</span><b>${banc.total ? Number(banc.total).toLocaleString('pt-BR') : '—'}</b></div>
+          ${miniBancada ? `<div class="pt-mini">${miniBancada}</div>` : '<p style="font-size:12.5px;color:var(--muted);margin:4px 0 0">Nenhum filiado atual em mandato nos cargos que cobrimos.</p>'}
+        </div>
         <div class="pt-cands">
           <div class="pt-cands-tit"><span>Candidaturas em 2026</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
           ${mini ? `<div class="pt-mini">${mini}</div>` : ''}
@@ -372,7 +381,7 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <summary style="cursor:pointer; font-weight:600;">Sobre estes dados: fontes, classificação e limites</summary>
         <p style="margin-top:10px">A família ideológica segue leituras correntes de ciência política e imprensa especializada; não é opinião do VotoCheck. As notas históricas são resumos simplificados.</p>
         <p style="margin-top:8px">Presidência nacional verificada nas fontes oficiais listadas em ${escapeHtml(LIDERANCA_VERIFICADA_EM)}; pode mudar. Liderança de bancada muda a cada sessão: consulte a <a href="${escapeHtml(LINK_LIDERANCAS_CAMARA)}" target="_blank" rel="noopener noreferrer">página oficial da Câmara</a>.</p>
-        <p style="margin-top:8px">"Filiado com mandato no Congresso" é calculado automaticamente a partir de mandatos atuais na Câmara e no Senado; ministérios, prefeituras e câmaras municipais ainda não entram. Partidos sem guia completo aparecem na busca de candidatos normalmente.</p>
+        <p style="margin-top:8px">"Bancada atual" e "Principais filiados com mandato hoje" são calculados automaticamente a partir de mandatos ativos de presidente, governador, senador, deputado federal, deputado estadual e deputado distrital — os únicos cargos com mandato consultável na nossa base hoje. Prefeito e vereador não entram: são do ciclo municipal (2024/2028), fora da eleição de 2026 que este site cobre, e ministérios também não têm coleta implementada. Partidos sem guia completo aparecem na busca de candidatos normalmente.</p>
         <p style="margin-top:8px">Logos: arquivos do Wikimedia Commons em domínio público ou licença livre, usados só para identificar cada partido. ${Object.values(LOGOS_COMMONS).filter((l) => l.credito).map((l) => escapeHtml(l.credito)).join('. ')}.</p>
       </details>
     </div>

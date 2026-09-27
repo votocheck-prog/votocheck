@@ -39,12 +39,13 @@ export function renderSobre() {
         "passaporte da evidência".
       </p>
 
-      <h2 style="font-size:19px; margin-top:32px;">Meu VotoCheck (em breve)</h2>
+      <h2 style="font-size:19px; margin-top:32px;">Meu VotoCheck</h2>
       <p>
-        Quando o cidadão quiser descobrir quais características procura em um representante,
-        o <strong>Meu VotoCheck</strong> vai permitir declarar suas próprias preferências e
+        Quando o cidadão quer descobrir quais características procura em um representante,
+        o <strong>Meu VotoCheck</strong> permite declarar suas próprias preferências e
         encontrar candidatos que apresentam essas características — sem ranking e sem o
-        VotoCheck escolher por ele.
+        VotoCheck escolher por ele. Já está no ar: faça o <a href="/quiz">Meu VotoCheck</a> em
+        poucos minutos.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">Cobertura atual</h2>

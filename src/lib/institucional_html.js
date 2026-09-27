@@ -68,8 +68,8 @@ export function renderTermos() {
         qual(is) Representante(s) você escolheu (até 3 por e-mail) — nenhum outro dado pessoal.
         Isso é usado só pra enviar atualizações sobre a atuação dele; nunca é repassado a
         terceiros nem usado com outra finalidade. Você pode cancelar a qualquer momento pelo
-        link mostrado no momento da inscrição (e, quando o envio de e-mails periódicos entrar no
-        ar, também pelo rodapé de cada e-mail).
+        link mostrado no momento da inscrição, e também pelo link de cancelamento presente em
+        cada e-mail que enviamos, incluindo o resumo periódico.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">8. Contato</h2>
@@ -120,7 +120,7 @@ const PERGUNTAS = [
   {
     pergunta: 'O que é o "Monitore e Cobre"?',
     resposta:
-      'Uma etapa em construção: você poderá acompanhar o mandato de um Representante Público (ou até 3, se ainda estiver decidindo) e receber resumos periódicos da atuação dele, além de um canal para se manifestar sobre pautas do momento. Ainda não está disponível.',
+      '"Monitore" já está disponível: na página de qualquer candidato ou Representante Público, escolha "Acompanhar" (até 3, se ainda estiver decidindo) e receba por e-mail um resumo periódico da atuação dele — votos, presença, propostas. "Cobre", um canal para se manifestar sobre pautas do momento, ainda está em construção.',
   },
 ];
 

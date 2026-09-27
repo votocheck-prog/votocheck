@@ -80,7 +80,7 @@ export function renderCtaTriplo({ contexto = 'home', url = 'https://votocheck.co
               <div style="font-size:10.5px;color:#9AA3B5;margin-top:4px">Recebedor: Rodrigo G Baggini · idealizador VotoCheck</div>
               <div style="margin-top:6px"><a href="#" data-copiar="${PIX_CHAVE}" data-ev-chave="pix" style="font-size:13.5px;font-weight:600">Copiar chave</a></div></div>
           </div>
-          <div class="vc-acoes"><a class="vc-btn vc-btn--sec vc-btn--sm" href="mailto:contato@votocheck.com.br?subject=Quero%20apoiar%20o%20VotoCheck" data-ev="apoio_empresa" data-ev-chave="${contexto}">Anunciar ou apoiar como empresa</a></div>
+          <div class="vc-acoes"><a class="vc-btn vc-btn--sec vc-btn--sm" href="/anuncie" data-ev="apoio_empresa" data-ev-chave="${contexto}">Anunciar ou apoiar como empresa</a></div>
         </div>
       </div>
     </div>

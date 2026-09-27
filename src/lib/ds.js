@@ -264,9 +264,11 @@ export const ESTILO_DS = `
   /* ===== Siga / compartilhe / apoie ===== */
   .vc-cta3 .vc-card { display: flex; flex-direction: column; }
   .vc-cta3 .vc-card .vc-acoes { margin-top: auto; padding-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
-  .vc-pix { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+  .vc-pix { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 14px; align-items: center; margin-top: 14px; min-width: 0; }
   .vc-pix img { width: 96px; height: 96px; border-radius: 8px; border: 1px solid var(--line); }
-  .vc-pix code { font-size: 13.5px; background: var(--paper); padding: 3px 8px; border-radius: 6px; }
+  .vc-pix > div { min-width: 0; }
+  .vc-pix code { font-size: 13.5px; background: var(--paper); padding: 3px 8px; border-radius: 6px; overflow-wrap: anywhere; word-break: break-word; display: inline-block; max-width: 100%; }
+  .vc-pix div[style*="color:#9AA3B5"] { overflow-wrap: anywhere; }
 
   .vc-captura { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .vc-captura input { flex: 1; min-width: 200px; padding: 13px 16px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 15px; }

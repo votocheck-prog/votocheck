@@ -198,7 +198,7 @@ function linhaResultado(c) {
       </div>
       <div class="bx-dir">
         ${c.numero_urna ? `<span class="bx-num">${escapeHtml(c.numero_urna)}</span>` : ''}
-        ${slot && c.numero_urna ? `<button type="button" class="bx-cola" data-cola-add data-slot="${slot}" data-cargo="${escapeHtml(c.cargo_slug)}" data-nome="${escapeHtml(nome)}" data-numero="${escapeHtml(c.numero_urna)}" data-partido="${escapeHtml(c.partido_sigla || '')}" aria-label="Adicionar ${escapeHtml(nome)} à cola">+ cola</button>` : ''}
+        ${slot && c.numero_urna ? `<button type="button" class="bx-cola" data-cola-add data-slot="${slot}" data-cargo="${escapeHtml(c.cargo_slug)}" data-nome="${escapeHtml(nome)}" data-numero="${escapeHtml(c.numero_urna)}" data-partido="${escapeHtml(c.partido_sigla || '')}" data-pessoa="${escapeHtml(c.pessoa_id)}" data-foto="${escapeHtml(c.foto_url || '')}" aria-label="Adicionar ${escapeHtml(nome)} à cola">+ cola</button>` : ''}
       </div>
     </div>`;
 }

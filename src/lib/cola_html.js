@@ -13,6 +13,7 @@ import { pagina, escapeHtml } from './estilo_html.js';
 import { Icone } from './icones.js';
 import { UF_NOMES, seisVotos } from './home_html.js';
 import { linkWhatsApp } from './apoio_html.js';
+import { ICONE_B64 } from './marca_assets.js';
 
 const ESTILO_COLA = `
   .cola-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: start; }
@@ -33,14 +34,21 @@ const ESTILO_COLA = `
   .cola-cartao td { padding: 8px 4px; border-bottom: 1px solid var(--line); }
   .cola-cartao td:last-child { text-align: right; font-weight: 800; font-size: 19px; letter-spacing: .1em; font-variant-numeric: tabular-nums; }
   .cola-cartao .vazio { color: #B9C0CE; font-weight: 600; letter-spacing: .3em; }
+  .cola-cartao-rodape { display: flex; align-items: center; gap: 7px; margin-top: 10px; }
+  .cola-cartao-rodape img { border-radius: 4px; flex: none; }
+  .cola-cartao-rodape p { font-size: 11.5px; color: var(--muted); margin: 0; }
+  @page { margin: 1.4cm; }
   @media print {
     body { background: #fff !important; }
     header.topo, footer.rodape, .vc-faixa, .nao-imprimir { display: none !important; }
     main.container { padding: 0 !important; max-width: none !important; }
     .cola-grid { display: block; }
-    .cola-cartao { width: 9cm; border: 1.5px solid #000; border-radius: 8px; padding: 10px 12px; margin: 0; }
+    .cola-cartao { width: 9cm; border: 1.5px solid #000; border-radius: 8px; padding: 12px 14px; margin: 0 auto; }
     .cola-cartao td { padding: 4px 2px; font-size: 11pt; border-color: #999; }
     .cola-cartao td:last-child { font-size: 14pt; }
+    .cola-cartao-rodape { margin-top: 8px; }
+    .cola-cartao-rodape img { width: 16px; height: 16px; }
+    .cola-cartao-rodape p { font-size: 9.5pt; color: #666; }
   }
 `;
 
@@ -94,12 +102,18 @@ export function renderCola({ uf = '' } = {}) {
       <div class="cola-cartao" id="cartao">
         <h3><span>Minha cola · 4/out</span><span style="color:var(--muted);font-weight:600">${uf ? escapeHtml(uf) : ''}</span></h3>
         <table>${linhasCartao}</table>
-        <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">votocheck.com.br · confira antes de decidir</p>
+        <div class="cola-cartao-rodape">
+          <img src="data:image/png;base64,${ICONE_B64}" alt="" width="18" height="18" />
+          <p>votocheck.com.br · confira antes de decidir</p>
+        </div>
       </div>
       <div class="nao-imprimir" style="display:grid;gap:10px;margin-top:14px">
         <button class="vc-btn vc-btn--pri" type="button" onclick="window.vcEv&&vcEv('cola_imprimir');window.print()">${Icone.impressora(18)} Imprimir ou salvar em PDF</button>
         <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(convite, 'https://votocheck.com.br/cola')}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(convite)}" data-share-url="https://votocheck.com.br/cola" data-ev="cola_compartilhar">${Icone.whatsapp(18)} Convidar alguém a montar a cola</a>
         <p style="font-size:13px;color:var(--muted);margin:0">O convite não mostra suas escolhas, só o link para a pessoa montar a dela.</p>
+        <button class="vc-btn vc-btn--sec" type="button" id="btn-card-cola">${Icone.qrcode(18)} Gerar card com minha cola pra compartilhar</button>
+        <p style="font-size:13px;color:var(--muted);margin:0">Esse, sim, mostra quem você escolheu — uma imagem pronta pra postar ou mandar direto. Gerada no seu aparelho; o VotoCheck não vê nem guarda isso.</p>
+        <p id="card-cola-status" style="font-size:13px;color:var(--muted);margin:0" hidden></p>
       </div>
     </div>
   </div>
@@ -126,6 +140,121 @@ export function renderCola({ uf = '' } = {}) {
       el.querySelector('[data-limpar]').addEventListener('click',function(e){e.preventDefault();delete dados[s];gravar(dados);pintar();});
     });
     pintar();
+
+    // ===== Card de compartilhamento (27/09/2026) =====
+    // Gera uma imagem PNG no próprio aparelho, com foto+número+partido de quem foi escolhido, pra
+    // compartilhar em status/redes. Nunca toca o servidor — mesma regra de privacidade da cola.
+    var VOTOS_META = ${JSON.stringify(votos.map((v) => ({ slot: v.ordem, nome: v.nome })))};
+    function carregarImagem(src){
+      return new Promise(function(resolve){
+        if(!src){ resolve(null); return; }
+        var img=new Image();
+        img.crossOrigin='anonymous';
+        img.onload=function(){ resolve(img); };
+        img.onerror=function(){ resolve(null); };
+        img.src=src;
+      });
+    }
+    function quebrarLinhas(ctx,texto,maxLargura){
+      var palavras=texto.split(' '), linhas=[], atual='';
+      for(var i=0;i<palavras.length;i++){
+        var teste=atual?atual+' '+palavras[i]:palavras[i];
+        if(ctx.measureText(teste).width>maxLargura && atual){ linhas.push(atual); atual=palavras[i]; }
+        else { atual=teste; }
+      }
+      if(atual) linhas.push(atual);
+      return linhas;
+    }
+    async function gerarCardCola(){
+      var itens=[];
+      for(var i=0;i<VOTOS_META.length;i++){
+        var m=VOTOS_META[i], d=dados[m.slot];
+        if(d && (d.numero||d.nome)) itens.push({ cargo:m.nome, nome:d.nome||'', numero:d.numero||'', partido:d.partido||'', foto:d.foto||'' });
+      }
+      var status=document.getElementById('card-cola-status');
+      if(!itens.length){
+        if(status){ status.hidden=false; status.style.color='#A12C7B'; status.textContent='Escolha pelo menos um candidato na cola antes de gerar o card.'; }
+        return;
+      }
+      if(status){ status.hidden=false; status.style.color=''; status.textContent='Gerando imagem…'; }
+
+      var W=1080,H=1350;
+      var canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
+      var ctx=canvas.getContext('2d');
+      var NAVY='#0A1440', BLUE='#0059F5', TEAL='#00B495', MUTED='#6F7DB5';
+
+      // fundo
+      ctx.fillStyle='#F5F6FA'; ctx.fillRect(0,0,W,H);
+
+      // topo navy
+      var topoH=190;
+      ctx.fillStyle=NAVY; ctx.fillRect(0,0,W,topoH);
+      var icone=await carregarImagem('data:image/png;base64,${ICONE_B64}');
+      if(icone) ctx.drawImage(icone,56,52,86,86);
+      ctx.fillStyle='#fff'; ctx.font='700 40px system-ui,Arial,sans-serif';
+      ctx.fillText('Minha cola',icone?162:56,100);
+      ctx.fillStyle='#B9C4EA'; ctx.font='500 26px system-ui,Arial,sans-serif';
+      ctx.fillText('Eleições 2026 · 1º turno',icone?162:56,142);
+
+      // linhas dos candidatos
+      var n=itens.length;
+      var areaTopo=topoH+30, areaBaixo=220;
+      var alturaLinha=Math.floor((H-areaTopo-areaBaixo)/n);
+      var fotoR=Math.min(64,Math.floor(alturaLinha*0.36));
+      for(var j=0;j<n;j++){
+        var it=itens[j], y=areaTopo+j*alturaLinha, cy=y+alturaLinha/2;
+        ctx.strokeStyle='#E2E5F0'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(56,y+alturaLinha); ctx.lineTo(W-56,y+alturaLinha); ctx.stroke();
+        var cx=56+fotoR;
+        var imgFoto=it.foto?await carregarImagem(it.foto):null;
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx,cy,fotoR,0,Math.PI*2); ctx.closePath(); ctx.clip();
+        if(imgFoto){ ctx.drawImage(imgFoto,cx-fotoR,cy-fotoR,fotoR*2,fotoR*2); }
+        else { ctx.fillStyle=BLUE+'22'; ctx.fillRect(cx-fotoR,cy-fotoR,fotoR*2,fotoR*2); ctx.fillStyle=BLUE; ctx.font='700 '+Math.floor(fotoR*0.9)+'px system-ui,Arial,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText((it.nome||'?').charAt(0).toUpperCase(),cx,cy+2); ctx.textAlign='left'; ctx.textBaseline='alphabetic'; }
+        ctx.restore();
+        ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(cx,cy,fotoR,0,Math.PI*2); ctx.stroke();
+
+        var textoX=cx+fotoR+28;
+        ctx.fillStyle=NAVY; ctx.font='700 30px system-ui,Arial,sans-serif';
+        ctx.fillText((it.nome||'Número digitado').slice(0,34), textoX, cy-8);
+        ctx.fillStyle=MUTED; ctx.font='500 22px system-ui,Arial,sans-serif';
+        ctx.fillText(it.cargo+(it.partido?' · '+it.partido:''), textoX, cy+26);
+
+        ctx.fillStyle=BLUE; ctx.font='800 34px system-ui,Arial,sans-serif'; ctx.textAlign='right';
+        ctx.fillText('Nº '+it.numero, W-56, cy+10);
+        ctx.textAlign='left';
+      }
+
+      // rodapé navy com CTA
+      var rodY=H-areaBaixo;
+      ctx.fillStyle=NAVY; ctx.fillRect(0,rodY,W,areaBaixo);
+      ctx.fillStyle='#fff'; ctx.font='700 28px system-ui,Arial,sans-serif';
+      var linhasCta=quebrarLinhas(ctx,'Eu verifiquei as informações no votocheck.com.br. Faça o mesmo: vote informado e consciente, e ajude a escolher melhor os Representantes Públicos.',W-112);
+      var cy2=rodY+56;
+      for(var k=0;k<linhasCta.length;k++){ ctx.fillText(linhasCta[k],56,cy2); cy2+=38; }
+      ctx.fillStyle=TEAL; ctx.font='800 32px system-ui,Arial,sans-serif';
+      ctx.fillText('votocheck.com.br',56,rodY+areaBaixo-34);
+
+      canvas.toBlob(function(blob){
+        if(!blob){ if(status){ status.style.color='#A12C7B'; status.textContent='Não deu pra gerar a imagem agora — tente de novo.'; } return; }
+        var arquivo=new File([blob],'minha-cola-votocheck.png',{type:'image/png'});
+        if(navigator.canShare && navigator.canShare({ files:[arquivo] })){
+          navigator.share({ files:[arquivo], title:'Minha cola VotoCheck', text:'Montei minha cola pras eleições 2026 no VotoCheck.' })
+            .then(function(){ if(window.vcEv) vcEv('cola_card_compartilhar','share'); })
+            .catch(function(){});
+          if(status) status.hidden=true;
+        } else {
+          var url=URL.createObjectURL(blob);
+          var a=document.createElement('a'); a.href=url; a.download='minha-cola-votocheck.png';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+          if(status){ status.style.color=''; status.textContent='Imagem baixada — é só anexar numa conversa ou nos stories.'; }
+        }
+        if(window.vcEv) vcEv('cola_card_gerado','');
+      },'image/png',0.95);
+    }
+    var btnCard=document.getElementById('btn-card-cola');
+    if(btnCard) btnCard.addEventListener('click',function(){ gerarCardCola().catch(function(){ var s=document.getElementById('card-cola-status'); if(s){ s.hidden=false; s.style.color='#A12C7B'; s.textContent='Não deu pra gerar a imagem agora — tente de novo.'; } }); });
   })();
   </script>`;
 

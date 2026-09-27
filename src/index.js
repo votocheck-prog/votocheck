@@ -66,6 +66,7 @@ import { RUBRICA_CURTA } from './lib/quiz_html.js';
 import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
 import { emailConfirmacaoAcompanhamento } from './lib/acompanhamento_email.js';
 import { enviarEmail } from './lib/email.js';
+import { renderAnuncie } from './lib/anuncie_html.js';
 import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 import { LOGO_H_B64, LOGO_H_BRANCO_B64, ICONE_B64 } from './lib/marca_assets.js';
@@ -232,11 +233,16 @@ const CACHE_KEY_LIDERANCA_CARGO = new Request('https://cache.interno.votocheck/p
 
 /**
  * Pra cada sigla em PARTIDOS_INFO, encontra — entre os FILIADOS ATUAIS do partido
- * (`filiacao_partidaria.data_fim IS NULL`, não `candidatura`) — quem ocupa hoje
- * (`mandato.data_fim IS NULL`) o cargo de maior hierarquia institucional (presidente > governador
+ * (`filiacao_partidaria.data_fim IS NULL`, não `candidatura`) — até 5 nomes que ocupam hoje
+ * (`mandato.data_fim IS NULL`) os cargos de maior hierarquia institucional (presidente > governador
  * > senador > dep. federal > dep. estadual > dep. distrital, mesma ordem de `cargo.id`).
- * Retorna um objeto { [sigla]: {pessoa_id, nome_urna_atual, cargo_nome, sg_uf} }, com a sigla
- * ausente quando nenhum filiado atual tem mandato ativo num dos 6 cargos cobertos.
+ * Retorna um objeto { [sigla]: [{pessoa_id, nome_urna_atual, cargo_nome, sg_uf}, ...] } (até 5 por
+ * sigla, na ordem de hierarquia), com a sigla ausente quando nenhum filiado atual tem mandato
+ * ativo num dos 6 cargos cobertos.
+ *
+ * AJUSTE 27/09/2026 (pedido do Rodrigo): antes retornava só 1 nome (o de maior cargo); agora
+ * retorna até 5, sempre em ordem de hierarquia — ele queria ver "os principais nomes do partido",
+ * não só um.
  */
 async function carregarLiderancaPorCargoPorPartido(env, ctx) {
   const cache = caches.default;
@@ -261,7 +267,8 @@ async function carregarLiderancaPorCargoPorPartido(env, ctx) {
          JOIN cargo ca ON ca.id = m.cargo_id
          JOIN partido pa ON pa.id = fp.partido_id
          WHERE fp.data_fim IS NULL AND pa.sigla IN (${placeholders})
-       ) WHERE rn = 1`
+       ) WHERE rn <= 5
+       ORDER BY sigla, rn`
     )
     .bind(...siglas)
     .all();
@@ -269,13 +276,63 @@ async function carregarLiderancaPorCargoPorPartido(env, ctx) {
   const porSigla = {};
   for (const row of results || []) {
     const sigla = infoPorSiglaTse[row.sigla] || row.sigla;
-    porSigla[sigla] = row;
+    if (!porSigla[sigla]) porSigla[sigla] = [];
+    porSigla[sigla].push(row);
   }
 
   const resposta = new Response(JSON.stringify(porSigla), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
   });
   ctx.waitUntil(cache.put(CACHE_KEY_LIDERANCA_CARGO, resposta));
+
+  return porSigla;
+}
+
+// Adicionado 27/09/2026 (pedido do Rodrigo — "mostrar a representatividade do partido em
+// cadeiras"). Conta, por partido e por cargo, quantos FILIADOS ATUAIS (mesma base da função
+// acima) ocupam hoje um mandato ativo — ou seja, bancada real em exercício, não candidatura.
+// MESMA LACUNA documentada acima: só cobre presidente/governador/senador/dep. federal/dep.
+// estadual/dep. distrital — prefeito e vereador não entram (são do ciclo municipal de 2024/2028,
+// fora do schema e fora da eleição de 2026 que este site cobre). Nunca testada contra D1 de
+// produção nesta sessão — conferir a página /partidos no ar depois do deploy.
+const CACHE_KEY_BANCADA_ATUAL = new Request('https://cache.interno.votocheck/partidos-bancada-atual');
+
+async function carregarBancadaAtualPorPartido(env, ctx) {
+  const cache = caches.default;
+  const cacheado = await cache.match(CACHE_KEY_BANCADA_ATUAL);
+  if (cacheado) return cacheado.json();
+
+  const db = env.DB;
+  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
+  const siglasTse = await db.prepare(`SELECT sigla, numero FROM partido WHERE numero IS NOT NULL`).all();
+  const siglas = (siglasTse.results || []).filter((r) => siglaPorNumero[r.numero]).map((r) => r.sigla);
+  const infoPorSiglaTse = Object.fromEntries((siglasTse.results || []).map((r) => [r.sigla, siglaPorNumero[r.numero]]));
+  const placeholders = siglas.map(() => '?').join(',') || "''";
+  const { results } = await db
+    .prepare(
+      `SELECT pa.sigla, ca.slug as cargo_slug, COUNT(*) as n
+       FROM filiacao_partidaria fp
+       JOIN mandato m ON m.pessoa_id = fp.pessoa_id AND m.data_fim IS NULL
+       JOIN cargo ca ON ca.id = m.cargo_id
+       JOIN partido pa ON pa.id = fp.partido_id
+       WHERE fp.data_fim IS NULL AND pa.sigla IN (${placeholders})
+       GROUP BY pa.sigla, ca.slug`
+    )
+    .bind(...siglas)
+    .all();
+
+  const porSigla = {};
+  for (const row of results || []) {
+    const sigla = infoPorSiglaTse[row.sigla] || row.sigla;
+    if (!porSigla[sigla]) porSigla[sigla] = { total: 0 };
+    porSigla[sigla][row.cargo_slug] = row.n;
+    porSigla[sigla].total += row.n;
+  }
+
+  const resposta = new Response(JSON.stringify(porSigla), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
+  });
+  ctx.waitUntil(cache.put(CACHE_KEY_BANCADA_ATUAL, resposta));
 
   return porSigla;
 }
@@ -762,6 +819,66 @@ async function fetchInterno(request, env, ctx) {
       return html(renderFaq());
     }
 
+    // "Anuncie ou apoie como empresa" (27/09/2026) — substitui o mailto: direto no botão do
+    // bloco Apoie (ver lib/apoio_html.js). GET mostra a página; POST recebe o formulário e manda
+    // por e-mail pra contato@votocheck.com.br via Resend (best-effort, igual ao /acompanhar).
+    if (url.pathname === '/anuncie' && request.method === 'GET') {
+      return html(renderAnuncie({ status: url.searchParams.get('status') || '' }));
+    }
+
+    if (url.pathname === '/anuncie' && request.method === 'POST') {
+      let form;
+      try {
+        form = await request.formData();
+      } catch (e) {
+        return new Response('Formulário inválido.', { status: 400 });
+      }
+      // Honeypot: campo escondido via CSS que só um bot preenche. Se vier preenchido, finge
+      // sucesso (não avisa o bot que foi pego) mas nunca envia e-mail nem gasta cota do Resend.
+      const honeypot = (form.get('site') || '').toString().trim();
+      const nome = (form.get('nome') || '').toString().trim().slice(0, 120);
+      const empresa = (form.get('empresa') || '').toString().trim().slice(0, 120);
+      const emailContato = (form.get('email') || '').toString().trim().slice(0, 160);
+      const whatsapp = (form.get('whatsapp') || '').toString().trim().slice(0, 30);
+      const mensagem = (form.get('mensagem') || '').toString().trim().slice(0, 2000);
+      const destino = new URL('/anuncie', url.origin);
+
+      if (honeypot) {
+        destino.searchParams.set('status', 'ok');
+        return Response.redirect(destino.toString(), 303);
+      }
+      if (!nome || !emailContato || !mensagem || !emailContato.includes('@')) {
+        destino.searchParams.set('status', 'erro');
+        return Response.redirect(destino.toString(), 303);
+      }
+
+      const assunto = `Quer apoiar o VotoCheck: ${nome}${empresa ? ` (${empresa})` : ' (pessoa física)'}`;
+      const linhas = [
+        `Nome: ${nome}`,
+        empresa ? `Empresa: ${empresa}` : null,
+        `E-mail: ${emailContato}`,
+        whatsapp ? `WhatsApp: ${whatsapp}` : null,
+        '',
+        'Mensagem:',
+        mensagem,
+      ].filter((l) => l !== null);
+      const textoEmail = linhas.join('\n');
+
+      let envio = { ok: false };
+      try {
+        envio = await enviarEmail(env, {
+          to: 'contato@votocheck.com.br',
+          subject: assunto,
+          text: textoEmail,
+          replyTo: emailContato,
+        });
+      } catch (e) {
+        console.error('Falha ao enviar e-mail de /anuncie:', e);
+      }
+      destino.searchParams.set('status', envio.ok ? 'ok' : 'erro');
+      return Response.redirect(destino.toString(), 303);
+    }
+
     if (url.pathname === '/dinheiro-publico' && request.method === 'GET') {
       const cargo = CARGOS_DINHEIRO.some((c) => c.slug === url.searchParams.get('cargo')) ? url.searchParams.get('cargo') : 'deputado_federal';
       const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
@@ -827,7 +944,13 @@ async function fetchInterno(request, env, ctx) {
       } catch (e) {
         console.error('Falha em contagemPorPartidoComCache:', e);
       }
-      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla, contagemPorSigla }));
+      let bancadaPorSigla = {};
+      try {
+        bancadaPorSigla = await carregarBancadaAtualPorPartido(env, ctx);
+      } catch (e) {
+        console.error('Falha em carregarBancadaAtualPorPartido:', e);
+      }
+      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla, contagemPorSigla, bancadaPorSigla }));
     }
 
     if (url.pathname === '/quiz' && request.method === 'GET') {

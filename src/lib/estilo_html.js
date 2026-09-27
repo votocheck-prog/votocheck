@@ -1088,7 +1088,7 @@ export function rodape() {
           <h4>VotoCheck</h4>
           <ul>
             <li><a href="/sobre">Como funciona</a></li>
-            <li><a href="/sobre#metodo">Como verificamos</a></li>
+            <li><a href="/#metodo">Como verificamos</a></li>
             <li><a href="/termos">Termos e privacidade</a></li>
             <li><a href="mailto:contato@votocheck.com.br">Contato e correções</a></li>
           </ul>
@@ -1119,7 +1119,7 @@ const SCRIPT_BASE = `
     var ca=e.target.closest('[data-cola-add]');
     if(ca){ e.preventDefault(); var K='vc_cola_2026',d={};try{d=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){}
       var sl=ca.dataset.slot; if(ca.dataset.cargo==='senador'){ sl=(d['3']&&d['3'].numero&&d['3'].numero!==ca.dataset.numero)?'4':'3'; }
-      d[sl]={nome:ca.dataset.nome,numero:ca.dataset.numero,partido:ca.dataset.partido}; try{localStorage.setItem(K,JSON.stringify(d))}catch(_){}
+      d[sl]={nome:ca.dataset.nome,numero:ca.dataset.numero,partido:ca.dataset.partido,pessoa:ca.dataset.pessoa,foto:ca.dataset.foto}; try{localStorage.setItem(K,JSON.stringify(d))}catch(_){}
       ev('cola_add',ca.dataset.cargo); ca.classList.add('ok'); ca.textContent='na cola ✓';
       var t=document.getElementById('toast-cola'); if(t){t.style.display='block';setTimeout(function(){t.style.display='none'},4000);} }
     var c=e.target.closest('[data-copiar]');

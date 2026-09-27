@@ -3,14 +3,16 @@
  * "Monitoramento e Cobrança" da homepage.
  *
  * Cada palavra do lema ("Conheça. Confira. Entenda. Decida.") vira uma etapa do processo,
- * mais duas etapas novas (Monitore. Cobre.) que ainda não têm produto por trás — só a
- * explicação do que vem a seguir. Ver CONTINUIDADE_INFRA_UPDATE_2026-09-18.md, seção 18,
- * para o item de roadmap completo (captura de e-mail, tabela D1, envio mensal automatizado).
+ * mais duas etapas novas (Monitore. Cobre.).
+ *
+ * ATUALIZADO 27/09/2026: MONITORE já tem produto no ar — captura de e-mail (POST /acompanhar,
+ * ver acompanhamento.js), confirmação via Resend e clipping mensal automatizado (ver
+ * clipping_mensal.js, rodado dentro de scheduled() em src/index.js). Deixou de ser "em
+ * construção". COBRE (canal de manifestação/cobrança por pauta) continua só conceito.
  *
  * Regra de honestidade de marca: nunca descrever como pronto algo que ainda não existe.
- * MONITORE/COBRE são marcados como "em construção" explicitamente — não é uma feature
- * escondida atrás de um botão que não funciona, é uma etapa do processo anunciada com prazo
- * em aberto.
+ * COBRE é marcado como "em construção" explicitamente — não é uma feature escondida atrás de
+ * um botão que não funciona, é uma etapa do processo anunciada com prazo em aberto.
  */
 import { Icone } from './icones.js';
 import { renderCtaTriplo } from './apoio_html.js';
@@ -53,8 +55,7 @@ const ETAPAS = [
     icone: Icone.sino,
     titulo: 'Monitore',
     texto:
-      'Depois de eleito, o mandato continua sendo acompanhado: presença, votações e propostas seguem atualizadas na página de cada Representante Público.',
-    emConstrucao: true,
+      'Escolha acompanhar até 3 Representantes Públicos direto na página de cada um e receba um resumo por e-mail da atuação deles — presença, votações e propostas.',
   },
   {
     icone: Icone.megafone,
@@ -254,13 +255,17 @@ export function renderMonitoramentoCobranca(fase) {
       <h2 id="monitoramento-titulo" class="secao-titulo">Monitoramento e Cobrança</h2>
       <p class="secao-subtitulo">${chamada}</p>
       <p class="monitoramento-texto">
-        A ideia: você escolhe acompanhar um Representante Público (ou até 3, se ainda não tiver
-        decidido) e recebe resumos periódicos da atuação dele — votos, presença, propostas — pra
-        cobrar o que foi prometido. Um canal de manifestação sobre pautas do momento também está
+        <strong>Monitore já está no ar:</strong> na página de qualquer candidato ou Representante
+        Público em exercício, escolha "Acompanhar" (até 3, se ainda não tiver decidido) e receba um
+        resumo por e-mail da atuação dele — votos, presença, propostas — pra cobrar o que foi
+        prometido.
+      </p>
+      <p class="monitoramento-texto">
+        Um canal de manifestação sobre pautas do momento (<strong>Cobre</strong>) também está
         planejado, sempre com a mesma regra do resto do produto: fatos e fontes, nunca opinião do
         VotoCheck sobre quem está certo.
       </p>
-      <span class="etapa-badge">Em construção — ainda não disponível</span>
+      <span class="etapa-badge">Cobre — em construção, ainda não disponível</span>
     </section>`;
 }
 

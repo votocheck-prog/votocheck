@@ -91,6 +91,7 @@
  * principais representantes do partido devem vir de hierarquia política".
  */
 import { nomeProprio } from './perfil_html.js';
+import { FILIADOS_POR_NUMERO, FILIADOS_REF } from './filiados_perfil.js';
 import { pagina, escapeHtml } from './estilo_html.js';
 import { LOGOS_PARTIDOS, LOGOS_COMMONS } from './partidos_logos.js';
 import { Icone } from './icones.js';
@@ -291,9 +292,12 @@ const ESTILO_PARTIDOS = `
      fechado por padrão (mesmo padrão discreto já usado em outras páginas do site, ex.
      .mapa-brasil-toggle/.cargo-guia-item), só abrindo quando alguém pede pra ver. */
   .pt-lideres { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
-  .pt-lideres a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; text-align: center; }
+  .pt-lideres a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pt-lideres a b { font-weight: 600; color: var(--ink); }
+  .pt-fil { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
+  .pt-fil b { color: var(--ink); font-variant-numeric: tabular-nums; }
   .pt-lideres a:hover { border-color: var(--blue); color: var(--blue); }
-  @media (max-width: 420px) { .pt-lideres { grid-template-columns: 1fr; } }
+  @media (max-width: 340px) { .pt-lideres { grid-template-columns: 1fr; } }
   .pt-cands-toggle summary { cursor: pointer; list-style: none; font-size: 12.5px; color: var(--muted); font-weight: 600; padding: 4px 0 2px; }
   .pt-cands-toggle summary::-webkit-details-marker { display: none; }
   .pt-cands-toggle summary::before { content: '▸ '; color: var(--blue); }
@@ -321,7 +325,8 @@ function renderDiagramaEspectro() {
 }
 
 /** Monta a página de partidos (v2, 26/09/2026). */
-export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorSigla = {}, contagemPorSigla = {}, bancadaPorSigla = {} } = {}) {
+export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla = {}, bancadaOficial = null, filiadosPorNumero = FILIADOS_POR_NUMERO } = {}) {
+  const bancadaPorSigla = bancadaOficial?.porSigla || {};
   const lista = partidosOrdenados();
   const totalCands = Object.values(contagemPorSigla).reduce((a, c) => a + (c.total || 0), 0);
   const cards = lista
@@ -334,18 +339,24 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
           ? `<div class="pt-linha">Sem presidente único: ${escapeHtml(pres.nota)}</div>`
           : `<div class="pt-linha">Presidência nacional: <strong>${escapeHtml(pres.nome)}</strong> <a href="${escapeHtml(pres.fonteUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12.5px">fonte ↗</a>${pres.risco ? ` <span title="${escapeHtml(pres.nota)}" style="color:var(--amber);font-size:12.5px">· pode ter mudado</span>` : ''}</div>`
         : '';
-      const lideres = liderancaCargoPorSigla[p.sigla] || [];
+      const banc = bancadaPorSigla[p.sigla] || {};
+      // 27/09/2026: nomes em pills de 1 linha (nome · cargo curto-UF), 2 por linha. Ordem:
+      // Presidente → senadores → deputados federais mais votados em 2022 (ver bancada_oficial.js).
+      const lideres = banc.nomes || [];
       const liderHtml = lideres.length
-        ? `<div class="pt-linha">Principais filiados com mandato hoje:</div>
-           <div class="pt-lideres">${lideres.map((l) => `<a href="/candidato/${l.pessoa_id}">${escapeHtml(nomeProprio(l.nome_urna_atual))} · ${escapeHtml(l.cargo_nome)}${l.sg_uf && l.sg_uf !== 'BR' ? ` (${escapeHtml(l.sg_uf)})` : ''}</a>`).join('')}</div>`
+        ? `<div class="pt-linha">Principais nomes com mandato hoje:</div>
+           <div class="pt-lideres">${lideres.map((l) => `<a href="${escapeHtml(l.href)}"${l.externo ? ' target="_blank" rel="noopener noreferrer"' : ''} title="${escapeHtml(`${l.nome} · ${l.curto}${l.uf ? ` (${l.uf})` : ''}`)}"><b>${escapeHtml(l.nome)}</b> · ${escapeHtml(l.curto)}${l.uf ? `-${escapeHtml(l.uf)}` : ''}</a>`).join('')}</div>`
         : '';
       const mini = CARGOS_ORDEM.filter(([slug]) => cont[slug])
         .map(([slug, rot]) => `<div><b>${Number(cont[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
         .join('');
-      const banc = bancadaPorSigla[p.sigla] || {};
-      const miniBancada = CARGOS_ORDEM.filter(([slug]) => banc[slug])
-        .map(([slug, rot]) => `<div><b>${Number(banc[slug]).toLocaleString('pt-BR')}</b>${rot}</div>`)
-        .join('');
+      const miniBancada = [
+        ['presidente', 'Presidente'], ['senador', 'Senador'], ['deputado_federal', 'Dep. federal'], ['estadual_2022', 'Dep. estadual*'],
+      ].filter(([k]) => banc[k]).map(([k, rot]) => `<div><b>${Number(banc[k]).toLocaleString('pt-BR')}</b>${rot}</div>`).join('');
+      const fil = filiadosPorNumero[p.numero];
+      const filHtml = fil
+        ? `<div class="pt-fil"><span><b>${Number(fil.total).toLocaleString('pt-BR')}</b> filiados</span><span>${fil.mulheres}% mulheres</span><span>${fil.ate34}% até 34 anos</span><span>${fil.sup}% com superior</span></div>`
+        : '';
       return `
       <article class="pt-card" id="partido-${siglaSlug(p.sigla)}" data-busca="${escapeHtml(`${p.sigla} ${p.nome} ${p.numero}`.toLowerCase())}" data-zona="${zonaPrincipal(p.familiaIdeologica)}">
         <div class="pt-topo">
@@ -358,8 +369,9 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         ${presidencia}
         ${liderHtml}
         <div class="pt-cands">
-          <div class="pt-cands-tit"><span>Bancada atual (mandato em exercício)</span><b>${banc.total ? Number(banc.total).toLocaleString('pt-BR') : '—'}</b></div>
-          ${miniBancada ? `<div class="pt-mini">${miniBancada}</div>` : '<p style="font-size:12.5px;color:var(--muted);margin:4px 0 0">Nenhum filiado atual em mandato nos cargos que cobrimos.</p>'}
+          <div class="pt-cands-tit"><span>No Congresso hoje (senadores + deputados federais)</span><b>${bancadaOficial ? Number(banc.congresso || 0).toLocaleString('pt-BR') : '—'}</b></div>
+          ${miniBancada ? `<div class="pt-mini">${miniBancada}</div>` : `<p style="font-size:12.5px;color:var(--muted);margin:4px 0 0">${bancadaOficial ? 'Sem senador, deputado federal ou deputado estadual eleito.' : 'Bancada indisponível no momento.'}</p>`}
+          ${filHtml}
         </div>
         <div class="pt-cands">
           <div class="pt-cands-tit"><span>Candidaturas em 2026</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
@@ -397,7 +409,9 @@ export function renderPartidos({ representantesPorSigla = {}, liderancaCargoPorS
         <summary style="cursor:pointer; font-weight:600;">Sobre estes dados: fontes, classificação e limites</summary>
         <p style="margin-top:10px">A família ideológica segue leituras correntes de ciência política e imprensa especializada; não é opinião do VotoCheck. As notas históricas são resumos simplificados.</p>
         <p style="margin-top:8px">Presidência nacional verificada nas fontes oficiais listadas em ${escapeHtml(LIDERANCA_VERIFICADA_EM)}; pode mudar. Liderança de bancada muda a cada sessão: consulte a <a href="${escapeHtml(LINK_LIDERANCAS_CAMARA)}" target="_blank" rel="noopener noreferrer">página oficial da Câmara</a>.</p>
-        <p style="margin-top:8px">"Bancada atual" e "Principais filiados com mandato hoje" são calculados automaticamente a partir de mandatos ativos de presidente, governador, senador, deputado federal, deputado estadual e deputado distrital — os únicos cargos com mandato consultável na nossa base hoje. Prefeito e vereador não entram: são do ciclo municipal (2024/2028), fora da eleição de 2026 que este site cobre, e ministérios também não têm coleta implementada. Partidos sem guia completo aparecem na busca de candidatos normalmente.</p>
+        <p style="margin-top:8px">Bancada e principais nomes vêm direto das fontes oficiais${bancadaOficial?.dataRef ? `, consultadas em ${escapeHtml(bancadaOficial.dataRef.split('-').reverse().join('/'))}` : ''}: deputados federais em exercício pela <a href="https://dadosabertos.camara.leg.br/" target="_blank" rel="noopener noreferrer">API da Câmara</a> e senadores em exercício pelos <a href="https://legis.senado.leg.br/dadosabertos/" target="_blank" rel="noopener noreferrer">dados abertos do Senado</a>. Principais nomes: a Presidência, depois senadores (ordem alfabética) e deputados federais mais votados em 2022 (TSE). Não é ranking de importância.</p>
+        <p style="margin-top:8px">*Deputado estadual/distrital: não existe fonte nacional das 27 Assembleias, então mostramos quantos o partido elegeu em 2022 (resultado oficial do TSE). A composição atual pode ser diferente por trocas de partido. Partidos incorporados depois de 2022 somam aos sucessores: PSC ao Podemos, PTB e Patriota ao PRD, PROS ao Solidariedade, PMN ao Mobiliza, PMB ao Democrata. Governadores, prefeitos e vereadores ainda não entram.</p>
+        ${FILIADOS_REF ? `<p style="margin-top:8px">Filiados: estatística oficial do TSE (perfil do eleitorado filiado, referência ${escapeHtml(FILIADOS_REF)}). É o total de filiações registradas, não de militantes ativos.</p>` : ''}
         <p style="margin-top:8px">Logos: arquivos do Wikimedia Commons em domínio público ou licença livre, usados só para identificar cada partido. ${Object.values(LOGOS_COMMONS).filter((l) => l.credito).map((l) => escapeHtml(l.credito)).join('. ')}.</p>
       </details>
     </div>

@@ -476,8 +476,8 @@ def email(pauta):
 <h2 style="color:#0A1440">Pauta do dia {HOJE[8:10]}/{HOJE[5:7]}: {len(pauta['itens'])} peças {'já agendadas' if auto else 'para publicar'}</h2>
 <ul>{itens}</ul>
 <p><a href="{link}" style="display:inline-block;background:#0059F5;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Ver e recusar o que não quiser</a></p>
-<p style="color:#5B6478;font-size:13px">{'As peças saem sozinhas no horário, pelo Buffer, se você não recusar. Facebook sai espelhado do Instagram.' if auto else 'O Buffer não está configurado: baixe as peças e publique manualmente.'} Nunca impulsione peça que cite candidato.</p></div>"""
-    body = {'from': 'VotoCheck <naoresponda@updates.votocheck.com.br>', 'to': [os.environ.get('EMAIL_PARA', 'votocheck@gmail.com')], 'subject': f'VotoCheck · pauta de {HOJE[8:10]}/{HOJE[5:7]} ({len(pauta["itens"])} peças' + (', já agendadas)' if auto else ')'), 'html': html}
+<p style="color:#5B6478;font-size:13px">{'As peças saem sozinhas no horário, pelo Buffer, se você não recusar. Facebook sai espelhado do Instagram.' if auto else '<b style="color:#B24C1F">Nada foi agendado no Buffer.</b> Abra a pauta e toque em Aprovar em cada peça: o site agenda no Buffer na hora (ou no próximo horário livre). Motivo: ' + (pauta['itens'][0].get('erro_buffer', '?') if pauta['itens'] else '?') + '.'} Nunca impulsione peça que cite candidato.</p></div>"""
+    body = {'from': 'VotoCheck <naoresponda@updates.votocheck.com.br>', 'to': [os.environ.get('EMAIL_PARA', 'votocheck@gmail.com')], 'subject': ('' if auto else '⚠️ NÃO AGENDADO · ') + f'VotoCheck · pauta de {HOJE[8:10]}/{HOJE[5:7]} ({len(pauta["itens"])} peças' + (', já agendadas)' if auto else ')'), 'html': html}
     # User-Agent explícito: a Resend (atrás da Cloudflare) recusa com 403 o agente padrão "Python-urllib".
     req = urllib.request.Request('https://api.resend.com/emails', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'User-Agent': 'VotoCheck-fabrica/1.0 (+https://votocheck.com.br)'})
     print('e-mail:', urllib.request.urlopen(req, timeout=60).status)
@@ -530,16 +530,25 @@ def main():
         try:
             canais = buffer_canais()
             print('Buffer: canais', sorted(canais))
-            for n, item in enumerate(pauta['itens']):
+            n_carr = 0  # 27/09: contador só dos carrosséis (antes usava o índice geral e MG/RJ caíam os dois às 21:45)
+            for item in pauta['itens']:
                 if item['id'].startswith('ranking_'):
                     buffer_agendar(item, canais, ['instagram', 'tiktok'], item['arquivos'], '12:00')
                 elif 'reel' in item['tipo']:
                     reel = [a for a in item['arquivos'] if a.endswith('.mp4')]
                     buffer_agendar(item, canais, ['instagram', 'tiktok', 'youtube'], reel, '18:00', titulo_video=item['titulo'] + ' #shorts')
                 else:
-                    buffer_agendar(item, canais, ['instagram'], item['arquivos'], ['20:00', '21:30', '21:45'][min(n, 2)])
+                    buffer_agendar(item, canais, ['instagram'], item['arquivos'], ['20:00', '21:30', '21:45'][min(n_carr, 2)])
+                    n_carr += 1
         except Exception as e:
             print('Buffer indisponível, pauta fica para publicação manual:', e)
+            for item in pauta['itens']:
+                item.setdefault('erro_buffer', f'Buffer indisponível: {e}'[:300])
+    else:
+        # 27/09: o workflow não passava BUFFER_API_KEY e a fábrica pulava o Buffer em silêncio.
+        print('ATENÇÃO: BUFFER_API_KEY ausente no ambiente — nada foi agendado.')
+        for item in pauta['itens']:
+            item['erro_buffer'] = 'BUFFER_API_KEY ausente no GitHub Actions (pauta.yml)'
 
     kv_put_bulk([{'key': f'pauta:{HOJE}', 'value': json.dumps(pauta, ensure_ascii=False), 'expiration_ttl': 60 * 60 * 24 * 60}])
     print(json.dumps({'data': HOJE, 'itens': [i['id'] for i in pauta['itens']]}))

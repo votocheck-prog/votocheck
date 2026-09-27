@@ -54,6 +54,7 @@ import { renderSobre } from './lib/sobre_html.js';
 import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
 import { renderPartidos, PARTIDOS_INFO, zonaPrincipal, siglaSlug } from './lib/partidos_html.js';
+import { montarBancadaOficial } from './lib/bancada_oficial.js';
 import { LOGOS_PARTIDOS, LOGOS_COMMONS, urlCommons } from './lib/partidos_logos.js';
 import { renderJudiciario } from './lib/judiciario_html.js';
 import { renderDinheiroPublico, CARGOS_DINHEIRO } from './lib/dinheiro_html.js';
@@ -225,116 +226,19 @@ async function carregarRepresentantesPorPartido(env, ctx) {
   return porSigla;
 }
 
-// Adicionado 23/09/2026 a pedido do Rodrigo — ver rationale completo (critério de hierarquia,
-// lacuna de ministro/prefeito/vereador não cobertos pelo schema atual) no cabeçalho de
-// partidos_html.js. Nunca testada contra D1 de produção nesta sessão (cota travada) — só
-// localmente com dados simulados.
-const CACHE_KEY_LIDERANCA_CARGO = new Request('https://cache.interno.votocheck/partidos-lideranca-cargo');
+// 27/09/2026: "Bancada atual" e "Principais nomes" passaram a vir das fontes oficiais (Câmara,
+// Senado, TSE 2022) — ver src/lib/bancada_oficial.js, com o motivo (a contagem antiga pelo D1 saía
+// inflada e sem senadores). Cache de 12 h: bancada não muda de hora em hora.
+const CACHE_KEY_BANCADA_OFICIAL = new Request('https://cache.interno.votocheck/partidos-bancada-oficial-v1');
 
-/**
- * Pra cada sigla em PARTIDOS_INFO, encontra — entre os FILIADOS ATUAIS do partido
- * (`filiacao_partidaria.data_fim IS NULL`, não `candidatura`) — até 5 nomes que ocupam hoje
- * (`mandato.data_fim IS NULL`) os cargos de maior hierarquia institucional (presidente > governador
- * > senador > dep. federal > dep. estadual > dep. distrital, mesma ordem de `cargo.id`).
- * Retorna um objeto { [sigla]: [{pessoa_id, nome_urna_atual, cargo_nome, sg_uf}, ...] } (até 5 por
- * sigla, na ordem de hierarquia), com a sigla ausente quando nenhum filiado atual tem mandato
- * ativo num dos 6 cargos cobertos.
- *
- * AJUSTE 27/09/2026 (pedido do Rodrigo): antes retornava só 1 nome (o de maior cargo); agora
- * retorna até 5, sempre em ordem de hierarquia — ele queria ver "os principais nomes do partido",
- * não só um.
- */
-async function carregarLiderancaPorCargoPorPartido(env, ctx) {
+async function carregarBancadaOficial(env, ctx) {
   const cache = caches.default;
-  const cacheado = await cache.match(CACHE_KEY_LIDERANCA_CARGO);
+  const cacheado = await cache.match(CACHE_KEY_BANCADA_OFICIAL);
   if (cacheado) return cacheado.json();
-
-  const db = env.DB;
-  // Mesmo ajuste de 27/09/2026: liga pelo número do partido, não pela sigla (ver acima).
-  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
-  const siglasTse = await db.prepare(`SELECT sigla, numero FROM partido WHERE numero IS NOT NULL`).all();
-  const siglas = (siglasTse.results || []).filter((r) => siglaPorNumero[r.numero]).map((r) => r.sigla);
-  const infoPorSiglaTse = Object.fromEntries((siglasTse.results || []).map((r) => [r.sigla, siglaPorNumero[r.numero]]));
-  const placeholders = siglas.map(() => '?').join(',') || "''";
-  const { results } = await db
-    .prepare(
-      `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, sigla FROM (
-         SELECT p.id as pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, m.sg_uf, pa.sigla,
-                ROW_NUMBER() OVER (PARTITION BY pa.sigla ORDER BY ca.id ASC, m.data_inicio DESC) as rn
-         FROM filiacao_partidaria fp
-         JOIN pessoa p ON p.id = fp.pessoa_id
-         JOIN mandato m ON m.pessoa_id = p.id AND m.data_fim IS NULL
-         JOIN cargo ca ON ca.id = m.cargo_id
-         JOIN partido pa ON pa.id = fp.partido_id
-         WHERE fp.data_fim IS NULL AND pa.sigla IN (${placeholders})
-       ) WHERE rn <= 5
-       ORDER BY sigla, rn`
-    )
-    .bind(...siglas)
-    .all();
-
-  const porSigla = {};
-  for (const row of results || []) {
-    const sigla = infoPorSiglaTse[row.sigla] || row.sigla;
-    if (!porSigla[sigla]) porSigla[sigla] = [];
-    porSigla[sigla].push(row);
-  }
-
-  const resposta = new Response(JSON.stringify(porSigla), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
-  });
-  ctx.waitUntil(cache.put(CACHE_KEY_LIDERANCA_CARGO, resposta));
-
-  return porSigla;
-}
-
-// Adicionado 27/09/2026 (pedido do Rodrigo — "mostrar a representatividade do partido em
-// cadeiras"). Conta, por partido e por cargo, quantos FILIADOS ATUAIS (mesma base da função
-// acima) ocupam hoje um mandato ativo — ou seja, bancada real em exercício, não candidatura.
-// MESMA LACUNA documentada acima: só cobre presidente/governador/senador/dep. federal/dep.
-// estadual/dep. distrital — prefeito e vereador não entram (são do ciclo municipal de 2024/2028,
-// fora do schema e fora da eleição de 2026 que este site cobre). Nunca testada contra D1 de
-// produção nesta sessão — conferir a página /partidos no ar depois do deploy.
-const CACHE_KEY_BANCADA_ATUAL = new Request('https://cache.interno.votocheck/partidos-bancada-atual');
-
-async function carregarBancadaAtualPorPartido(env, ctx) {
-  const cache = caches.default;
-  const cacheado = await cache.match(CACHE_KEY_BANCADA_ATUAL);
-  if (cacheado) return cacheado.json();
-
-  const db = env.DB;
-  const siglaPorNumero = Object.fromEntries(PARTIDOS_INFO.map((p) => [p.numero, p.sigla]));
-  const siglasTse = await db.prepare(`SELECT sigla, numero FROM partido WHERE numero IS NOT NULL`).all();
-  const siglas = (siglasTse.results || []).filter((r) => siglaPorNumero[r.numero]).map((r) => r.sigla);
-  const infoPorSiglaTse = Object.fromEntries((siglasTse.results || []).map((r) => [r.sigla, siglaPorNumero[r.numero]]));
-  const placeholders = siglas.map(() => '?').join(',') || "''";
-  const { results } = await db
-    .prepare(
-      `SELECT pa.sigla, ca.slug as cargo_slug, COUNT(*) as n
-       FROM filiacao_partidaria fp
-       JOIN mandato m ON m.pessoa_id = fp.pessoa_id AND m.data_fim IS NULL
-       JOIN cargo ca ON ca.id = m.cargo_id
-       JOIN partido pa ON pa.id = fp.partido_id
-       WHERE fp.data_fim IS NULL AND pa.sigla IN (${placeholders})
-       GROUP BY pa.sigla, ca.slug`
-    )
-    .bind(...siglas)
-    .all();
-
-  const porSigla = {};
-  for (const row of results || []) {
-    const sigla = infoPorSiglaTse[row.sigla] || row.sigla;
-    if (!porSigla[sigla]) porSigla[sigla] = { total: 0 };
-    porSigla[sigla][row.cargo_slug] = row.n;
-    porSigla[sigla].total += row.n;
-  }
-
-  const resposta = new Response(JSON.stringify(porSigla), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${TTL_CACHE_STATS_SEGUNDOS}` },
-  });
-  ctx.waitUntil(cache.put(CACHE_KEY_BANCADA_ATUAL, resposta));
-
-  return porSigla;
+  const dados = await montarBancadaOficial(env, PARTIDOS_INFO);
+  const resposta = new Response(JSON.stringify(dados), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=43200' } });
+  ctx.waitUntil(cache.put(CACHE_KEY_BANCADA_OFICIAL, resposta));
+  return dados;
 }
 
 /**
@@ -496,9 +400,11 @@ async function rotaQuizResultado(url, env, ctx) {
 
   const chaveCache = `${CACHE_KEY_QUIZ_PREFIX}${url.search}`;
 
-  const buscarNoD1 = async () => {
-    const { results } = await env.DB.prepare(
-      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, p.genero, c.ocupacao, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
+  // 27/09/2026: se a migration 0013 (candidatura.ocupacao) ainda não estiver aplicada no D1, a
+  // consulta cai para NULL em vez de derrubar o resultado do quiz — o deploy deixa de depender da ordem.
+  const buscarNoD1 = async (comOcupacao = true) => {
+    const r = await env.DB.prepare(
+      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, p.genero, ${comOcupacao ? 'c.ocupacao' : 'NULL AS ocupacao'}, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
               pa.sigla as partido_sigla, pa.numero as partido_numero, c.reeleicao, c.declarou_bens,
               p.data_nascimento, c.bens_declarados_total,
               EXISTS (SELECT 1 FROM mandato m WHERE m.pessoa_id = c.pessoa_id AND m.data_fim IS NULL) as tem_mandato
@@ -512,8 +418,13 @@ async function rotaQuizResultado(url, env, ctx) {
        LIMIT 3000`
     )
       .bind(...params)
-      .all();
-    return results || [];
+      .all()
+      .catch((e) => {
+        if (comOcupacao && /ocupacao/i.test(String(e?.message || e))) return null;
+        throw e;
+      });
+    if (r === null) return buscarNoD1(false);
+    return r.results || [];
   };
 
   let candidatos = [];
@@ -955,27 +866,19 @@ async function fetchInterno(request, env, ctx) {
       } catch (e) {
         console.error('Falha em carregarRepresentantesPorPartido:', e);
       }
-      // Consulta nova (23/09/2026) e ainda não testada contra D1 de produção — falha aqui nunca
-      // pode derrubar a página inteira, só faz o card ficar sem essa linha específica.
-      let liderancaCargoPorSigla = {};
-      try {
-        liderancaCargoPorSigla = await carregarLiderancaPorCargoPorPartido(env, ctx);
-      } catch (e) {
-        console.error('Falha em carregarLiderancaPorCargoPorPartido:', e);
-      }
       let contagemPorSigla = {};
       try {
         contagemPorSigla = await contagemPorPartidoComCache(env, ctx);
       } catch (e) {
         console.error('Falha em contagemPorPartidoComCache:', e);
       }
-      let bancadaPorSigla = {};
+      let bancadaOficial = null;
       try {
-        bancadaPorSigla = await carregarBancadaAtualPorPartido(env, ctx);
+        bancadaOficial = await carregarBancadaOficial(env, ctx);
       } catch (e) {
-        console.error('Falha em carregarBancadaAtualPorPartido:', e);
+        console.error('Falha em carregarBancadaOficial:', e);
       }
-      return html(renderPartidos({ representantesPorSigla, liderancaCargoPorSigla, contagemPorSigla, bancadaPorSigla }));
+      return html(renderPartidos({ representantesPorSigla, contagemPorSigla, bancadaOficial }));
     }
 
     if (url.pathname === '/quiz' && request.method === 'GET') {

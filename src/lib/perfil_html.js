@@ -192,7 +192,7 @@ export function brlCheio(v) {
 }
 const REDE_ROTULO = [
   [/instagram\.com/, 'Instagram'], [/facebook\.com|fb\.com/, 'Facebook'], [/tiktok\.com/, 'TikTok'], [/youtube\.com|youtu\.be/, 'YouTube'],
-  [/(^|\/\/|\.)x\.com|twitter\.com/, 'X'], [/threads\.net/, 'Threads'], [/linkedin\.com/, 'LinkedIn'], [/kwai/, 'Kwai'], [/wa\.me|whatsapp/, 'WhatsApp'],
+  [/(^|\/\/|\.)x\.com|twitter\.com/, 'X'], [/threads\.(net|com)/, 'Threads'], [/bsky\./, 'Bluesky'], [/linkedin\.com/, 'LinkedIn'], [/kwai/, 'Kwai'], [/wa\.me|whatsapp/, 'WhatsApp'],
 ];
 function rotuloRede(url) {
   for (const [re, nome] of REDE_ROTULO) if (re.test(url)) return nome;
@@ -295,6 +295,10 @@ const ESTILO_FICHA = `
   .fx-redes { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 0 0 10px; font-size: 13.5px; }
   .fx-redes a { font-weight: 600; text-decoration: none; }
   .fx-redes span { color: var(--muted); font-size: 12px; }
+  .fx-redes-mais summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--muted); font-size: 13px; }
+  .fx-redes-mais summary::-webkit-details-marker { display: none; }
+  .fx-redes-mais[open] { flex-basis: 100%; }
+  .fx-redes-mais div { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
   .fx-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 999px; font-weight: 600; font-size: 14.5px; box-shadow: var(--shadow); z-index: 90; display: none; }
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
@@ -312,8 +316,14 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   const slot = SLOT_COLA[cargoSlug] || 0;
 
   const kpis = [];
-  kpis.push(`<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${mandatos.length ? escapeHtml(mandatos[0].cargo_nome) : 'Não tem'}</b><span>${mandatos.length ? `${mandatos[0].sg_uf ? escapeHtml(mandatos[0].sg_uf) + ' · ' : ''}fonte: ${escapeHtml(mandatos[0].fonte_nome || 'Câmara/Senado')}` : 'sem mandato federal registrado'}</span></div>`);
-  kpis.push(`<div class="fx-kpi"><small>${Icone.votoCaixa(14)} Votos registrados</small><b class="tabnum">${totalVotos ? totalVotos.toLocaleString('pt-BR') : '—'}</b><span>${totalVotos ? 'em votações nominais do Plenário' : mandatos.length ? 'nenhum voto nominal coletado ainda' : 'só existe para quem tem mandato'}</span></div>`);
+  // 27/09/2026: presidente/governador no cargo apareciam como "Não tem" mandato (Lula, por exemplo),
+  // porque só coletamos mandatos do Congresso. O TSE marca quem concorre à reeleição (ST_REELEICAO):
+  // para cargo executivo, isso só acontece com quem está no cargo hoje.
+  const execEmExercicio = !mandatos.length && principal && Number(principal.ano_eleicao) === 2026 && principal.reeleicao === 'S' && ['presidente', 'governador'].includes(cargoSlug);
+  kpis.push(execEmExercicio
+    ? `<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${escapeHtml(principal.cargo_nome)}</b><span>${principal.sg_uf && principal.sg_uf !== 'BR' ? escapeHtml(principal.sg_uf) + ' · ' : ''}em exercício, disputa a reeleição (TSE)</span></div>`
+    : `<div class="fx-kpi"><small>${Icone.predio(14)} Mandato atual</small><b>${mandatos.length ? escapeHtml(mandatos[0].cargo_nome) : 'Não tem'}</b><span>${mandatos.length ? `${mandatos[0].sg_uf ? escapeHtml(mandatos[0].sg_uf) + ' · ' : ''}fonte: ${escapeHtml(mandatos[0].fonte_nome || 'Câmara/Senado')}` : 'sem mandato no Congresso registrado'}</span></div>`);
+  kpis.push(`<div class="fx-kpi"><small>${Icone.votoCaixa(14)} Votos registrados</small><b class="tabnum">${totalVotos ? totalVotos.toLocaleString('pt-BR') : '—'}</b><span>${totalVotos ? 'em votações nominais do Plenário' : mandatos.length ? 'nenhum voto nominal coletado ainda' : execEmExercicio ? 'só existe para mandato no Congresso' : 'só existe para quem tem mandato'}</span></div>`);
   const totalBens = bens.reduce((a, b) => a + (Number(b.valor) || 0), 0);
   kpis.unshift(`<div class="fx-kpi"><small>${Icone.cifrao(14)} Patrimônio declarado</small><b class="tabnum">${bens.length ? brl(totalBens) : 'R$ 0'}</b><span>${bens.length ? `${bens.length} ${bens.length > 1 ? 'bens' : 'bem'} na declaração ao TSE` : 'nenhum bem na declaração ao TSE'}</span></div>`);
   const publico = fin ? (Number(fin.fefc) || 0) + (Number(fin.fundo_partidario) || 0) : 0;
@@ -461,10 +471,24 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
       <div class="vc-fonte">${Icone.documento(14)} Fonte: Tribunal Superior Eleitoral · bens de candidatos 2026 (dados abertos)</div>
     </section>`;
 
-  const blocoRedes = redes.length
-    ? `<div class="fx-redes">${redes
-        .map((r) => `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener nofollow ugc">${escapeHtml(rotuloRede(r.url))} ↗</a>`)
-        .join('')}<span>redes oficiais informadas ao TSE</span></div>`
+  // 27/09/2026: candidatos com dezenas de links (Lula tem ~50) ocupavam meia tela. Agora mostramos
+  // 1 link por rede principal (o primeiro que o próprio candidato informou ao TSE) e o resto fica
+  // num "ver todos", sem esconder nada.
+  const PRINCIPAIS_REDES = ['Instagram', 'TikTok', 'YouTube', 'X', 'Facebook', 'Kwai', 'Threads', 'Bluesky', 'LinkedIn', 'WhatsApp'];
+  const vistos = new Set();
+  const redesUnicas = redes.filter((r) => r.url && !vistos.has(r.url.replace(/\/+$/, '').toLowerCase()) && vistos.add(r.url.replace(/\/+$/, '').toLowerCase()));
+  const destaque = [];
+  const jaRede = new Set();
+  for (const nome of PRINCIPAIS_REDES) {
+    const r = redesUnicas.find((x) => rotuloRede(x.url) === nome);
+    if (r) { destaque.push(r); jaRede.add(r); }
+  }
+  const site = redesUnicas.find((x) => !jaRede.has(x) && /^https?:\/\//i.test(x.url) && !PRINCIPAIS_REDES.includes(rotuloRede(x.url)) && !/spotify|deezer|music\.|flickr|soundcloud/i.test(x.url));
+  if (site) { destaque.push(site); jaRede.add(site); }
+  const resto = redesUnicas.filter((x) => !jaRede.has(x));
+  const linkRede = (r) => `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener nofollow ugc">${escapeHtml(rotuloRede(r.url))} ↗</a>`;
+  const blocoRedes = redesUnicas.length
+    ? `<div class="fx-redes">${destaque.map(linkRede).join('')}${resto.length ? `<details class="fx-redes-mais"><summary>+${resto.length} ${resto.length > 1 ? 'outros links' : 'outro link'}</summary><div>${resto.map(linkRede).join('')}</div></details>` : ''}<span>redes oficiais informadas ao TSE</span></div>`
     : '';
 
   const registro = [

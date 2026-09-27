@@ -1,0 +1,187 @@
+{
+ "data": "2026-09-27",
+ "gerado_em": "2026-09-27T09:52:31.671109Z",
+ "itens": [
+  {
+   "id": "ranking_SP",
+   "tipo": "carrossel · PRIORIDADE",
+   "titulo": "Quem mais recebeu dinheiro público em São Paulo",
+   "redes": [
+    "Instagram",
+    "TikTok"
+   ],
+   "horario": "12h",
+   "arquivos": [
+    "ranking_SP_01.png",
+    "ranking_SP_02.png",
+    "ranking_SP_03.png",
+    "ranking_SP_04.png",
+    "ranking_SP_05.png"
+   ],
+   "legenda": "Quem mais recebeu dinheiro público para fazer campanha em São Paulo? Em São Paulo, quem mais recebeu para a campanha de deputado federal foi Rosana Valle (PL): R$ 3,2 mi. No total, R$ 753,0 mi de fundo eleitoral e partidário já foram para as campanhas do estado.\n\nValores oficiais declarados ao TSE até 26/09 (parciais). Quem distribui o dinheiro entre os candidatos é o partido.\n\n👉 Quer saber quanto o SEU candidato recebeu? Está no VotoCheck, nome por nome. Link na bio.\n👉 Manda pra 3 pessoas em São Paulo\n👉 Segue @votocheck: até o dia 4 tem conteúdo novo todo dia\n\n#eleicoes2026 #sãopaulo #fundoeleitoral #dinheiropublico #votoconsciente",
+   "dados": {
+    "uf": "SP",
+    "nome": "São Paulo",
+    "prep": "em",
+    "pub": 752977031.72,
+    "pct": 88,
+    "com": 1904,
+    "fed_pub": 435890637.42,
+    "fed_com": 862,
+    "fed_media": 505673.5932946636,
+    "ref": "26/09"
+   },
+   "status": "pre-aprovada",
+   "publicar_em": "2026-09-27T17:45:00.000Z",
+   "buffer": [
+    {
+     "rede": "instagram",
+     "id": "6ab94ca070ec211d1d20523b"
+    },
+    {
+     "rede": "tiktok",
+     "id": "6ab94ca143493a0ede970f5e"
+    }
+   ]
+  },
+  {
+   "id": "raiox_SP",
+   "tipo": "carrossel + reel",
+   "titulo": "Raio-X da eleição em São Paulo",
+   "redes": [
+    "Instagram",
+    "TikTok",
+    "YouTube Shorts"
+   ],
+   "horario": "12h",
+   "arquivos": [
+    "raiox_SP_01.png",
+    "raiox_SP_02.png",
+    "raiox_SP_03.png",
+    "raiox_SP_04.png",
+    "raiox_SP_05.png",
+    "raiox_SP_06.png",
+    "raiox_SP_reel.mp4"
+   ],
+   "legenda": "Faltam 7 dias. No dia 4 você escolhe quem vai fazer as leis pelos próximos 4 anos (e dois senadores, que ficam 8). Vai conhecer antes ou reclamar depois?\n\nEm São Paulo: 1.132 candidatos a deputado federal para 70 vagas, 34% de mulheres, idade média de 50 anos. Números oficiais do TSE.\n\n👉 Salva este post\n👉 Manda pra 3 pessoas que ainda não decidiram o voto para deputado\n👉 Segue @votocheck: até o dia 4 tem um raio-X por dia\n\nNo VotoCheck você vê todos os candidatos do estado, com número, partido, patrimônio declarado e fonte oficial. Link na bio.\n\n#eleicoes2026 #sãopaulo #deputadofederal #voto #votoconsciente",
+   "dados": {
+    "uf": "SP",
+    "nome": "São Paulo",
+    "prep": "em",
+    "fed": 1132,
+    "vagas_fed": 70,
+    "por_vaga": 16.2,
+    "mulheres_pct": 34,
+    "idade_media": 50,
+    "bens_mediana": 140000,
+    "reeleicao": 68,
+    "est": 1431,
+    "vagas_est": 94,
+    "sen": 16,
+    "gov": 7
+   },
+   "status": "pre-aprovada",
+   "publicar_em": "2026-09-27T21:00:00.000Z",
+   "buffer": [
+    {
+     "rede": "instagram",
+     "id": "6ab94ca954f1e60c7e7367cd"
+    },
+    {
+     "rede": "tiktok",
+     "id": "6ab94caa54f1e60c7e73682b"
+    },
+    {
+     "rede": "youtube",
+     "id": "6ab94cab43493a0ede9710ac"
+    }
+   ]
+  },
+  {
+   "id": "raiox_MG",
+   "tipo": "carrossel",
+   "titulo": "Raio-X da eleição em Minas Gerais",
+   "redes": [
+    "Instagram",
+    "TikTok"
+   ],
+   "horario": "18h",
+   "arquivos": [
+    "raiox_MG_01.png",
+    "raiox_MG_02.png",
+    "raiox_MG_03.png",
+    "raiox_MG_04.png",
+    "raiox_MG_05.png",
+    "raiox_MG_06.png"
+   ],
+   "legenda": "Faltam 7 dias. No dia 4 você escolhe quem vai fazer as leis pelos próximos 4 anos (e dois senadores, que ficam 8). Vai conhecer antes ou reclamar depois?\n\nEm Minas Gerais: 756 candidatos a deputado federal para 53 vagas, 35% de mulheres, idade média de 49 anos. Números oficiais do TSE.\n\n👉 Salva este post\n👉 Manda pra 3 pessoas que ainda não decidiram o voto para deputado\n👉 Segue @votocheck: até o dia 4 tem um raio-X por dia\n\nNo VotoCheck você vê todos os candidatos do estado, com número, partido, patrimônio declarado e fonte oficial. Link na bio.\n\n#eleicoes2026 #minasgerais #deputadofederal #voto #votoconsciente",
+   "dados": {
+    "uf": "MG",
+    "nome": "Minas Gerais",
+    "prep": "em",
+    "fed": 756,
+    "vagas_fed": 53,
+    "por_vaga": 14.3,
+    "mulheres_pct": 35,
+    "idade_media": 49,
+    "bens_mediana": 171827,
+    "reeleicao": 54,
+    "est": 998,
+    "vagas_est": 77,
+    "sen": 18,
+    "gov": 11
+   },
+   "status": "pre-aprovada",
+   "publicar_em": "2026-09-27T23:00:00.000Z",
+   "buffer": [
+    {
+     "rede": "instagram",
+     "id": "6ab94cac612c9e6ac92c7251"
+    }
+   ]
+  },
+  {
+   "id": "raiox_RJ",
+   "tipo": "carrossel",
+   "titulo": "Raio-X da eleição no Rio de Janeiro",
+   "redes": [
+    "Instagram",
+    "TikTok"
+   ],
+   "horario": "20h",
+   "arquivos": [
+    "raiox_RJ_01.png",
+    "raiox_RJ_02.png",
+    "raiox_RJ_03.png",
+    "raiox_RJ_04.png",
+    "raiox_RJ_05.png",
+    "raiox_RJ_06.png"
+   ],
+   "legenda": "Faltam 7 dias. No dia 4 você escolhe quem vai fazer as leis pelos próximos 4 anos (e dois senadores, que ficam 8). Vai conhecer antes ou reclamar depois?\n\nNo Rio de Janeiro: 793 candidatos a deputado federal para 46 vagas, 34% de mulheres, idade média de 51 anos. Números oficiais do TSE.\n\n👉 Salva este post\n👉 Manda pra 3 pessoas que ainda não decidiram o voto para deputado\n👉 Segue @votocheck: até o dia 4 tem um raio-X por dia\n\nNo VotoCheck você vê todos os candidatos do estado, com número, partido, patrimônio declarado e fonte oficial. Link na bio.\n\n#eleicoes2026 #riodejaneiro #deputadofederal #voto #votoconsciente",
+   "dados": {
+    "uf": "RJ",
+    "nome": "Rio de Janeiro",
+    "prep": "no",
+    "fed": 793,
+    "vagas_fed": 46,
+    "por_vaga": 17.2,
+    "mulheres_pct": 34,
+    "idade_media": 51,
+    "bens_mediana": 30000,
+    "reeleicao": 47,
+    "est": 1188,
+    "vagas_est": 70,
+    "sen": 17,
+    "gov": 9
+   },
+   "status": "pre-aprovada",
+   "publicar_em": "2026-09-28T00:30:00.000Z",
+   "buffer": [
+    {
+     "rede": "instagram",
+     "id": "6ab94cad36a0dcfcb3dd061a"
+    }
+   ]
+  }
+ ]
+}

@@ -173,7 +173,9 @@ export function renderCola({ uf = '' } = {}) {
     // compartilhar) — antes o botão decidia por conta própria (compartilhava se o navegador
     // suportasse, senão baixava), sem dar escolha. Agora sempre gera a imagem e mostra os dois
     // botões, e o rodapé do card ganhou o mesmo tratamento visual do banner "R$ público" da home
-    // (título em dourado sobre navy, tipografia Plus Jakarta Sans) em vez de um texto simples.
+    // (banner navy, tipografia Plus Jakarta Sans) em vez de um texto simples — título em dourado
+    // originalmente, depois ajustado pra azul claro e centralizado (ver comentário perto do
+    // desenho do rodapé, mesma tarde de 27/09).
     var ultimoCanvas=null;
     var FONTE_TITULO='"Plus Jakarta Sans",system-ui,Arial,sans-serif';
     var FONTE_TEXTO='system-ui,Arial,sans-serif';
@@ -189,7 +191,7 @@ export function renderCola({ uf = '' } = {}) {
       var W=1080,H=1350;
       var canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
       var ctx=canvas.getContext('2d');
-      var NAVY='#0A1440', BLUE='#0059F5', TEAL='#00B495', GOLD='#FFB067', MUTED='#6F7DB5';
+      var NAVY='#0A1440', BLUE='#0059F5', TEAL='#00B495', MUTED='#6F7DB5';
 
       // fundo
       ctx.fillStyle='#F5F6FA'; ctx.fillRect(0,0,W,H);
@@ -239,15 +241,21 @@ export function renderCola({ uf = '' } = {}) {
       ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(0,rodY); ctx.lineTo(W,rodY); ctx.stroke();
 
-      var padX=56, larguraTexto=W-padX*2, cy2=rodY+58;
-      ctx.fillStyle=GOLD; ctx.font='800 32px '+FONTE_TITULO;
-      ctx.fillText('Confira antes de decidir.',padX,cy2);
+      // 27/09/2026 (tarde, ajuste fino): título e site do rodapé centralizados (pedido do
+      // Rodrigo) — só esses dois; o descritivo (parágrafo do meio) continua alinhado à esquerda.
+      // Título deixou de ser dourado (GOLD) e passou a usar o mesmo azul claro do resto da
+      // paleta em fundo navy (#7FB0FF, mesma cor usada em vc-card--navy h3/vc-mais no site).
+      var padX=56, larguraTexto=W-padX*2, cy2=rodY+58, centroX=W/2;
+      ctx.fillStyle='#7FB0FF'; ctx.font='800 32px '+FONTE_TITULO; ctx.textAlign='center';
+      ctx.fillText('Confira antes de decidir.',centroX,cy2);
+      ctx.textAlign='left';
       cy2+=42;
       ctx.fillStyle='#E6EBFF'; ctx.font='500 24px '+FONTE_TEXTO;
       var linhasCta=quebrarLinhas(ctx,'Eu verifiquei as informações no votocheck.com.br. Faça o mesmo: vote informado e consciente, e ajude a escolher melhor nossos representantes.',larguraTexto);
       for(var k=0;k<linhasCta.length;k++){ ctx.fillText(linhasCta[k],padX,cy2); cy2+=32; }
-      ctx.fillStyle=TEAL; ctx.font='800 34px '+FONTE_TITULO;
-      ctx.fillText('votocheck.com.br',padX,rodY+areaBaixo-34);
+      ctx.fillStyle=TEAL; ctx.font='800 34px '+FONTE_TITULO; ctx.textAlign='center';
+      ctx.fillText('votocheck.com.br',centroX,rodY+areaBaixo-34);
+      ctx.textAlign='left';
 
       return canvas;
     }

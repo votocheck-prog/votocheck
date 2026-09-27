@@ -131,12 +131,12 @@ function renderMapa(uf) {
         <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
       </a>
       <a href="/2022${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy">
-        <h3>Em 2022, quem o seu voto elegeu?</h3>
+        <h3>Em 2022, quem o seu voto ajudou a eleger indiretamente</h3>
         <p>Digite em quem votou e veja para onde o voto foi.</p>
         <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
       </a>
       <a href="/perderam-o-mandato" class="vc-card vc-card--navy">
-        <h3>Eleitos que perderam o mandato</h3>
+        <h3>Eleitos que perderam o mandato, você ajudou a elegê-los?</h3>
         <p>E quanto da vaga veio dos votos de outros.</p>
         <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
       </a>

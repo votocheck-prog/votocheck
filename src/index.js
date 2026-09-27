@@ -74,7 +74,7 @@ import { LOGOS_ANUNCIANTES } from './lib/anunciantes_logos.js';
 import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
 import { renderCola } from './lib/cola_html.js';
-import { registrarVisita, registrarEvento, contar, resumoMetricas } from './lib/metricas.js';
+import { registrarVisita, registrarEvento, contar, resumoMetricas, renderPainelMetricas } from './lib/metricas.js';
 import { urlDestinoAnunciante } from './lib/publicidade.js';
 import { renderPauta, lerPauta, decidirPeca, servirArquivoSocial, dataSP } from './lib/pauta.js';
 
@@ -1174,7 +1174,9 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     }
     if (url.pathname === '/admin/metricas' && request.method === 'GET') {
       if (!requireAdminToken(request, env) && url.searchParams.get('t') !== env.ADMIN_TOKEN) return new Response('Unauthorized', { status: 401 });
-      return Response.json(await resumoMetricas(env, Number(url.searchParams.get('dias')) || 14));
+      const dadosMetricas = await resumoMetricas(env, Number(url.searchParams.get('dias')) || 14);
+      if (url.searchParams.get('formato') === 'json') return Response.json(dadosMetricas);
+      return html(renderPainelMetricas({ ...dadosMetricas, token: url.searchParams.get('t') || '' }));
     }
 
     // ===== Clique em anúncio: conta e redireciona com UTM =====

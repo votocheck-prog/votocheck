@@ -409,6 +409,20 @@ function temFormacaoSuperior(grauInstrucao) {
   return null;
 }
 
+/** TSE usa DS_GENERO com valor fechado ("MASCULINO"/"FEMININO") — normaliza pra 'masculino' |
+ *  'feminino' | null (nunca adivinha um valor fora desses dois). Ver pergunta "sexo declarado"
+ *  do quiz, src/lib/quiz_config.js (v3, 27/09/2026). */
+function generoNormalizado(genero) {
+  if (!genero) return null;
+  const g = genero
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+  if (g.includes('MASCULINO')) return 'masculino';
+  if (g.includes('FEMININO')) return 'feminino';
+  return null;
+}
+
 const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado-v3';
 
 /**
@@ -484,7 +498,7 @@ async function rotaQuizResultado(url, env, ctx) {
 
   const buscarNoD1 = async () => {
     const { results } = await env.DB.prepare(
-      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
+      `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, p.genero, c.ocupacao, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
               pa.sigla as partido_sigla, pa.numero as partido_numero, c.reeleicao, c.declarou_bens,
               p.data_nascimento, c.bens_declarados_total,
               EXISTS (SELECT 1 FROM mandato m WHERE m.pessoa_id = c.pessoa_id AND m.data_fim IS NULL) as tem_mandato
@@ -536,6 +550,7 @@ async function rotaQuizResultado(url, env, ctx) {
         patrimonio: c.bens_declarados_total ?? 0,
         declarouBens: c.declarou_bens === 'S' ? true : c.declarou_bens === 'N' ? false : null,
         grauInstrucaoSuperior: temFormacaoSuperior(c.grau_instrucao),
+        sexoDeclarado: generoNormalizado(c.genero),
         trocouPartido: precisaTrocaPartido ? Boolean(c.trocou_partido) : null,
         dividaAtivaConfirmada: precisaDividaAtiva ? Boolean(c.divida_ativa) : null,
         alinhamentoBancadaPct: precisaAlinhamento ? c.alinhamento_pct : null,
@@ -840,6 +855,7 @@ async function fetchInterno(request, env, ctx) {
       const empresa = (form.get('empresa') || '').toString().trim().slice(0, 120);
       const emailContato = (form.get('email') || '').toString().trim().slice(0, 160);
       const whatsapp = (form.get('whatsapp') || '').toString().trim().slice(0, 30);
+      const cnpj = (form.get('cnpj') || '').toString().trim().slice(0, 20);
       const mensagem = (form.get('mensagem') || '').toString().trim().slice(0, 2000);
       const destino = new URL('/anuncie', url.origin);
 
@@ -858,6 +874,7 @@ async function fetchInterno(request, env, ctx) {
         empresa ? `Empresa: ${empresa}` : null,
         `E-mail: ${emailContato}`,
         whatsapp ? `WhatsApp: ${whatsapp}` : null,
+        cnpj ? `CNPJ: ${cnpj}` : null,
         '',
         'Mensagem:',
         mensagem,

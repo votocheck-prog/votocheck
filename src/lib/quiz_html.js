@@ -116,9 +116,9 @@ function renderEscolhaCargo(ufPadrao = '') {
     <section class="vc-sec" style="padding:56px 0">
       <div class="vc-wrap">
         <span class="vc-eyebrow">${Icone.lampada(16)} Como funciona</span>
-        <h2 style="font-size:clamp(24px,3vw,32px);margin:6px 0 20px">Cinco perguntas. Você pode pular qualquer uma.</h2>
+        <h2 style="font-size:clamp(24px,3vw,32px);margin:6px 0 20px">${PERGUNTAS.length + 1} perguntas. Você pode pular qualquer uma.</h2>
         <div class="qz-passos">
-          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Mandato, idade, patrimônio declarado, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
+          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Mandato, idade, sexo declarado, escolaridade, patrimônio declarado, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
           <div class="qz-passo"><b>2</b><h3>A gente cruza</h3><p>Suas respostas são comparadas com o registro oficial de cada candidatura no TSE e com os mandatos na Câmara e no Senado.</p></div>
           <div class="qz-passo"><b>3</b><h3>Você decide</h3><p>A lista sai em ordem alfabética, dividida entre quem combina e quem diverge, com o motivo. Daí é só abrir a ficha e montar a cola.</p></div>
         </div>
@@ -335,14 +335,6 @@ export function renderQuiz({ cargo, uf }) {
         ${cargoInfo && !cargoInfo.semUf ? `<input type="hidden" name="uf" value="${escapeHtml(uf)}" />` : ''}
         <div class="quiz-cards">${cardsHtml}</div>
         <div class="qz-final">
-          <div class="quiz-card quiz-card--filtro">
-            <div class="quiz-card-num">Filtro opcional</div>
-            <label style="display:flex;gap:12px;align-items:center;font-size:16px;font-weight:600;cursor:pointer">
-              <input type="checkbox" name="formacao_superior" value="sim" style="width:22px;height:22px" />
-              Mostrar só quem tem ensino superior completo
-            </label>
-            <p class="quiz-card-ajuda" style="margin-top:8px">Pela escolaridade declarada ao TSE. Deixe desmarcado para não filtrar.</p>
-          </div>
           ${filtroPartidos()}
           <button type="submit" class="vc-btn vc-btn--pri" style="width:100%; margin-top:16px;">Ver meu resultado</button>
         </div>
@@ -477,7 +469,9 @@ function cardCandidato(c, tagsDivergencia) {
   const idade = calcularIdade(c.data_nascimento);
   const nome = nomeProprio(c.nome_urna_atual || '');
   const slot = SLOT_COLA[c.cargo_slug];
-  const busca = `${nome} ${c.numero_urna || ''} ${c.partido_sigla || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  // 27/09/2026: ocupação declarada entra na busca (não tem coluna própria na lista, mas dá pra
+  // "refinar" a lista pelo mesmo campo de filtro — ver .qr-filtro/ESTILO_RESULTADO abaixo).
+  const busca = `${nome} ${c.numero_urna || ''} ${c.partido_sigla || ''} ${c.ocupacao || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   return `
     <div class="bx-card qr-item" data-busca="${escapeHtml(busca)}">
       <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
@@ -502,6 +496,7 @@ const RUBRICA_CURTA = {
   trocou_de_partido: 'troca de partido',
   declarou_bens: 'declaração de bens',
   formacao_superior: 'formação superior',
+  sexo_declarado: 'sexo declarado',
   espectro_estado_mercado: 'papel do Estado',
   faixa_idade: 'faixa de idade',
   patrimonio: 'patrimônio declarado',
@@ -539,6 +534,7 @@ const ESTILO_RESULTADO = `
   .qr-sec-titulo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
   .qr-sec-titulo h2 { font-size: 20px; margin: 0; }
   .qr-sec-titulo span { font-size: 13.5px; color: var(--muted); }
+  .qr-filtro-legenda { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin: 0 0 8px; }
   .qr-filtro { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 12px; font-size: 15px; margin-bottom: 16px; background: #fff; }
   .qr-filtro:focus { outline: none; border-color: var(--blue); }
   .qr-sec + .qr-sec { margin-top: 36px; }
@@ -642,7 +638,8 @@ export function renderQuizResultado({
     <section class="qr-corpo">
       <div class="vc-wrap qr-grid">
         <div>
-          <input class="qr-filtro" type="search" placeholder="Filtrar esta lista por nome, número ou partido" aria-label="Filtrar lista" data-qr-filtro>
+          <p class="qr-filtro-legenda">Muitas opções ainda? Saiba a profissão e trajetória profissional do candidato pra refinar sua pesquisa:</p>
+          <input class="qr-filtro" type="search" placeholder="Filtrar por nome, número, partido ou profissão" aria-label="Filtrar lista" data-qr-filtro>
           ${secaoCombinam}
           <div style="margin-top:32px">${renderPublicidade('A4', cargo + uf)}</div>
         </div>

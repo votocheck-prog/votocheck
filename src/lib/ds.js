@@ -175,13 +175,14 @@ export const ESTILO_DS = `
   .vc-ico--teal { background: var(--teal-50); color: #00806A; }
   .vc-mais { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 600; font-size: 14.5px; color: var(--blue); }
 
-  /* ===== Cards navy/dourado (home: R$ público em campanha, 2022, perderam o mandato) — 27/09/2026.
-     Título em dourado sobre fundo navy, como pedido pro bloco "R$ público" — e replicado nos
-     outros 2 cards da mesma fileira pra criar um padrão visual único (como se fossem notícias). */
+  /* ===== Cards navy/dourado (home: R$ público em campanha, 2022, perderam o mandato) — 27/09/2026,
+     ajustado depois do 1º retorno do Rodrigo: título em CAPS, dourado, no MESMO tamanho da fonte
+     do texto abaixo — CAPS + cor já dão o destaque, não precisa de tamanho maior. O número
+     ("R$ 5,3 bi") deixou de ter tratamento de estatística grande e virou parte do próprio título,
+     do mesmo tamanho do resto. */
   .vc-card--navy { background: var(--navy); border-color: rgba(255,255,255,.12); }
-  .vc-card--navy h3 { color: #FFB067; }
+  .vc-card--navy h3 { color: #FFB067; font-size: 15px; text-transform: uppercase; letter-spacing: .02em; font-weight: 800; line-height: 1.35; }
   .vc-card--navy p { color: #C3CDF0; }
-  .vc-card--navy .vc-card-num { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #FFB067; line-height: 1; margin-bottom: 8px; }
   .vc-card--navy .vc-mais { color: #7FB0FF; }
   a.vc-card--navy:hover { border-color: #5B9BFF; box-shadow: 0 8px 24px -12px rgba(0,0,0,.4); }
   a.vc-card--navy:hover .vc-mais { color: #fff; }
@@ -227,11 +228,13 @@ export const ESTILO_DS = `
 
   /* ===== Quiz teaser ===== */
   .vc-quiz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
-  .vc-pergunta-demo { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 14px; box-shadow: var(--shadow); margin-bottom: 12px; }
-  .vc-pergunta-demo small { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-  .vc-pergunta-demo strong { display: block; font-family: var(--font-display); font-size: 16.5px; margin: 6px 0 12px; }
-  .vc-opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
-  .vc-opcoes a { font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line-2); text-decoration: none; color: var(--ink); background: #fff; }
+  /* 27/09/2026: cards de exemplo do "Meu VotoCheck" reduzidos (estavam grandes demais em relação
+     ao resto da seção) — mesmo padrão visual, só compacto. */
+  .vc-pergunta-demo { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px 11px; box-shadow: var(--shadow); margin-bottom: 8px; }
+  .vc-pergunta-demo small { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .vc-pergunta-demo strong { display: block; font-family: var(--font-display); font-size: 14px; margin: 4px 0 9px; }
+  .vc-opcoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .vc-opcoes a { font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line-2); text-decoration: none; color: var(--ink); background: #fff; }
   .vc-opcoes a:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-50); }
   .vc-lista-check { list-style: none; padding: 0; margin: 0 0 26px; display: grid; gap: 10px; }
   .vc-lista-check li { display: flex; gap: 10px; align-items: flex-start; font-size: 15.5px; color: var(--ink-2); }
@@ -321,8 +324,12 @@ export const ESTILO_DS = `
   footer.rodape a { color: #C8D2F5; text-decoration: none; }
   footer.rodape a:hover { color: #fff; }
   /* 27/09/2026: rodapé ganhou uma 4ª coluna de links ("O valor do seu voto") — ver rodape() em
-     estilo_html.js. 5 colunas no desktop (marca + 4 listas), 3 num meio-termo, 2 no tablet. */
-  .rod-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr 1fr; gap: 26px; }
+     estilo_html.js. 5 colunas IGUAIS no desktop (marca + 4 listas) — larguras diferentes (ex.
+     1.15fr pra marca) faziam o espaço entre os blocos parecer desigual mesmo com gap uniforme,
+     porque a coluna mais larga "empurrava" as vizinhas de forma assimétrica. Com colunas iguais e
+     texto da marca limitado por max-width (ver .rod-marca p), o espaçamento fica visualmente
+     igual entre todos os blocos. 3 colunas num meio-termo, 2 no tablet. */
+  .rod-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 28px; }
   .rod-grid h4 { font-family: var(--font-body); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #6F7DB5; margin: 0 0 12px; }
   .rod-grid ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   .rod-marca img { height: 34px; width: auto; margin-bottom: 14px; }

@@ -46,8 +46,11 @@ const ESTILO_ANUNCIE = `
   .an-form textarea { resize: vertical; min-height: 96px; }
   .an-form input:focus, .an-form textarea:focus { outline: none; border-color: var(--blue); }
   .an-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-  .an-pix-nota { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
-  .an-pix-nota code { background: var(--paper); padding: 2px 8px; border-radius: 6px; }
+  /* 27/09/2026 (tarde): QR do Pix centralizado dentro do card "Doação voluntária" — pedido do
+     Rodrigo pra dar a opção de pagar direto ali, sem precisar ir até o bloco Apoie da home. */
+  .an-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .an-qr-wrap img { width: 128px; height: 128px; }
+  .an-qr-wrap code { background: var(--paper); padding: 3px 9px; border-radius: 6px; font-size: 13px; }
   .an-sucesso { background: #EFFBF6; border: 1px solid #B8E6D3; color: #00614E; border-radius: 12px; padding: 16px 18px; display: flex; gap: 12px; align-items: flex-start; margin-bottom: 24px; }
   .an-erro { background: #FDEEEE; border: 1px solid #F3C6C6; color: #8A1F1F; border-radius: 12px; padding: 16px 18px; display: flex; gap: 12px; align-items: flex-start; margin-bottom: 24px; }
 `;
@@ -67,9 +70,8 @@ export function renderAnuncie({ status = '' } = {}) {
         <span class="vc-eyebrow" style="color:#7FB0FF">${Icone.handshake(16)} Apoie o VotoCheck</span>
         <h1>Manter o VotoCheck no ar depende de quem acredita nele</h1>
         <p>O VotoCheck não recebe dinheiro de partido, candidato ou governo. Cresce com doações de
-        pessoas e com uma cota publicitária limitada de empresas apoiadoras — sempre sem
-        contrapartida editorial. Sua mensagem ajuda a manter os dados atualizados e a cobertura
-        crescendo até 2028 e 2030.</p>
+        pessoas e com uma cota publicitária limitada de empresas apoiadoras — sem influência
+        editorial.</p>
       </div>
     </section>
     <div class="vc-wrap" style="padding-bottom:56px">
@@ -77,16 +79,19 @@ export function renderAnuncie({ status = '' } = {}) {
         <div class="an-card">
           <div class="an-ico">${Icone.coracao(22)}</div>
           <h3>Doação voluntária</h3>
-          <p>Qualquer valor ajuda, de pessoa física ou empresa. É simples: uma transferência via
-          Pix, sem burocracia, sem contrato. Dado ao pé da página, ou peça mais detalhes pelo
-          formulário abaixo.</p>
+          <p>Qualquer contribuição ajuda, de pessoa física ou empresa, pela nossa chave Pix —
+          <code>${escapeHtml(PIX_CHAVE)}</code> — ou pelo QR Code abaixo.</p>
+          <div class="an-qr-wrap">
+            <img src="/static/pix-qr.png" alt="QR Code Pix para apoiar o VotoCheck" width="128" height="128" loading="lazy" />
+            <code>${escapeHtml(PIX_CHAVE)}</code>
+          </div>
         </div>
         <div class="an-card">
           <div class="an-ico" style="background:var(--teal-50);color:#00735F">${Icone.predio(22)}</div>
           <h3>Cota de publicidade</h3>
           <p>Espaços limitados e sinalizados como "Publicidade" nas páginas do site, para empresas
-          que querem apoiar de forma recorrente. Conte um pouco sobre sua empresa no formulário que
-          respondemos com valores e disponibilidade.</p>
+          que querem apoiar de forma recorrente. Envie abaixo o CNPJ da sua empresa no formulário
+          que respondemos com valores e disponibilidade.</p>
         </div>
       </div>
 
@@ -111,12 +116,15 @@ export function renderAnuncie({ status = '' } = {}) {
             <div><label for="an-whats">WhatsApp (opcional)</label><input id="an-whats" name="whatsapp" maxlength="30" /></div>
           </div>
           <div>
+            <label for="an-cnpj">CNPJ (se for cota de publicidade)</label>
+            <input id="an-cnpj" name="cnpj" maxlength="20" placeholder="00.000.000/0000-00" />
+          </div>
+          <div>
             <label for="an-msg">Mensagem</label>
             <textarea id="an-msg" name="mensagem" required maxlength="2000" placeholder="Quero apoiar com doação / quero saber mais sobre a cota de publicidade / outra dúvida..."></textarea>
           </div>
           <button class="vc-btn vc-btn--pri" type="submit" style="justify-self:start">Enviar mensagem</button>
         </form>
-        <div class="an-pix-nota">Prefere já apoiar agora? Chave Pix: <code>${escapeHtml(PIX_CHAVE)}</code> — qualquer valor ajuda.</div>
       </div>
     </div>
   `;

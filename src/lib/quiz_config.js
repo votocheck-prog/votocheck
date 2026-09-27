@@ -46,6 +46,20 @@ export const TANTO_FAZ = 'tanto_faz';
 // em 2026; alinhamento com a bancada: orientação de bancada não coletada). Entraram faixa de idade
 // e patrimônio declarado (dados do TSE para todos os candidatos). Escolaridade virou filtro opcional
 // no último passo. As definições antigas ficam em PERGUNTAS_ARQUIVADAS para voltar quando houver dado.
+// v3 (27/09/2026) — Rodrigo pediu 3 mudanças a partir do artefato de seleção do quiz:
+//   1) sexo declarado entrou como pergunta nova (dado já vem do TSE, `pessoa.genero`, nunca
+//      usado antes — ver DS_GENERO em scripts/importar_local.mjs, sempre presente pra quem já
+//      foi importado, nenhum reimport necessário).
+//   2) faixa_idade perdeu a 3ª faixa: virou só "abaixo de 50" / "acima de 50" (2 opções + tanto
+//      faz, mesmo padrão de patrimonio). Ver avaliarCandidato abaixo pro corte em 50 anos.
+//   3) formacao_superior deixou de ser o checkbox opcional do último passo (FILTRO_ESCOLARIDADE,
+//      removido) e virou pergunta pontuada de verdade, no mesmo framing "importa pra você que
+//      ele tenha X?" que já existia (avaliarSimNaoImporta, sem mudança de lógica — só mudou de
+//      lugar na UI).
+// Nas 3, e em toda pergunta sim_nao/tres_opcoes do quiz, "tanto faz" nunca entra no array
+// `opcoes`: é sempre o botão extra que cardSimNao/cardTresOpcoes acrescenta por conta própria em
+// quiz_html.js, sempre por último — é assim que a regra "tanto faz sempre por último" já valia
+// antes e continua valendo aqui, sem precisar repetir em cada pergunta.
 export const PERGUNTAS = [
   {
     slug: 'ja_ocupou_cargo',
@@ -65,14 +79,35 @@ export const PERGUNTAS = [
     texto: 'Tem alguma faixa de idade que você prefere?',
     ajuda: 'Pela data de nascimento declarada ao TSE.',
     opcoes: [
-      { valor: 'ate40', label: 'Até 40 anos' },
-      { valor: '41a59', label: 'De 41 a 59 anos' },
-      { valor: '60mais', label: '60 anos ou mais' },
+      { valor: 'abaixo50', label: 'Abaixo de 50 anos' },
+      { valor: 'acima50', label: '50 anos ou mais' },
+    ],
+  },
+  {
+    slug: 'sexo_declarado',
+    ordem: 3,
+    tipo: 'sim_nao',
+    texto: 'Tem alguma preferência quanto ao sexo declarado do candidato?',
+    ajuda: 'Sexo declarado ao TSE (DS_GENERO).',
+    opcoes: [
+      { valor: 'masculino', label: 'Prefiro masculino' },
+      { valor: 'feminino', label: 'Prefiro feminino' },
+    ],
+  },
+  {
+    slug: 'formacao_superior',
+    ordem: 4,
+    tipo: 'sim_nao',
+    texto: 'Ter ensino superior completo importa pra você?',
+    ajuda: 'Grau de instrução declarado ao TSE. Só conta como "tem" quem declarou superior completo, pós-graduação, mestrado ou doutorado.',
+    opcoes: [
+      { valor: 'sim', label: 'Sim, importa' },
+      { valor: 'nao', label: 'Não importa' },
     ],
   },
   {
     slug: 'patrimonio',
-    ordem: 3,
+    ordem: 5,
     tipo: 'tres_opcoes',
     texto: 'O tamanho do patrimônio declarado pesa na sua escolha?',
     ajuda: 'Soma dos bens que o próprio candidato declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
@@ -83,7 +118,7 @@ export const PERGUNTAS = [
   },
   {
     slug: 'trocou_de_partido',
-    ordem: 4,
+    ordem: 6,
     tipo: 'sim_nao',
     texto: 'Trocar de partido durante o mandato pesa contra, pra você?',
     ajuda: 'Histórico de filiação disponível só para quem tem mandato no Congresso; para os demais, a pergunta não exclui ninguém.',
@@ -93,14 +128,6 @@ export const PERGUNTAS = [
     ],
   },
 ];
-
-/** Filtro opcional do último passo (D06) — avaliado como "sim, importa". */
-export const FILTRO_ESCOLARIDADE = {
-  slug: 'formacao_superior',
-  tipo: 'sim_nao',
-  texto: 'Mostrar só quem tem ensino superior completo',
-  opcoes: [{ valor: 'sim', label: 'Sim' }],
-};
 
 /**
  * Pergunta de espectro — cursor de escala dupla, integrada ao mesmo fluxo das 6 acima (deixou de
@@ -115,7 +142,7 @@ export const FILTRO_ESCOLARIDADE = {
  */
 export const ESPECTRO = {
   slug: 'espectro_estado_mercado',
-  ordem: 5,
+  ordem: 7,
   tipo: 'espectro',
   textoIntro: 'Como você acredita que o Estado/poder público deve interferir na vida das pessoas?',
   opcaoA:
@@ -133,7 +160,7 @@ export const ESPECTRO = {
 };
 
 export const TODAS_PERGUNTAS = [...PERGUNTAS, ESPECTRO];
-export const PARAMETROS_QUIZ = [...PERGUNTAS, FILTRO_ESCOLARIDADE, ESPECTRO];
+export const PARAMETROS_QUIZ = [...PERGUNTAS, ESPECTRO];
 
 // ============================================================
 // Filtro de partido/ideologia — não pontuado, exclui/inclui candidatos (ver seção "Filtro de
@@ -196,9 +223,10 @@ function avaliarEspectro(posicaoUsuario, zonaCandidato) {
 const TEMA_CURTO = {
   ja_ocupou_cargo: 'Mandato no Congresso',
   faixa_idade: 'Idade',
+  sexo_declarado: 'Sexo declarado',
+  formacao_superior: 'Escolaridade',
   patrimonio: 'Patrimônio declarado',
   trocou_de_partido: 'Troca de partido',
-  formacao_superior: 'Escolaridade',
 };
 
 export function resumoResposta(slug, valor) {
@@ -208,9 +236,8 @@ export function resumoResposta(slug, valor) {
     const n = Math.min(5, Math.max(1, Math.round(v)));
     return `Papel do Estado: nível ${n} de 5 (${ESPECTRO.niveis[n - 1].toLowerCase()}${n <= 2 ? `, ${ESPECTRO.tituloA.toLowerCase()}` : n >= 4 ? `, ${ESPECTRO.tituloB.toLowerCase()}` : ''})`;
   }
-  const p = PERGUNTAS.find((q) => q.slug === slug) || (slug === FILTRO_ESCOLARIDADE.slug ? { texto: 'Só candidatos com ensino superior completo', tipo: 'filtro', opcoes: [{ valor: 'sim', label: 'sim' }] } : null);
+  const p = PERGUNTAS.find((q) => q.slug === slug);
   if (!p) return null;
-  if (p.tipo === 'filtro') return p.texto;
   if (p.tipo === 'escala') {
     const v = Number(valor);
     if (Number.isNaN(v)) return null;
@@ -259,9 +286,14 @@ export function avaliarCandidato(respostas, sinais) {
     const i = sinais.idade;
     if (i === null || i === undefined) porPergunta.faixa_idade = 'sem_dado';
     else {
-      const faixa = i <= 40 ? 'ate40' : i < 60 ? '41a59' : '60mais';
+      // v3 (27/09/2026): virou 2 faixas em vez de 3 — ver PERGUNTAS acima.
+      const faixa = i < 50 ? 'abaixo50' : 'acima50';
       porPergunta.faixa_idade = faixa === respostas.faixa_idade ? 'match' : 'diverge';
     }
+  }
+  if ('sexo_declarado' in respostas) {
+    if (sinais.sexoDeclarado === null || sinais.sexoDeclarado === undefined) porPergunta.sexo_declarado = 'sem_dado';
+    else porPergunta.sexo_declarado = sinais.sexoDeclarado === respostas.sexo_declarado ? 'match' : 'diverge';
   }
   if ('patrimonio' in respostas) {
     const v = sinais.patrimonio ?? 0;

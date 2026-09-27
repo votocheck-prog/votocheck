@@ -284,13 +284,14 @@ const ESTILO_PARTIDOS = `
   .pt-reps a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
   .pt-reps a:hover { border-color: var(--blue); color: var(--blue); }
 
-  /* 27/09/2026 (pedido do Rodrigo): "principais nomes da legenda" (presidência + maior cargo em
-     exercício) passam a ter mais peso visual que a lista de candidatos — pills maiores, 2 por
-     linha, em vez do flex-wrap solto igual aos candidatos. A lista de candidatos, por sua vez,
-     vira um <details> fechado por padrão (mesmo padrão discreto já usado em outras páginas do
-     site, ex. .mapa-brasil-toggle/.cargo-guia-item), só abrindo quando alguém pede pra ver. */
-  .pt-lideres { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-  .pt-lideres a { display: block; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--ink); background: var(--blue-50); border: 1px solid transparent; border-radius: 10px; padding: 9px 12px; text-align: left; line-height: 1.3; transition: border-color .15s ease, color .15s ease; }
+  /* 27/09/2026 (pedido do Rodrigo, corrigido depois do 1º ajuste): "principais nomes da legenda"
+     (presidência + maior cargo em exercício) usam a MESMA formatação de pill dos candidatos
+     (.pt-reps) — só a disposição muda, 2 por linha em vez de flex-wrap solto, pra dar mais peso
+     visual sem inventar um estilo novo. A lista de candidatos, por sua vez, vira um <details>
+     fechado por padrão (mesmo padrão discreto já usado em outras páginas do site, ex.
+     .mapa-brasil-toggle/.cargo-guia-item), só abrindo quando alguém pede pra ver. */
+  .pt-lideres { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
+  .pt-lideres a { font-size: 12.5px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; text-align: center; }
   .pt-lideres a:hover { border-color: var(--blue); color: var(--blue); }
   @media (max-width: 420px) { .pt-lideres { grid-template-columns: 1fr; } }
   .pt-cands-toggle summary { cursor: pointer; list-style: none; font-size: 12.5px; color: var(--muted); font-weight: 600; padding: 4px 0 2px; }

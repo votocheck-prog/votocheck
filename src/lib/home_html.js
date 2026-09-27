@@ -126,8 +126,7 @@ function renderMapa(uf) {
   <section class="vc-sec" style="padding:40px 0" id="dinheiro">
     <div class="vc-wrap vc-grid vc-grid-3">
       <a href="/dinheiro-publico${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy" data-ev="home_dinheiro">
-        <span class="vc-card-num">R$ 5,3 bi</span>
-        <h3>em dinheiro público nas campanhas de 2026</h3>
+        <h3>R$ 5,3 bi em dinheiro público nas campanhas de 2026</h3>
         <p>Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</p>
         <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
       </a>
@@ -206,7 +205,7 @@ function renderQuizTeaser(uf) {
         </ul>
         <a class="vc-btn vc-btn--pri" href="${q}" data-ev="cta_home" data-ev-chave="quiz_secao">Começar agora ${Icone.seta(18)}</a>
       </div>
-      <div aria-hidden="false">
+      <div aria-hidden="false" class="vc-pergunta-demo-col">
         <div class="vc-pergunta-demo"><small>Pergunta 2 de 7</small><strong>Você prefere quem já ocupou o cargo ou dar chance a quem nunca ocupou?</strong>
           <div class="vc-opcoes"><a href="${q}">Quem já ocupou</a><a href="${q}">Quem nunca ocupou</a><a href="${q}">Tanto faz</a></div></div>
         <div class="vc-pergunta-demo"><small>Pergunta 4 de 7</small><strong>Trocar de partido durante o mandato pesa contra, pra você?</strong>
@@ -216,11 +215,16 @@ function renderQuizTeaser(uf) {
       </div>
     </div>
   </section>`;
+  // Nota (27/09/2026): perguntas de exemplo acima ainda são as 4 da v2 — atualizar assim que o
+  // Rodrigo decidir a lista final da proposta de quiz apresentada nesta rodada.
 }
 
 function renderMetodo() {
+  // 27/09/2026: "Como verificamos" ganhou o destaque navy (era branco) — pedido do Rodrigo pra dar
+  // mais peso a esse bloco. Os componentes internos (.vc-fluxo, .vc-passaporte, .vc-nao-fazemos)
+  // já são cards brancos opacos, então funcionam sem ajuste em cima de qualquer fundo.
   return `
-  <section class="vc-sec vc-sec--branca" id="metodo">
+  <section class="vc-sec vc-sec--navy" id="metodo">
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.escudoCheck(16)} Como verificamos</span>
       <h2 class="vc-h2">Cada dado tem origem, data e contexto</h2>
@@ -290,7 +294,7 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
     ${renderHero(uf, contagemUf, atualizadoEm)}
     ${renderMapa(uf)}
     ${renderQuizTeaser(uf)}
-    <div class="vc-wrap" style="padding-bottom:56px">${renderPublicidade('A1', 'home')}</div>
+    <div class="vc-wrap" style="padding:40px 24px">${renderPublicidade('A1', 'home')}</div>
     ${renderQuociente(uf)}
     ${renderMetodo()}
     ${renderNumeros({ totalCandidaturas, totalPessoas, porCargo })}

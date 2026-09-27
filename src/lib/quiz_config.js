@@ -107,7 +107,7 @@ export const PERGUNTAS = [
     slug: 'patrimonio',
     ordem: 4,
     tipo: 'tres_opcoes',
-    texto: 'O tamanho do patrimônio declarado pesa na sua escolha?',
+    texto: 'Qual patrimônio declarado você prefere no candidato?',
     ajuda: 'Soma dos bens que o próprio candidato declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
     opcoes: [
       { valor: 'ate1mi', label: 'Não declarou ou declarou até R$ 1 milhão' },

@@ -1,7 +1,7 @@
 /**
  * VotoCheck — Home v3 (08/10/2026, pós-1º turno — "home ponte", plano pós-eleição A1).
  * Hero com busca + painel "eleitos no seu estado" → 2º turno (até 25/10) → cards → mapa →
- * Meu VotoCheck → publicidade → voto para deputado → método → números do resultado → apoio.
+ * boletim → publicidade → voto para deputado → método → números do resultado → apoio.
  * O painel e os números vêm de RESULTADO_2026 (estático, sem D1); a urna dos 6 votos saiu.
  *
  * (histórico) Home v2 (Onda 1: até o 1º turno). Doc "Diagnóstico e Plano", seção 3.2.
@@ -66,34 +66,6 @@ export function seisVotos(uf) {
   ];
 }
 
-function renderUrna(uf, contagemUf) {
-  const votos = seisVotos(uf);
-  const detalhe = (v) => {
-    if (!uf) return v.slug === 'presidente' ? 'Todo o Brasil' : 'Escolha seu estado';
-    const n = contagemUf?.[v.slug];
-    if (v.slug === 'presidente') return `${fmt(contagemUf?.presidente)} candidatos · Brasil`;
-    if (v.slug === 'senador') return `${fmt(n)} candidatos · 2 vagas em ${uf}`;
-    if (v.slug === 'governador') return `${fmt(n)} candidatos · ${uf}`;
-    const vagas = v.slug === 'deputado_federal' ? VAGAS_DEP_FEDERAL[uf] : vagasDepEstadual(uf);
-    return `${fmt(n)} candidatos · ${vagas ?? '—'} vagas`;
-  };
-  const href = (v) => (v.slug === 'presidente' ? `/buscar?cargo=presidente` : uf ? `/buscar?cargo=${v.slug}&uf=${uf}` : `/buscar?cargo=${v.slug}`);
-  return `
-  <div class="vc-urna" aria-label="Os 6 votos da urna em 2026, na ordem oficial">
-    <div class="vc-urna-topo"><span>Sua urna · 1º turno</span><strong>${uf ? escapeHtml(UF_NOMES[uf] || uf) : 'Brasil'}</strong></div>
-    ${votos
-      .map(
-        (v) => `
-      <a class="vc-voto" href="${href(v)}" data-ev="urna" data-ev-chave="${v.slug}">
-        <span class="vc-voto-n">${v.ordem}</span>
-        <span class="vc-voto-cargo">${escapeHtml(v.nome)}<small>${escapeHtml(detalhe(v))}</small></span>
-        ${digitos(v.dig)}
-      </a>`
-      )
-      .join('')}
-    <div class="vc-urna-rodape"><span>Ordem oficial do TSE para 2026</span><a href="/cola">Montar minha cola →</a></div>
-  </div>`;
-}
 
 /** Painel do hero (08/10/2026): eleitos do estado do visitante, ou do Brasil. Dado estático do TSE. */
 function renderPainel(uf) {
@@ -236,37 +208,6 @@ function renderQuociente(uf) {
   </section>`;
 }
 
-function renderQuizTeaser(uf) {
-  const q = `/quiz${uf ? `?cargo=deputado_federal&uf=${uf}` : ''}`;
-  // 27/09/2026: "Meu VotoCheck" ganhou o destaque navy (era o "Voto para deputado" que tinha) —
-  // ver renderHomeV2 pra ordem nova dos blocos na home.
-  return `
-  <section class="vc-sec vc-sec--navy" id="meu-votocheck">
-    <div class="vc-wrap vc-quiz-grid">
-      <div>
-        <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck</span>
-        <h2 class="vc-h2">Diga o que importa pra você. A gente mostra quem tem essas características.</h2>
-        <p class="vc-lead">Seis perguntas, cerca de 2 minutos. Você escolhe os critérios e o VotoCheck organiza quem os atende, entre eleitos e candidatos de 2026, com a fonte de cada dado.</p>
-        <ul class="vc-lista-check">
-          <li>${Icone.checkCirculo(20)} <span>Sem nota, sem ranking: o resultado mostra em quantos dos <em>seus</em> critérios cada candidato se encaixa</span></li>
-          <li>${Icone.checkCirculo(20)} <span>Só entram as perguntas que você responder</span></li>
-          <li>${Icone.checkCirculo(20)} <span>Não guardamos suas respostas nem pedimos cadastro</span></li>
-        </ul>
-        <a class="vc-btn vc-btn--pri" href="${q}" data-ev="cta_home" data-ev-chave="quiz_secao">Começar agora ${Icone.seta(18)}</a>
-      </div>
-      <div aria-hidden="false" class="vc-pergunta-demo-col">
-        <div class="vc-pergunta-demo"><small>Pergunta 2 de 6</small><strong>Tem alguma preferência quanto ao sexo declarado do candidato?</strong>
-          <div class="vc-opcoes"><a href="${q}">Prefiro masculino</a><a href="${q}">Prefiro feminino</a><a href="${q}">Tanto faz</a></div></div>
-        <div class="vc-pergunta-demo"><small>Pergunta 5 de 6</small><strong>Trocar de partido durante o mandato pesa contra, pra você?</strong>
-          <div class="vc-opcoes"><a href="${q}">Sim, pesa</a><a href="${q}">Não pesa</a><a href="${q}">Tanto faz</a></div></div>
-        <div class="vc-pergunta-demo"><small>Pergunta 6 de 6</small><strong>Quanto o Estado deve atuar na economia e nos serviços?</strong>
-          <div class="vc-opcoes"><a href="${q}">Mais Estado</a><a href="${q}">Estado no essencial</a></div></div>
-      </div>
-    </div>
-  </section>`;
-  // 27/09/2026: perguntas de exemplo atualizadas pro conjunto v4 (6 perguntas + espectro, "já
-  // ocupou cargo" foi removida pelo Rodrigo nesta rodada e a numeração "de 7" virou "de 6").
-}
 
 function renderMetodo() {
   // 27/09/2026: "Como verificamos" ganhou o destaque navy (era branco) — pedido do Rodrigo pra dar
@@ -330,7 +271,6 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
     ${antesDo2T() ? renderSegundoTurno({ pessoas: pessoas2T, ufFoco: uf }) : ''}
     ${renderMapa(uf)}
     ${renderBlocoBoletim({ uf, origem: 'home' })}
-    ${renderQuizTeaser(uf)}
     <div class="vc-wrap" style="padding:40px 24px">${renderPublicidade('A1', 'home')}</div>
     ${renderQuociente(uf)}
     ${renderMetodo()}

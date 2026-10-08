@@ -1,4 +1,4 @@
-# VotoCheck 08/10/2026: monta voto_municipio_2026.sql (top 10 eleitos por cargo e cidade + municipio_tse). Precisa de out/ (baixar_votos_municipio.py) e ../r26 (resultados por UF de importar_resultados_2026.py). Aplicar com scripts/apply_d1.py <arquivo> 10.
+# VotoCheck 08/10/2026: monta voto_municipio_2026.sql (união top 10 absoluto + top 10 relativo por cargo e cidade + municipio_tse). Precisa de out/ (baixar_votos_municipio.py) e ../r26. Aplicar com scripts/apply_d1.py <arquivo> 10.
 import json, glob, os, re, unicodedata, collections
 def slug(n):
     n=unicodedata.normalize('NFD',n); n=''.join(c for c in n if unicodedata.category(c)!='Mn').lower()
@@ -24,7 +24,11 @@ for f in glob.glob('../r26/*-c000[678].json'):
 linhas=[]; faltam=0
 for f in glob.glob('out/*.json'):
     d=json.load(open(f)); cargo='deputado_federal' if d['c']=='0006' else ('deputado_distrital' if d['c']=='0008' else 'deputado_estadual')
-    el=sorted(d['el'],key=lambda x:-x[1])[:10]
+    # 08/10 (2ª versão): união dos 10 mais votados (absoluto) com os 10 que mais dependem da cidade (% da própria votação)
+    todos=[(sq,v) for sq,v in d['el'] if v>0]
+    absol=sorted(todos,key=lambda x:-x[1])[:10]
+    rel=sorted(todos,key=lambda x:-(x[1]/tot_cand[x[0]] if tot_cand.get(x[0]) else 0))[:10]
+    el=list(dict.fromkeys(absol+rel))
     for sq,v in el:
         if v<=0: continue
         tc=tot_cand.get(sq)

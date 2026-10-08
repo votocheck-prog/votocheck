@@ -42,18 +42,51 @@ export function formCep({ tema = 'claro', id = 'cep' } = {}) {
   </form>`;
 }
 
-function linha(c) {
+function contatos(c, nome) {
+  const itens = [];
+  const ig = c.instagram ? (/^https?:\/\//i.test(c.instagram) ? c.instagram : `https://${c.instagram.replace(/^\/+/, '')}`) : '';
+  if (ig) itens.push(`<a class="mu-ct" href="${escapeHtml(ig)}" target="_blank" rel="noopener" aria-label="Instagram de ${escapeHtml(nome)}">${Icone.instagram(15)}<span>Instagram</span></a>`);
+  if (c.email) itens.push(`<a class="mu-ct" href="mailto:${escapeHtml(c.email)}" aria-label="E-mail oficial de ${escapeHtml(nome)}: ${escapeHtml(c.email)}">${Icone.email(15)}<span>E-mail</span></a>`);
+  itens.push(`<a class="mu-ct" href="/candidato/${c.pessoa_id}">${Icone.usuario(15)}<span>Perfil</span></a>`);
+  return `<div class="mu-cts">${itens.join('')}</div>`;
+}
+
+/** modo 'abs': destaque nos votos na cidade; modo 'rel': destaque no % da votação do eleito que veio dela. */
+function linha(c, modo) {
   const nome = nomeProprio(c.nome_urna_atual || c.nome_completo);
   const foto = c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1));
+  const ele = c.genero === 'F' ? 'dela' : 'dele';
+  const destaque = modo === 'abs'
+    ? `<b class="tabnum">${fmt(c.votos)}</b><small>votos aqui · ${pct(c.pct_cand)} dos votos ${ele}</small>`
+    : `<b class="tabnum">${pct(c.pct_cand)}</b><small>dos votos ${ele} · ${fmt(c.votos)} aqui</small>`;
   return `
-    <div class="bx-card mu-card">
-      <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true">${foto}</a>
-      <div class="bx-info">
+    <li class="mu-card">
+      <a class="bx-foto" href="/candidato/${c.pessoa_id}" aria-label="Perfil de ${escapeHtml(nome)}">${foto}</a>
+      <div class="mu-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
-        <div class="bx-meta">${escapeHtml(c.partido_sigla || '')} · <span class="tabnum">${fmt(c.votos)}</span> votos aqui</div>
-        ${Number(c.pct_cand) >= 15 ? '<span class="mu-base">base eleitoral aqui</span>' : ''}
+        <div class="bx-meta">${escapeHtml(c.partido_sigla || '')}</div>
       </div>
-      <div class="mu-dir"><b class="tabnum">${pct(c.pct_cand)}</b><small>dos votos ${c.genero === 'F' ? 'dela' : 'dele'}</small></div>
+      <div class="mu-dir">${destaque}</div>
+      ${contatos(c, nome)}
+    </li>`;
+}
+
+function colunas(lista, cidade) {
+  const abs = [...lista].sort((a, b) => b.votos - a.votos).slice(0, 10);
+  const rel = [...lista].sort((a, b) => (b.pct_cand || 0) - (a.pct_cand || 0)).slice(0, 10);
+  if (!lista.length) return '<div class="bx-vazio">Ainda sem dados para esta cidade.</div>';
+  return `
+    <div class="mu-cols">
+      <div class="mu-col">
+        <h3>Mais votados em ${escapeHtml(cidade)}</h3>
+        <p>Quem recebeu mais votos aqui, em números absolutos.</p>
+        <ol class="mu-lista">${abs.map((c) => linha(c, 'abs')).join('')}</ol>
+      </div>
+      <div class="mu-col">
+        <h3>Mais ligados a ${escapeHtml(cidade)}</h3>
+        <p>Quem tirou daqui a maior parte da própria votação.</p>
+        <ol class="mu-lista">${rel.map((c) => linha(c, 'rel')).join('')}</ol>
+      </div>
     </div>`;
 }
 
@@ -66,33 +99,34 @@ export function renderMunicipio({ mun, linhas = [] }) {
   const tituloEst = uf === 'DF' ? 'Deputados distritais' : 'Deputados estaduais';
   const bloco = (titulo, id, lista) => `
     <section class="el-sec" id="${id}" aria-labelledby="t-${id}">
-      <div class="el-sec-topo"><h2 id="t-${id}">${titulo}</h2><span class="el-conta">mais votados aqui</span></div>
-      ${lista.length ? `<div class="bx-grid">${lista.map(linha).join('')}</div>` : '<div class="bx-vazio">Ainda sem dados para esta cidade.</div>'}
+      <div class="el-sec-topo"><h2 id="t-${id}">${titulo}</h2></div>
+      ${colunas(lista, nomeCid)}
     </section>`;
   const corpo = `
     <style>${ESTILO_BUSCA}${ESTILO_ELEITOS}${ESTILO_MUNICIPIO}</style>
     <section class="bx-topo">
       <div class="vc-wrap">
         <nav class="fx-migalha el-migalha" aria-label="Você está em"><a href="/eleitos">Eleitos 2026</a> › <a href="/eleitos/${uf.toLowerCase()}">${escapeHtml(nomeUf)}</a> › ${escapeHtml(nomeCid)}</nav>
-        <h1>Os deputados eleitos mais votados em ${escapeHtml(nomeCid)} (${uf})</h1>
-        <p class="el-lead">Deputado representa o estado inteiro, não a cidade. Mas a votação mostra quem tem mais ligação com ${escapeHtml(nomeCid)}: quem teve mais votos aqui e quanto do total de cada um veio daqui.</p>
+        <h1>Os deputados eleitos com mais ligação com ${escapeHtml(nomeCid)} (${uf})</h1>
+        <p class="el-lead">Deputado representa o estado inteiro, não a cidade. A votação mostra o vínculo de dois jeitos: quem teve mais votos aqui e quem depende mais daqui. Toque no nome para ver o perfil, ou fale direto pelo Instagram e pelo e-mail oficial.</p>
+        <nav class="el-indice" aria-label="Ir para"><a href="#federais">Deputados federais</a><a href="#estaduais">${tituloEst}</a></nav>
       </div>
     </section>
     <div class="bx-corpo">
       <div class="vc-wrap">
-        <p class="el-nota">Só aparecem eleitos em 2026, os 10 com mais votos nesta cidade em cada cargo. "% dos votos dele" é a parte da votação total do eleito que veio de ${escapeHtml(nomeCid)}. A etiqueta <b>base eleitoral aqui</b> marca quem tirou pelo menos 15% da própria votação desta cidade. Senadores e governador são eleitos pelo estado todo: veja em <a href="/eleitos/${uf.toLowerCase()}">eleitos ${escapeHtml(deUf(uf))}</a>.</p>
+        <p class="el-nota">Só entram eleitos em 2026. "% dos votos dele" é a parte da votação total do eleito que veio de ${escapeHtml(nomeCid)}. O e-mail aparece para quem já tem mandato hoje (fonte: Câmara e Senado); os eleitos novos ganham e-mail oficial depois da posse, em 1º de fevereiro. Instagram: o perfil informado ao TSE. Senadores e governador são eleitos pelo estado todo: veja em <a href="/eleitos/${uf.toLowerCase()}">eleitos ${escapeHtml(deUf(uf))}</a>.</p>
         ${bloco('Deputados federais', 'federais', fed)}
         ${renderPublicidade('A2', `mun${mun.cd_tse}`)}
         ${bloco(tituloEst, 'estaduais', est)}
         <div class="mu-outra">${Icone.mapa(18)} <span>Outra cidade?</span>${formCep({ id: 'cep-mun' })}</div>
-        <p class="el-fonte">Fonte: TSE, resultado oficial do 1º turno por município (votos nominais). Erro? <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.</p>
+        <p class="el-fonte">Fontes: TSE, resultado oficial do 1º turno por município (votos nominais); Câmara dos Deputados e Senado Federal (e-mail de gabinete). Erro? <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.</p>
       </div>
     </div>
     ${renderBlocoBoletim({ uf, origem: `cidade_${uf.toLowerCase()}` })}`;
-  const top = fed[0] ? nomeProprio(fed[0].nome_urna_atual || fed[0].nome_completo) : '';
+  const top = fed.length ? nomeProprio([...fed].sort((a, b) => b.votos - a.votos)[0].nome_urna_atual || '') : '';
   return pagina({
     titulo: `Deputados mais votados em ${nomeCid} (${uf}) em 2026 — VotoCheck`,
-    descricao: `Quem são os deputados federais e estaduais eleitos em 2026 com mais votos em ${nomeCid} (${uf})${top ? `, como ${top}` : ''}, e quanto da votação de cada um veio da cidade. Fonte: TSE.`,
+    descricao: `Quem são os deputados federais e estaduais eleitos em 2026 com mais votos em ${nomeCid} (${uf})${top ? `, como ${top}` : ''}, quem mais depende da cidade, e como falar com cada um. Fonte: TSE.`,
     caminho: `/eleitos/${uf.toLowerCase()}/${mun.slug}`,
     larga: true,
     corpo,
@@ -112,11 +146,23 @@ export function renderCepErro({ cep = '', motivo = '' } = {}) {
 }
 
 export const ESTILO_MUNICIPIO = `
-  .mu-card { grid-template-columns: 52px 1fr auto; }
-  .mu-dir { text-align: right; }
-  .mu-base { display: inline-block; margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #00735F; background: var(--teal-50); border-radius: 999px; padding: 2px 8px; }
-  .mu-dir b { display: block; font-family: var(--font-display); font-size: 19px; color: var(--blue); line-height: 1.1; }
-  .mu-dir small { font-size: 11.5px; color: var(--muted); }
+  .mu-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+  .mu-col h3 { font-size: 17px; margin: 6px 0 2px; }
+  .mu-col > p { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; }
+  .mu-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .mu-card { display: grid; grid-template-columns: 52px 1fr auto; column-gap: 12px; row-gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .mu-info { min-width: 0; }
+  .mu-info .bx-nome { white-space: normal; line-height: 1.25; }
+  .mu-dir { text-align: right; max-width: 132px; }
+  .mu-dir b { display: block; font-family: var(--font-display); font-size: 18px; color: var(--blue); line-height: 1.1; }
+  .mu-dir small { font-size: 11.5px; color: var(--muted); line-height: 1.3; display: block; }
+  .mu-cts { grid-column: 2 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin-top: -2px; }
+  .mu-card .bx-foto { grid-row: span 2; align-self: start; }
+  .mu-ct { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none; border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 9px; min-height: 28px; }
+  .mu-ct:hover { border-color: var(--blue); color: var(--blue); }
+  .mu-ct svg { color: var(--blue); }
+  @media (max-width: 860px) { .mu-cols { grid-template-columns: 1fr; gap: 24px; } }
+  @media (max-width: 420px) { .mu-cts { grid-column: 1 / -1; } .mu-card .bx-foto { grid-row: auto; } }
   .mu-outra { display: grid; gap: 8px; margin: 36px 0 8px; padding: 20px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
   .mu-outra > span { font-weight: 700; color: var(--ink); }
   .mu-outra > svg { color: var(--blue); }

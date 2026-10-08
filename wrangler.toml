@@ -28,7 +28,7 @@ database_id = "1de4bbee-3c8c-4043-91f9-fafd527c2f1f"
 #
 # Horário escolhido: 07:00 UTC (04:00 em São Paulo) — fora do horário de maior uso do site.
 [triggers]
-crons = ["0 7 * * *"]
+crons = ["0 7 * * 1", "0 9 * * *"]
 
 # Variáveis de ambiente não-sensíveis (segredos como ADMIN_TOKEN devem ir via
 # `wrangler secret put ADMIN_TOKEN`, nunca aqui em texto plano — regra de segurança do projeto).

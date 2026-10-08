@@ -32,6 +32,7 @@ export const Icone = {
   check: (t = 24) => svg(t, `<path d="M20 6L9 17l-5-5"/>`),
   checkCirculo: (t = 24) => svg(t, `<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>`),
   semNota: (t = 24) => svg(t, `<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>`),
+  email: (t = 24) => svg(t, `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>`),
   instagram: (t = 24) => svg(t, `<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/>`),
   tiktok: (t = 24) => svg(t, `<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/>`),
   whatsapp: (t = 24) => svg(t, `<path d="M4 20l1.3-3.9A8 8 0 1 1 8.2 19z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-1-.4-1.8-1.2-2.3-2.3l.8-1-1-2z"/>`),

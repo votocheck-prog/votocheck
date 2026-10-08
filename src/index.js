@@ -76,6 +76,7 @@ import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
 import { renderEleitosUf, renderEleitosIndex } from './lib/eleitos_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
+import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
 import { inscreverBoletim, confirmarBoletim, sairBoletim, renderPaginaBoletim, renderResultadoBoletim } from './lib/boletim.js';
 import { renderCola } from './lib/cola_html.js';
@@ -688,14 +689,16 @@ async function fetchInterno(request, env, ctx) {
     if (cidadeMatch && request.method === 'GET') {
       const uf = cidadeMatch[1].toUpperCase();
       if (!UF_NOMES[uf]) return html404(render404(url.pathname));
-      const chave = new Request(`https://cache.interno.votocheck/cidade-v1-${uf}-${cidadeMatch[2]}`);
+      const chave = new Request(`https://cache.interno.votocheck/cidade-v2-${uf}-${cidadeMatch[2]}`);
       const hit = await caches.default.match(chave);
       let dados = hit ? await hit.json() : null;
       if (!dados) {
         const mun = await env.DB.prepare(`SELECT cd_tse, ibge, uf, nome AS municipio, slug FROM municipio_tse WHERE uf = ? AND slug = ?`).bind(uf, cidadeMatch[2]).first();
         if (!mun) return html404(render404(url.pathname));
         const { results } = await env.DB.prepare(
-          `SELECT v.cargo, v.votos, v.pct_cand, c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, p.genero, pa.sigla AS partido_sigla
+          `SELECT v.cargo, v.votos, v.pct_cand, c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, p.genero, pa.sigla AS partido_sigla,
+                  (SELECT r.url FROM rede_social_candidato r WHERE r.candidatura_id = c.id AND r.url LIKE '%instagram.com%' ORDER BY r.ordem LIMIT 1) AS instagram,
+                  (SELECT co.valor FROM contato_oficial co WHERE co.pessoa_id = c.pessoa_id AND co.tipo = 'email' AND co.invalido = 0 LIMIT 1) AS email
            FROM voto_municipio_2026 v
            JOIN candidatura c ON c.ano_eleicao = ? AND c.sq_candidato_tse = v.sq
            JOIN pessoa p ON p.id = c.pessoa_id
@@ -1018,6 +1021,10 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       return html(renderPartidos({ representantesPorSigla, contagemPorSigla, bancadaOficial }));
     }
 
+    // 08/10/2026: o Meu VotoCheck (quiz para escolher candidato) saiu depois do 1º turno — decisão do Rodrigo.
+    if ((url.pathname === '/quiz' || url.pathname.startsWith('/quiz/')) && request.method === 'GET') {
+      return Response.redirect(`${url.origin}/eleitos`, 301);
+    }
     if (url.pathname === '/quiz' && request.method === 'GET') {
       const cargoSlug = (url.searchParams.get('cargo') || '').trim();
       const ufCfQuiz = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
@@ -1109,8 +1116,6 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
         ...Object.keys(UF_NOMES).map((u) => ({ loc: `/eleitos/${u.toLowerCase()}`, prioridade: '0.9' })),
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
-        { loc: '/quiz', prioridade: '0.8' },
-        { loc: '/cola', prioridade: '0.8' },
         { loc: '/partidos', prioridade: '0.6' },
         { loc: '/dinheiro-publico', prioridade: '0.7' },
         { loc: '/quanto-vale-seu-voto', prioridade: '0.7' },
@@ -1197,6 +1202,13 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 
     // ===== Pauta diária da campanha (D21) — protegida por ADMIN_TOKEN via ?t= =====
     const tokenOk = () => env.ADMIN_TOKEN && url.searchParams.get('t') === env.ADMIN_TOKEN;
+    if (url.pathname === '/admin/fila' && request.method === 'GET') {
+      if (!tokenOk()) return new Response('Unauthorized', { status: 401 });
+      if (url.searchParams.get('processar') === '1') await processarFila(env);
+      const fila = env.OG ? (await env.OG.get('fila_social', 'json')) || [] : [];
+      return new Response(JSON.stringify(fila.map(({ legenda, imagens, ...r }) => ({ ...r, imagens: (imagens || []).length })), null, 1), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+
     // Diagnóstico de fontes externas (26/09/2026): confere, a partir da Cloudflare, se as APIs
     // públicas de onde o site busca fotos (TSE) e logos (Wikimedia Commons) respondem. Só texto,
     // só hosts da lista, só com ADMIN_TOKEN.
@@ -1761,6 +1773,11 @@ export default {
             return { ok: false, error: String(e?.message || e) };
           }
         }
+
+        // 08/10/2026: fila de publicação nas redes (fila_social.js) — cron diário 09:00 UTC só agenda
+        // no Buffer o que vence em 48 h; o cron semanal (segunda 07:00 UTC) segue com os coletores.
+        await rodar('processarFila', () => processarFila(env));
+        if (event.cron === '0 9 * * *') return;
 
         // TSE: DESLIGADO no cron em 26/09/2026. O CDN do TSE recusa (403) as requisições vindas da
         // Cloudflare, então isso só gerava falha diária. Os arquivos do TSE são baixados pelo Rodrigo

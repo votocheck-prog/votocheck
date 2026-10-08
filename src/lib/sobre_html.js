@@ -51,13 +51,11 @@ export function renderSobre() {
         "passaporte da evidência".
       </p>
 
-      <h2 style="font-size:19px; margin-top:32px;">Meu VotoCheck</h2>
+      <h2 style="font-size:19px; margin-top:32px;">Acompanhe quem foi eleito</h2>
       <p>
-        Quando o cidadão quer descobrir quais características procura em um representante,
-        o <strong>Meu VotoCheck</strong> permite declarar suas próprias preferências e
-        encontrar candidatos que apresentam essas características — sem ranking e sem o
-        VotoCheck escolher por ele. Já está no ar: faça o <a href="/quiz">Meu VotoCheck</a> em
-        poucos minutos.
+        Veja os eleitos do seu estado em <a href="/eleitos">Eleitos 2026</a>, descubra pelo CEP quem
+        tem mais ligação com a sua cidade e receba toda semana, no <a href="/boletim">boletim</a>, o
+        que os deputados e senadores do seu estado fizeram, sempre com a fonte.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">Cobertura atual</h2>

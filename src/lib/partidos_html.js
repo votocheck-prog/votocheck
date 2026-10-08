@@ -90,6 +90,7 @@
  * cargo (maior primeiro) e só depois por nome, atendendo ao pedido original do Rodrigo de que "os
  * principais representantes do partido devem vir de hierarquia política".
  */
+import { BANCADA_2027 } from './bancada_2027.js';
 import { nomeProprio } from './perfil_html.js';
 import { FILIADOS_POR_NUMERO, FILIADOS_REF } from './filiados_perfil.js';
 import { pagina, escapeHtml } from './estilo_html.js';
@@ -241,6 +242,38 @@ const CARGOS_ORDEM = [
 ];
 
 const ESTILO_PARTIDOS = `
+  .b27 { margin: 40px 0 48px; }
+  .b27-tops { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin: 22px 0 24px; }
+  .b27-top { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .b27-top h4 { font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .b27-top ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .b27-top li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; font-size: 14px; }
+  .b27-top li span { color: var(--muted); font-size: 13px; }
+  .b27-top li em { font-style: normal; font-weight: 800; font-size: 14px; }
+  .b27-d--mais { color: #00735F; }
+  .b27-d--menos { color: #B4541A; }
+  .b27-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .b27-painel { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .b27-painel h3 { font-size: 18px; margin: 0 0 4px; }
+  .b27-leg { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .b27-k { display: inline-block; width: 14px; height: 8px; border-radius: 4px; margin-left: 6px; }
+  .b27-k--novo { background: var(--blue); }
+  .b27-k--hoje { width: 2px; height: 14px; border-radius: 1px; background: var(--ink); }
+  .b27-linha { display: grid; grid-template-columns: 112px 1fr 36px 58px; gap: 10px; align-items: center; padding: 3px 0; font-size: 13.5px; }
+  .b27-cab { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .b27-sig { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b27-trilho { position: relative; height: 12px; background: var(--paper, #F3F5FA); border-radius: 4px; }
+  .b27-novo { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue); border-radius: 0 4px 4px 0; }
+  .b27-hoje { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+  .b27-num { font-weight: 800; text-align: right; }
+  .b27-d { text-align: right; font-weight: 700; color: var(--muted); }
+  .b27-nota { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
+  .pt-27 { font-size: 13px; margin: 0 0 8px; padding: 8px 10px; background: var(--blue-50); border-radius: 10px; }
+  .pt-27 span { display: block; font-size: 11.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .04em; }
+  .pt-27 em { font-style: normal; font-weight: 700; }
+  @media (max-width: 980px) { .b27-tops { grid-template-columns: repeat(2, minmax(0,1fr)); } .b27-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .b27-tops { grid-template-columns: 1fr; } .b27-linha { grid-template-columns: 92px 1fr 30px 52px; gap: 8px; } }
+
   .pt-hero { background: var(--navy); color: #fff; padding: 52px 0 40px; position: relative; overflow: hidden; }
   .pt-hero h1 { color: #fff; font-size: clamp(32px, 4.6vw, 52px); margin: 0 0 12px; }
   .pt-hero p { color: #C3CDF0; font-size: 18px; max-width: 700px; margin: 0; }
@@ -325,6 +358,68 @@ function renderDiagramaEspectro() {
 }
 
 /** Monta a página de partidos (v2, 26/09/2026). */
+
+/** Composição do Congresso a partir de 2027 vs hoje (08/10/2026). Fonte: bancada_2027.js (TSE + Câmara + Senado). */
+const sinal = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${Math.abs(d)}` : '0');
+function painelCasa(titulo, casa, total, notaRodape) {
+  const linhas = Object.values(BANCADA_2027.partidos)
+    .map((p) => ({ sigla: p.sigla, hoje: p[`${casa}_hoje`], novo: p[`${casa}_2027`] }))
+    .filter((p) => p.hoje || p.novo)
+    .sort((a, b) => b.novo - a.novo || b.hoje - a.hoje || a.sigla.localeCompare(b.sigla));
+  const max = Math.max(...linhas.map((l) => Math.max(l.hoje, l.novo)), 1);
+  return `
+    <div class="b27-painel">
+      <h3>${titulo}</h3>
+      <p class="b27-leg"><span class="b27-k b27-k--novo"></span>a partir de 2027 <span class="b27-k b27-k--hoje"></span>hoje</p>
+      <div class="b27-linhas" role="table" aria-label="${titulo}: cadeiras por partido, hoje e a partir de 2027">
+        <div class="b27-linha b27-cab" role="row"><span role="columnheader">Partido</span><span role="columnheader" aria-hidden="true"></span><span role="columnheader">2027</span><span role="columnheader">Variação</span></div>
+        ${linhas
+          .map((l) => {
+            const d = l.novo - l.hoje;
+            return `<div class="b27-linha" role="row" title="${escapeHtml(l.sigla)}: ${l.hoje} hoje → ${l.novo} a partir de 2027 (${sinal(d)})">
+              <span role="cell" class="b27-sig">${escapeHtml(l.sigla)}</span>
+              <span role="cell" class="b27-trilho" aria-label="hoje ${l.hoje}, 2027 ${l.novo}"><i class="b27-novo" style="width:${((100 * l.novo) / max).toFixed(1)}%"></i><i class="b27-hoje" style="left:calc(${((100 * l.hoje) / max).toFixed(1)}% - 1px)"></i></span>
+              <span role="cell" class="b27-num tabnum">${l.novo}</span>
+              <span role="cell" class="b27-d tabnum ${d > 0 ? 'b27-d--mais' : d < 0 ? 'b27-d--menos' : ''}">${sinal(d)}</span>
+            </div>`;
+          })
+          .join('')}
+      </div>
+      <p class="b27-nota">${notaRodape} Total: ${total} cadeiras.</p>
+    </div>`;
+}
+function topVariacao(casa, sentido) {
+  return Object.values(BANCADA_2027.partidos)
+    .map((p) => ({ sigla: p.sigla, d: p[`${casa}_2027`] - p[`${casa}_hoje`], hoje: p[`${casa}_hoje`], novo: p[`${casa}_2027`] }))
+    .filter((p) => (sentido > 0 ? p.d > 0 : p.d < 0))
+    .sort((a, b) => sentido * (b.d - a.d) || a.sigla.localeCompare(b.sigla))
+    .slice(0, 5);
+}
+function listaTop(titulo, itens, sentido) {
+  return `<div class="b27-top"><h4>${titulo}</h4><ol>${itens
+    .map((p) => `<li><b>${escapeHtml(p.sigla)}</b><span class="tabnum">${p.hoje} → ${p.novo}</span><em class="tabnum ${sentido > 0 ? 'b27-d--mais' : 'b27-d--menos'}">${sinal(p.d)}</em></li>`)
+    .join('')}</ol></div>`;
+}
+export function renderBancada2027() {
+  const m = BANCADA_2027.meta;
+  const data = (m.gerado_em || '').split('-').reverse().join('/');
+  return `
+  <section class="b27" id="congresso-2027" aria-labelledby="b27-titulo">
+    <h2 class="vc-h2" id="b27-titulo">Como fica o Congresso a partir de 2027</h2>
+    <p class="vc-lead">Cadeiras de cada partido na Câmara e no Senado depois da eleição de 2026, comparadas com a bancada em exercício hoje (${data}). A barra é 2027; o traço fino marca o tamanho de hoje.</p>
+    <div class="b27-tops">
+      ${listaTop('Mais cresceram na Câmara', topVariacao('camara', 1), 1)}
+      ${listaTop('Mais perderam na Câmara', topVariacao('camara', -1), -1)}
+      ${listaTop('Mais cresceram no Senado', topVariacao('senado', 1), 1)}
+      ${listaTop('Mais perderam no Senado', topVariacao('senado', -1), -1)}
+    </div>
+    <div class="b27-grid">
+      ${painelCasa('Câmara dos Deputados', 'camara', m.camara_total_2027, 'A partir de 2027: os 513 eleitos em 2026 (TSE). Hoje: deputados em exercício (Câmara), que já inclui trocas de partido desde 2022.')}
+      ${painelCasa('Senado Federal', 'senado', m.senado_total_2027, `A partir de 2027: os 54 eleitos em 2026 (TSE) + os ${m.senado_continuam} senadores com mandato até 2031 (Senado). Pode mudar se um senador for eleito governador no 2º turno e o suplente for de outro partido.`)}
+    </div>
+  </section>`;
+}
+
 export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla = {}, bancadaOficial = null, filiadosPorNumero = FILIADOS_POR_NUMERO } = {}) {
   const bancadaPorSigla = bancadaOficial?.porSigla || {};
   const lista = partidosOrdenados();
@@ -369,6 +464,7 @@ export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla =
         ${presidencia}
         ${liderHtml}
         <div class="pt-cands">
+          ${(() => { const b = BANCADA_2027.partidos[p.numero]; if (!b || !(b.camara_2027 || b.senado_2027 || b.camara_hoje || b.senado_hoje)) return ''; const dc = b.camara_2027 - b.camara_hoje, ds = b.senado_2027 - b.senado_hoje; return `<div class="pt-27"><span>A partir de 2027</span><b>${b.camara_2027}</b> dep. federais <em class="${dc > 0 ? 'b27-d--mais' : dc < 0 ? 'b27-d--menos' : ''}">(${sinal(dc)})</em> · <b>${b.senado_2027}</b> senadores <em class="${ds > 0 ? 'b27-d--mais' : ds < 0 ? 'b27-d--menos' : ''}">(${sinal(ds)})</em></div>`; })()}
           <div class="pt-cands-tit"><span>No Congresso hoje (senadores + deputados federais)</span><b>${bancadaOficial ? Number(banc.congresso || 0).toLocaleString('pt-BR') : '—'}</b></div>
           ${miniBancada ? `<div class="pt-mini">${miniBancada}</div>` : `<p style="font-size:12.5px;color:var(--muted);margin:4px 0 0">${bancadaOficial ? 'Sem senador, deputado federal ou deputado estadual eleito.' : 'Bancada indisponível no momento.'}</p>`}
           ${filHtml}
@@ -386,17 +482,18 @@ export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla =
     <style>${ESTILO_PARTIDOS}</style>
     <section class="pt-hero">
       <div class="vc-wrap">
-        <span class="vc-eyebrow" style="color:#7FB0FF">${Icone.pessoas(16)} Partidos · Eleições 2026</span>
-        <h1>Seu voto para deputado começa no partido</h1>
-        <p>Para deputado, o voto soma primeiro para o partido ou federação. Conheça cada um: número, origem, quem preside, onde fica no espectro e quem são seus candidatos.</p>
+        <span class="vc-eyebrow" style="color:#7FB0FF">${Icone.pessoas(16)} Partidos · Resultado de 2026</span>
+        <h1>Como os partidos saíram das urnas em 2026</h1>
+        <p>Quantas cadeiras cada partido terá na Câmara e no Senado a partir de 2027, quem cresceu e quem perdeu. E o guia de cada um: número, origem, quem preside e onde fica no espectro.</p>
         <div class="pt-kpis">
           <div><b>${lista.length}</b><span>partidos com guia completo</span></div>
-          <div><b>${totalCands ? totalCands.toLocaleString('pt-BR') : '—'}</b><span>candidaturas desses partidos</span></div>
+          <div><b>${Object.values(BANCADA_2027.partidos).filter((p) => p.camara_2027).length}</b><span>partidos com deputado federal a partir de 2027</span></div>
           <div><b>5</b><span>faixas no espectro</span></div>
         </div>
       </div>
     </section>
     <div class="vc-wrap" style="padding-bottom:56px">
+      ${renderBancada2027()}
       ${renderDiagramaEspectro()}
       <div class="pt-ferramentas">
         <label class="sr-only" for="partido-filtro">Filtrar partidos</label>

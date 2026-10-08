@@ -188,12 +188,16 @@ export const SLOT_COLA = { deputado_federal: 1, deputado_estadual: 2, deputado_d
 function linhaResultado(c) {
   const idade = calcularIdade(c.data_nascimento);
   const nome = nomeProprio(c.nome_urna_atual || c.nome_completo);
-  const slot = SLOT_COLA[c.cargo_slug];
+  // 08/10/2026: depois do 1º turno, "+ cola" só para quem ainda disputa o 2º turno; resultado aparece no card.
+  const st = c.situacao_totalizacao_turno || '';
+  const decidido = Boolean(st) && st !== '2º turno' && !/^#|nulo/i.test(st);
+  const slot = decidido ? 0 : SLOT_COLA[c.cargo_slug];
+  const tag = /^eleit/i.test(st) ? '<span class="bx-res bx-res--ok">eleito</span>' : st === '2º turno' ? '<span class="bx-res">2º turno</span>' : '';
   return `
     <div class="bx-card">
       <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
       <div class="bx-info">
-        <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
+        <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>${tag}
         <div class="bx-meta">${escapeHtml(c.cargo_nome)} · ${escapeHtml(c.sg_uf)}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>
       </div>
       <div class="bx-dir">
@@ -223,6 +227,8 @@ export const ESTILO_BUSCA = `
   .bx-info { min-width: 0; }
   .bx-nome { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 16px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bx-nome:hover { color: var(--blue); }
+  .bx-res { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 700; color: var(--blue); background: var(--blue-50); border-radius: 999px; padding: 1px 8px; }
+  .bx-res--ok { color: #00735F; background: var(--teal-50); }
   .bx-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bx-dir { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
   .bx-num { font-family: var(--font-display); font-weight: 800; font-size: 19px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }

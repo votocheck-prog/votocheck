@@ -127,7 +127,7 @@ export function renderPesoVoto({ uf }) {
         <div class="pv-cards">
           <div class="pv-card"><h3>Por que é assim?</h3><p>A Constituição fixa no mínimo 8 e no máximo 70 deputados por estado. Estados pequenos ficam acima da proporção; São Paulo fica abaixo.</p></div>
           <div class="pv-card"><h3>Seu voto vai para o partido</h3><p>Para deputado, o voto soma primeiro para o partido ou federação e pode eleger outra pessoa da mesma lista. <a href="/#seu-voto">Entenda</a>.</p></div>
-          <div class="pv-card"><h3>Não deixe a vaga para os outros</h3><p>Conheça os candidatos do seu estado, monte a sua cola e leve impressa no dia 4. <a href="/cola">Montar minha cola</a>.</p></div>
+          <div class="pv-card"><h3>Quem ficou com as vagas</h3><p>Veja os deputados eleitos em 2026 no seu estado, com votos e a ficha de cada um. <a href="/eleitos">Ver os eleitos</a>.</p></div>
         </div>
       </div>
     </section>

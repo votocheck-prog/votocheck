@@ -1033,7 +1033,7 @@ export function cabecalho() {
     </a>
     <nav class="nav" aria-label="Principal">
       <a class="nav-link" href="/buscar">Buscar</a>
-      <a class="nav-link" href="/quiz">Meu VotoCheck</a>
+      <a class="nav-link" href="/dinheiro-publico">Dinheiro público</a>
       <a class="nav-link" href="/partidos">Partidos</a>
       <a class="nav-link" href="/sobre">Como funciona</a>
       <a class="nav-social" href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="VotoCheck no Instagram" data-ev="seguir" data-ev-chave="instagram:header">${Icone.instagram(20)}</a>
@@ -1044,7 +1044,8 @@ export function cabecalho() {
         <div class="nav-mobile-painel">
           <a href="/eleitos">Eleitos 2026</a>
           <a href="/buscar">Buscar</a>
-          <a href="/quiz">Meu VotoCheck</a>
+          <a href="/boletim">Boletim semanal</a>
+          <a href="/dinheiro-publico">Dinheiro público</a>
           <a href="/partidos">Partidos</a>
           <a href="/sobre">Como funciona</a>
           <a href="${REDES.instagram}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:menu">Instagram @votocheck</a>
@@ -1068,11 +1069,12 @@ export function rodape() {
           </div>
         </div>
         <div>
-          <h4>Eleição 2026</h4>
+          <h4>Eleitos 2026</h4>
           <ul>
-            <li><a href="/buscar">Candidatos</a></li>
-            <li><a href="/quiz">Meu VotoCheck</a></li>
-            <li><a href="/cola">Monte sua cola</a></li>
+            <li><a href="/eleitos">Eleitos por estado</a></li>
+            <li><a href="/#estados">Os mais votados na sua cidade</a></li>
+            <li><a href="/boletim">Boletim semanal</a></li>
+            <li><a href="/buscar">Buscar por nome</a></li>
           </ul>
         </div>
         <div>

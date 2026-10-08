@@ -24,7 +24,7 @@ def num(n): return f'{n:,}'.replace(',', '.')
 def cands(uf, c):
     p = os.path.join(R26, f'{uf}-c{c}.json')
     if not os.path.exists(p): return []
-    d = json.load(open(p)); out = []
+    d = json.load(open(p, encoding='utf-8')); out = []
     for cg in d['carg']:
         for a in cg.get('agr', []):
             for par in a['par']:
@@ -114,7 +114,7 @@ async def render(uf, htmls):
         pg = await b.new_page(viewport={'width': 1080, 'height': 1350})
         for i, h in enumerate(htmls, 1):
             n = f'eleitos_{uf}_{i:02d}'
-            open(f'{n}.html', 'w').write(h)
+            open(f'{n}.html', 'w', encoding='utf-8').write(h)
             await pg.goto('file://' + os.path.abspath(f'{n}.html')); await pg.wait_for_load_state('networkidle'); await pg.wait_for_timeout(300)
             await pg.screenshot(path=f'png/{n}.png'); arqs.append(f'png/{n}.png')
         await b.close()
@@ -125,5 +125,5 @@ if __name__ == '__main__':
     for uf in sys.argv[1:]:
         hs, leg = slides(uf.lower())
         saida[uf.lower()] = {'arquivos': asyncio.run(render(uf.lower(), hs)), 'legenda': leg}
-    json.dump(saida, open('serie_eleitos.json', 'w'), ensure_ascii=False, indent=1)
+    json.dump(saida, open('serie_eleitos.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print(json.dumps({k: len(v['arquivos']) for k, v in saida.items()}))

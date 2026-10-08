@@ -31,6 +31,17 @@ function calcularIdade(dataNascimento) {
   return idade;
 }
 
+/** Resultado oficial de 2026 (TSE, migration 0014) → { rotulo, classe, decidido }. 08/10/2026. */
+export function resultado2026(c, genero) {
+  const st = c && c.situacao_totalizacao_turno;
+  if (!st || Number(c.ano_eleicao) !== 2026 || /^#|nulo/i.test(st)) return null;
+  const a = genero === 'F' ? 'a' : 'o';
+  if (/^eleit/i.test(st)) return { rotulo: `Eleit${a} em 2026`, detalhe: st, classe: 'vc-chip--teal', decidido: true, eleito: true };
+  if (/2º turno/i.test(st)) return { rotulo: 'Disputa o 2º turno · 25/10', detalhe: '2º turno', classe: '', decidido: false, eleito: false };
+  if (/suplente/i.test(st)) return { rotulo: `Suplente`, detalhe: st, classe: 'vc-chip--cinza', decidido: true, eleito: false };
+  return { rotulo: `Não eleit${a} em 2026`, detalhe: st, classe: 'vc-chip--cinza', decidido: true, eleito: false };
+}
+
 function blocoCandidatura(c) {
   const idade = calcularIdade(c.data_nascimento);
   return `
@@ -232,7 +243,7 @@ const ESTILO_FICHA = `
   .fx-numero a { font-size: 12.5px; color: #9EC0FF; font-weight: 600; text-decoration: none; }
   @media (max-width: 720px) { .fx-topo { grid-template-columns: auto 1fr; } .fx-numero { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; } .fx-foto { width: 76px; height: 76px; font-size: 28px; border-radius: 16px; } }
   .fx-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 28px; }
-  .fx-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 32px; }
+  .fx-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 32px; }
   @media (max-width: 820px) { .fx-resumo { grid-template-columns: 1fr 1fr; } }
   .fx-kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .fx-kpi small { display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
@@ -262,6 +273,10 @@ const ESTILO_FICHA = `
   #campanha .vc-barra { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) 96px; }
   .fx-barra-pub .vc-barra-trilho i { background: #F2994A; }
   .fx-kpi--pub b { color: #B4541A; }
+  .fx-kpi--res { background: var(--navy); border-color: var(--navy); }
+  .fx-kpi--res small { color: #7FB0FF; }
+  .fx-kpi--res b { color: #fff; }
+  .fx-kpi--res span { color: #C3CDF0; }
   .fx-plano { padding: 20px 22px; }
   .fx-plano-resumo { font-size: 16px; line-height: 1.55; margin: 0 0 12px; color: var(--ink); }
   .fx-plano ul { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 10px; }
@@ -313,8 +328,10 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   const reeleicao = principal && mandatos.some((m) => m.cargo_nome === principal.cargo_nome);
   const inicial = escapeHtml((nomeExibicao || '?').slice(0, 1));
   const urlFicha = `https://votocheck.com.br/candidato/${pessoa.id}`;
-  const textoShare = `${nomeExibicao}${principal?.numero_urna ? ` (${principal.numero_urna})` : ''}, candidato(a) a ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}: veja o que o VotoCheck reuniu, com dado oficial e fonte.`;
-  const slot = SLOT_COLA[cargoSlug] || 0;
+  const res = resultado2026(principal, pessoa.genero);
+  const textoShare = `${nomeExibicao}${principal?.numero_urna ? ` (${principal.numero_urna})` : ''}, ${res && res.eleito ? `eleito(a) para ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}` : `candidato(a) a ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}`}: veja o que o VotoCheck reuniu, com dado oficial e fonte.`;
+  // 08/10/2026: depois do 1º turno, a cola só faz sentido para quem ainda está no 2º turno.
+  const slot = res && res.decidido ? 0 : SLOT_COLA[cargoSlug] || 0;
 
   const kpis = [];
   // 27/09/2026: presidente/governador no cargo apareciam como "Não tem" mandato (Lula, por exemplo),
@@ -332,6 +349,11 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   kpis.unshift(`<div class="fx-kpi"><small>${Icone.cifrao(14)} Patrimônio declarado</small><b class="tabnum">${bens.length ? brl(totalBens) : 'R$ 0'}</b><span>${bens.length ? `${bens.length} ${bens.length > 1 ? 'bens' : 'bem'} na declaração ao TSE` : 'nenhum bem na declaração ao TSE'}</span></div>`);
   const publico = fin ? (Number(fin.fefc) || 0) + (Number(fin.fundo_partidario) || 0) : 0;
   if (fin) kpis.splice(1, 0, `<div class="fx-kpi fx-kpi--pub"><small>${Icone.cifrao(14)} Dinheiro público na campanha</small><b class="tabnum">${brl(publico)}</b><span>${fin.total ? `${Math.round((100 * publico) / fin.total)}% do que arrecadou · <a href="#campanha">ver origem</a>` : 'nenhuma receita declarada ao TSE até agora'}</span></div>`);
+  if (res) {
+    const votosT1 = Number(principal.votos_t1);
+    const pctT1 = principal.pct_t1 != null ? Number(principal.pct_t1).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
+    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · 1º turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras'))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
+  }
   kpis.push(`<div class="fx-kpi"><small>${Icone.usuario(14)} Perfil</small><b>${idade ? `${idade} anos` : '—'}</b><span>${escapeHtml(nomeProprio(pessoa.grau_instrucao || '')) || 'escolaridade não informada'}</span></div>`);
 
   const blocoVotos = votos.length
@@ -521,7 +543,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
         <div class="fx-chips">
           ${principal ? `<span class="vc-chip">${escapeHtml(principal.cargo_nome)} · ${escapeHtml(principal.sg_uf)}</span>` : ''}
           ${principal?.partido_sigla ? `<span class="vc-chip vc-chip--cinza">${escapeHtml(principal.partido_sigla)}</span>` : ''}
-          ${reeleicao ? `<span class="vc-chip vc-chip--teal">Tenta a reeleição</span>` : ''}
+          ${res ? `<span class="vc-chip ${res.classe}">${escapeHtml(res.rotulo)}</span>` : reeleicao ? `<span class="vc-chip vc-chip--teal">Tenta a reeleição</span>` : ''}
         </div>
       </div>
       ${principal?.numero_urna ? `<div class="fx-numero"><small>Número na urna</small><b>${escapeHtml(principal.numero_urna)}</b><a href="#" data-copiar="${escapeHtml(principal.numero_urna)}" data-ev-chave="numero">Copiar número</a></div>` : ''}
@@ -595,11 +617,18 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
 
   const partidoTxt = principal?.partido_sigla ? ` (${principal.partido_sigla})` : '';
   const numTxt = principal?.numero_urna ? ` ${principal.numero_urna}` : '';
+  const votosRes = principal && Number(principal.votos_t1) ? Number(principal.votos_t1).toLocaleString('pt-BR') : '';
   return pagina({
-    titulo: principal
+    // 08/10/2026: depois do 1º turno a busca virou "quantos votos teve X" (Search Console): o
+    // título e a descrição passam a trazer os votos e o resultado oficial do TSE.
+    titulo: principal && res && votosRes
+      ? `${nomeExibicao}${partidoTxt}: ${votosRes} votos em 2026 — ${res.rotulo.replace(' em 2026', '').replace(' · 25/10', '').toLowerCase()}, ${principal.cargo_nome} ${principal.sg_uf} | VotoCheck`
+      : principal
       ? `${nomeExibicao}${partidoTxt}${numTxt} — ${principal.cargo_nome} ${principal.sg_uf} 2026 | VotoCheck`
       : `${nomeExibicao} | VotoCheck`,
-    descricao: principal
+    descricao: principal && res && votosRes
+      ? `Quantos votos ${nomeExibicao} teve em 2026: ${votosRes} votos para ${principal.cargo_nome} em ${principal.sg_uf}${principal.pct_t1 != null ? ` (${Number(principal.pct_t1).toLocaleString('pt-BR')}% dos válidos)` : ''}. Resultado: ${res.detalhe}, segundo o TSE. Veja patrimônio, dinheiro público da campanha e histórico, com a fonte de cada dado.`
+      : principal
       ? `${nomeExibicao}, candidato(a) a ${principal.cargo_nome} em ${principal.sg_uf}${principal.numero_urna ? `, número ${principal.numero_urna}` : ''}${partidoTxt}. Dados oficiais do TSE${mandatos.length ? ', Câmara e Senado' : ''}, com a fonte de cada informação.`
       : `Dados oficiais sobre ${nomeExibicao} no VotoCheck, com a fonte de cada informação.`,
     caminho: `/candidato/${pessoa.id}`,

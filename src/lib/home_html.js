@@ -1,5 +1,10 @@
 /**
- * VotoCheck — Home v2 (Onda 1: até o 1º turno). Doc "Diagnóstico e Plano", seção 3.2.
+ * VotoCheck — Home v3 (08/10/2026, pós-1º turno — "home ponte", plano pós-eleição A1).
+ * Hero com busca + painel "eleitos no seu estado" → 2º turno (até 25/10) → cards → mapa →
+ * Meu VotoCheck → publicidade → voto para deputado → método → números do resultado → apoio.
+ * O painel e os números vêm de RESULTADO_2026 (estático, sem D1); a urna dos 6 votos saiu.
+ *
+ * (histórico) Home v2 (Onda 1: até o 1º turno). Doc "Diagnóstico e Plano", seção 3.2.
  *
  * Ordem das dobras: faixa (no wrapper) → hero com busca + urna dos 6 votos → mapa → quociente →
  * quiz → publicidade A1 → como verificamos → números → siga/compartilhe/apoie.
@@ -12,6 +17,9 @@ import { Icone } from './icones.js';
 import { renderMapaBrasil } from './mapa_brasil.js';
 import { renderPublicidade } from './publicidade.js';
 import { renderCtaTriplo } from './apoio_html.js';
+import { renderSegundoTurno, totaisEleitos, governadorUf, antesDo2T, disputas2T } from './eleitos_html.js';
+import { RESULTADO_2026 } from './resultado_2026.js';
+import { nomeProprio } from './perfil_html.js';
 
 export const UF_NOMES = {
   AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal',
@@ -85,18 +93,54 @@ function renderUrna(uf, contagemUf) {
   </div>`;
 }
 
+/** Painel do hero (08/10/2026): eleitos do estado do visitante, ou do Brasil. Dado estático do TSE. */
+function renderPainel(uf) {
+  const t = totaisEleitos(uf);
+  const base = uf ? `/eleitos/${uf.toLowerCase()}` : '/eleitos';
+  const pres = disputas2T().find((d) => d.cargo === 'presidente');
+  const nomes = (lista) => lista.map((c) => nomeProprio(c.nome)).join(' × ');
+  const linhas = [];
+  if (pres && antesDo2T()) linhas.push({ n: '2T', cargo: 'Presidente', det: `2º turno: ${nomes(pres.cands)}`, href: '/eleitos#segundo-turno' });
+  if (uf) {
+    const g = governadorUf(uf);
+    linhas.push({ n: g.segundo ? '2T' : t.governador, cargo: 'Governador', det: g.eleito ? `${nomeProprio(g.eleito.nome)} (${g.eleito.partido}), eleito no 1º turno` : g.segundo ? `2º turno: ${nomes(g.segundo)}` : 'resultado em carga', href: `${base}#governador` });
+  } else {
+    const n2 = disputas2T().filter((d) => d.cargo === 'governador').length;
+    linhas.push({ n: t.governador, cargo: 'Governadores', det: `eleitos no 1º turno${n2 ? ` · ${n2} estados no 2º turno` : ''}`, href: '/eleitos' });
+  }
+  linhas.push({ n: t.senador, cargo: 'Senadores', det: 'eleitos · mandato até 2035', href: `${base}#senado` });
+  linhas.push({ n: t.deputado_federal, cargo: 'Deputados federais', det: 'eleitos · mandato até 2031', href: `${base}#camara` });
+  linhas.push({ n: t.deputado_estadual, cargo: uf === 'DF' ? 'Deputados distritais' : 'Deputados estaduais', det: 'eleitos · mandato até 2031', href: `${base}#assembleia` });
+  return `
+  <div class="vc-urna vc-painel" aria-label="Eleitos em 2026${uf ? ` em ${escapeHtml(UF_NOMES[uf] || uf)}` : ' no Brasil'}">
+    <div class="vc-urna-topo"><span>Eleitos em 2026</span><strong>${uf ? escapeHtml(UF_NOMES[uf] || uf) : 'Brasil'}</strong></div>
+    ${linhas
+      .map(
+        (l) => `
+      <a class="vc-voto" href="${l.href}" data-ev="painel" data-ev-chave="${escapeHtml(l.cargo)}">
+        <span class="vc-voto-n tabnum">${escapeHtml(String(l.n))}</span>
+        <span class="vc-voto-cargo">${escapeHtml(l.cargo)}<small>${escapeHtml(l.det)}</small></span>
+        <span class="vc-painel-seta" aria-hidden="true">${Icone.seta(16)}</span>
+      </a>`
+      )
+      .join('')}
+    <div class="vc-urna-rodape"><span>Resultado oficial do TSE · ${escapeHtml((RESULTADO_2026.totalizacao_t1 || '').replace(' ', ', '))}</span><a href="${base}">Ver todos os eleitos →</a></div>
+  </div>`;
+}
+
 function renderHero(uf, contagemUf, atualizadoEm) {
+  const base = uf ? `/eleitos/${uf.toLowerCase()}` : '/eleitos';
   return `
   <section class="vc-hero">
     <div class="vc-wrap vc-hero-grid">
       <div class="vc-reveal">
-        <span class="vc-eyebrow" style="color:#7FB0FF">Eleições 2026 · Informação oficial com fonte</span>
-        <h1>São 6 votos na urna.<br><em>Você já sabe os 6?</em></h1>
-        <p class="vc-hero-sub">Confira quem são os candidatos do seu estado, o que já fizeram e monte sua cola. Tudo com dado oficial e a fonte de cada informação.</p>
+        <span class="vc-eyebrow" style="color:#7FB0FF">Eleições 2026 · Resultado oficial com fonte</span>
+        <h1>As urnas falaram.<br><em>Agora começa a cobrança.</em></h1>
+        <p class="vc-hero-sub">Veja quem foi eleito no seu estado, com votos, partido, patrimônio e o dinheiro público que cada um recebeu. E acompanhe o que cada um faz com o mandato.</p>
         <form class="vc-busca" method="GET" action="/buscar" role="search">
           <span class="vc-busca-ico">${Icone.busca(20)}</span>
-          <label class="sr-only" for="q-home">Nome ou número do candidato</label>
-          <input id="q-home" type="search" name="q" placeholder="Nome ou número do candidato" autocomplete="off" />
+          <label class="sr-only" for="q-home">Nome ou número do eleito ou candidato</label>
+          <input id="q-home" type="search" name="q" placeholder="Nome ou número do eleito ou candidato" autocomplete="off" />
           <label class="sr-only" for="uf-home">Estado</label>
           <select id="uf-home" name="uf" aria-label="Estado">
             <option value="">Todos</option>
@@ -104,14 +148,14 @@ function renderHero(uf, contagemUf, atualizadoEm) {
           </select>
           <button class="vc-btn vc-btn--pri" type="submit">Buscar</button>
         </form>
-        <p class="vc-busca-dica">Recebeu um santinho? Digite o número. Ex.: 4040, 1234</p>
+        <p class="vc-busca-dica">Digite o nome do seu deputado ou o número em que você votou.</p>
         <div class="vc-hero-acoes">
-          <a class="vc-btn vc-btn--claro" href="/quiz${uf ? `?cargo=deputado_federal&uf=${uf}` : ''}" data-ev="cta_home" data-ev-chave="quiz">${Icone.bussola(18)} Descobrir o que importa pra mim</a>
-          <a class="vc-btn vc-btn--claro" href="/cola" data-ev="cta_home" data-ev-chave="cola">${Icone.impressora(18)} Montar minha cola</a>
+          <a class="vc-btn vc-btn--claro" href="${base}" data-ev="cta_home" data-ev-chave="eleitos">${Icone.pessoas(18)} Ver os eleitos ${uf ? `de ${escapeHtml(uf)}` : 'por estado'}</a>
+          ${antesDo2T() ? `<a class="vc-btn vc-btn--claro" href="#segundo-turno" data-ev="cta_home" data-ev-chave="2turno">${Icone.calendario(18)} Quem disputa o 2º turno</a>` : ''}
         </div>
-        <div class="vc-selo-fontes"><span class="ponto"></span><span>Fontes: <b>TSE</b> · <b>Câmara dos Deputados</b> · <b>Senado Federal</b></span>${atualizadoEm ? `<span>· dados atualizados em ${escapeHtml(fmtAtualizado(atualizadoEm))}</span>` : ''}</div>
+        <div class="vc-selo-fontes"><span class="ponto"></span><span>Fontes: <b>TSE</b> · <b>Câmara dos Deputados</b> · <b>Senado Federal</b></span></div>
       </div>
-      <div class="vc-reveal" style="animation-delay:.08s">${renderUrna(uf, contagemUf)}</div>
+      <div class="vc-reveal" style="animation-delay:.08s">${renderPainel(uf)}</div>
     </div>
   </section>`;
 }
@@ -146,14 +190,14 @@ function renderMapa(uf) {
     <div class="vc-wrap vc-mapa-grid">
       <div>
         <span class="vc-eyebrow">${Icone.mapa(16)} Por estado</span>
-        <h2 class="vc-h2">Escolha seu estado e veja quem está na disputa</h2>
-        <p class="vc-lead">Deputado federal, estadual, senador e governador são escolhidos por estado. Toque no mapa ou na sigla para ver todos os candidatos, com número, partido e fonte oficial.</p>
+        <h2 class="vc-h2">Escolha seu estado e veja quem foi eleito</h2>
+        <p class="vc-lead">Deputados federais e estaduais, senadores e governador são eleitos por estado. Toque na sigla para ver todos os eleitos, com votos, partido e a ficha completa de cada um.</p>
         <div class="vc-ufs">${Object.keys(UF_NOMES)
           .sort()
-          .map((u) => `<a href="/buscar?uf=${u}" class="${u === uf ? 'ativo' : ''}" data-ev="uf" data-ev-chave="${u}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`)
+          .map((u) => `<a href="/eleitos/${u.toLowerCase()}" class="${u === uf ? 'ativo' : ''}" data-ev="uf" data-ev-chave="${u}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`)
           .join('')}</div>
       </div>
-      <div>${renderMapaBrasil()}</div>
+      <div>${renderMapaBrasil().replace(/href="\/buscar\?uf=([A-Z]{2})"/g, (_, u) => `href="/eleitos/${u.toLowerCase()}"`).replace(/Ver candidatos de/g, 'Ver eleitos de')}</div>
     </div>
   </section>`;
 }
@@ -166,8 +210,8 @@ function renderQuociente(uf) {
   <section class="vc-sec vc-sec--branca" id="seu-voto">
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.votoCaixa(16)} Voto para deputado</span>
-      <h2 class="vc-h2">Seu voto em deputado pode eleger outra pessoa</h2>
-      <p class="vc-lead">Para deputado, o voto conta primeiro para o partido ou federação e só depois para o candidato. Por isso vale conferir também quem está na mesma lista.</p>
+      <h2 class="vc-h2">Seu voto em deputado pode ter eleito outra pessoa</h2>
+      <p class="vc-lead">Para deputado, o voto conta primeiro para o partido ou federação e só depois para o candidato. Em 2026, ${(totaisEleitos().deputado_federal || 513).toLocaleString('pt-BR')} deputados federais foram eleitos assim: a maioria pelo quociente, o resto pelas sobras.</p>
       <div class="vc-passos">
         <div class="vc-passo"><h3>Você vota no candidato</h3><p>Ou só no número do partido (voto de legenda).</p></div>
         <div class="vc-passo"><h3>O voto soma para o partido</h3><p>Todos os votos do partido ou federação entram num mesmo total.</p></div>
@@ -179,7 +223,7 @@ function renderQuociente(uf) {
         <p><strong class="vc-exemplo-titulo">Exemplo real:</strong> em 2002, os votos do deputado Enéas Carneiro (Prona-SP) levaram mais cinco colegas de partido à Câmara, um deles com menos de 300 votos. A regra do mínimo de 10% do quociente veio depois, na reforma eleitoral de 2015, justamente para limitar esse efeito.</p>
       </div>
       <div style="margin-top:24px; display:flex; gap:12px; flex-wrap:wrap;">
-        <a class="vc-btn vc-btn--pri" href="/buscar?cargo=deputado_federal${uf ? `&uf=${uf}` : ''}">Ver candidatos a deputado${uf ? ` em ${uf}` : ''}</a>
+        <a class="vc-btn vc-btn--pri" href="${uf ? `/eleitos/${uf.toLowerCase()}#camara` : '/eleitos'}">Ver deputados eleitos${uf ? ` em ${uf}` : ''}</a>
         <a class="vc-btn vc-btn--sec" href="/cargo/deputado_federal">O que faz um deputado federal</a>
         <a class="vc-btn vc-btn--sec" href="/quanto-vale-seu-voto${uf ? `?uf=${uf}` : ''}">Quanto vale o seu voto?</a>
       </div>
@@ -197,7 +241,7 @@ function renderQuizTeaser(uf) {
       <div>
         <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck</span>
         <h2 class="vc-h2">Diga o que importa pra você. A gente mostra quem tem essas características.</h2>
-        <p class="vc-lead">Seis perguntas, cerca de 2 minutos. Você escolhe os critérios e o VotoCheck organiza os candidatos que os atendem, com a fonte de cada dado.</p>
+        <p class="vc-lead">Seis perguntas, cerca de 2 minutos. Você escolhe os critérios e o VotoCheck organiza quem os atende, entre eleitos e candidatos de 2026, com a fonte de cada dado.</p>
         <ul class="vc-lista-check">
           <li>${Icone.checkCirculo(20)} <span>Sem nota, sem ranking: o resultado mostra em quantos dos <em>seus</em> critérios cada candidato se encaixa</span></li>
           <li>${Icone.checkCirculo(20)} <span>Só entram as perguntas que você responder</span></li>
@@ -251,58 +295,45 @@ function renderMetodo() {
   </section>`;
 }
 
-function renderNumeros({ totalCandidaturas, totalPessoas, porCargo }) {
-  const max = Math.max(1, ...(porCargo || []).map((c) => c.qtd || 0));
-  const totalBarras = (porCargo || []).reduce((s, c) => s + (c.qtd || 0), 0) || 1;
-  const barras = (porCargo || [])
-    .slice()
-    .sort((a, b) => (b.qtd || 0) - (a.qtd || 0))
-    // 27/09/2026: a barra usava `c.total`, campo que não existe na consulta (só vem `qtd` de
-    // `estatisticasHomepageComCache`, ver src/index.js) — toda barra saía com a largura mínima
-    // (1.5%), fixa, sem refletir a quantidade real de candidaturas por cargo. Corrigido pra usar
-    // `c.qtd`, o mesmo campo já usado pra ordenar e pro número exibido. Na mesma passada, gráfico
-    // ganhou tratamento visual novo (skill dataviz): barra fina, ponta arredondada/base quadrada.
-    // 27/09/2026: removida a legenda "% do total" que aparecia num tooltip ao passar o cursor
-    // (pedido do Rodrigo) — o % continua só no aria-label, pra quem usa leitor de tela/teclado.
-    .map((c) => {
-      const qtd = c.qtd || 0;
-      const pct = ((qtd / totalBarras) * 100).toFixed(1).replace('.', ',');
-      return `<div class="vc-barra" tabindex="0" aria-label="${escapeHtml(c.nome)}: ${fmt(qtd)} candidaturas, ${pct}% do total"><span class="vc-barra-rotulo">${escapeHtml(c.nome)}</span><span class="vc-barra-trilho"><i style="width:${Math.max(1.5, (qtd / max) * 100).toFixed(1)}%"></i></span><b>${fmt(qtd)}</b></div>`;
-    })
-    .join('');
+function renderNumeros() {
+  const t = totaisEleitos();
+  const n2 = disputas2T().filter((d) => d.cargo === 'governador').length;
+  const total = Number(RESULTADO_2026.candidaturas_totalizadas) || 0;
   return `
   <section class="vc-sec">
     <div class="vc-wrap">
-      <span class="vc-eyebrow">${Icone.grafico(16)} A base</span>
-      <h2 class="vc-h2">Todos os candidatos registrados no TSE</h2>
+      <span class="vc-eyebrow">${Icone.grafico(16)} O resultado</span>
+      <h2 class="vc-h2">${t.total.toLocaleString('pt-BR')} eleitos entre ${total.toLocaleString('pt-BR')} candidaturas</h2>
+      <p class="vc-lead">Cerca de 1 em cada ${Math.round(total / Math.max(1, t.total))} candidaturas virou mandato no 1º turno. ${n2 ? `Presidente e governador em ${n2} estados ainda vão ao 2º turno.` : ''}</p>
       <div class="vc-stats">
-        <div class="vc-stat"><b>${fmt(totalCandidaturas)}</b><span>candidaturas em 2026</span></div>
-        <div class="vc-stat"><b>27</b><span>estados e o DF</span></div>
-        <div class="vc-stat"><b>6</b><span>cargos em disputa</span></div>
-        <div class="vc-stat"><b>3</b><span>fontes oficiais</span></div>
+        <div class="vc-stat"><b>${t.deputado_federal.toLocaleString('pt-BR')}</b><span>deputados federais</span></div>
+        <div class="vc-stat"><b>${t.deputado_estadual.toLocaleString('pt-BR')}</b><span>deputados estaduais e distritais</span></div>
+        <div class="vc-stat"><b>${t.senador}</b><span>senadores</span></div>
+        <div class="vc-stat"><b>${t.governador}</b><span>governadores no 1º turno</span></div>
       </div>
-      ${barras ? `<div class="vc-barras">${barras}</div>` : ''}
+      <p class="el-fonte" style="font-size:12.5px;color:var(--muted);margin-top:16px">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml((RESULTADO_2026.totalizacao_t1 || '').replace(' ', ', '))}).</p>
     </div>
   </section>`;
 }
 
-export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, totalPessoas, atualizadoEm, porCargo }) {
+export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, totalPessoas, atualizadoEm, porCargo, pessoas2T = {} }) {
   // 27/09/2026: ordem nova pedida pelo Rodrigo — "Meu VotoCheck" passa a vir antes de "Voto para
   // deputado" (e ganha o destaque navy que era do quociente), com a publicidade A1 continuando
   // logo depois do bloco do VotoCheck, como já era.
   const corpo = `
     ${renderHero(uf, contagemUf, atualizadoEm)}
+    ${antesDo2T() ? renderSegundoTurno({ pessoas: pessoas2T, ufFoco: uf }) : ''}
     ${renderMapa(uf)}
     ${renderQuizTeaser(uf)}
     <div class="vc-wrap" style="padding:40px 24px">${renderPublicidade('A1', 'home')}</div>
     ${renderQuociente(uf)}
     ${renderMetodo()}
-    ${renderNumeros({ totalCandidaturas, totalPessoas, porCargo })}
+    ${renderNumeros()}
     ${renderCtaTriplo({ contexto: 'home' })}
   `;
   return pagina({
-    titulo: 'VotoCheck — Conheça os candidatos de 2026 antes de votar',
-    descricao: 'São 6 votos na urna. Confira quem são os candidatos do seu estado, com dado oficial do TSE, Câmara e Senado e a fonte de cada informação. Sem ranking e sem nota.',
+    titulo: 'VotoCheck — Quem foi eleito em 2026 e o que faz com o mandato',
+    descricao: 'Veja os eleitos de 2026 no seu estado (deputados, senadores e governador), com votos, partido, patrimônio e dinheiro público de campanha. Dado oficial do TSE, Câmara e Senado, com fonte.',
     caminho: '/',
     larga: true,
     ogImagem: 'https://votocheck.com.br/og/pagina/home.jpg',

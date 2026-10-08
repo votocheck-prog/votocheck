@@ -1021,7 +1021,9 @@ export function faixaContagem(agora = new Date()) {
   if (!alvo) return '';
   const n = diasAte(alvo.d);
   const quando = n <= 0 ? `<strong>Hoje é dia de votar</strong> · ${alvo.nome}` : n === 1 ? `<strong>Amanhã</strong> é o ${alvo.nome}` : `Faltam <strong class="tabnum">${n} dias</strong> para o ${alvo.nome} · ${alvo.data}`;
-  return `<div class="vc-faixa">${quando}<a href="/cola">Monte sua cola →</a></div>`;
+  // 08/10/2026: depois do 1º turno a cola sai da faixa; o link leva a quem disputa o 2º turno.
+  const link = alvo.nome === '2º turno' ? `<a href="/eleitos#segundo-turno">Veja quem disputa →</a>` : `<a href="/cola">Monte sua cola →</a>`;
+  return `<div class="vc-faixa">${quando}${link}</div>`;
 }
 
 export function cabecalho() {
@@ -1030,19 +1032,19 @@ export function cabecalho() {
       <img src="/static/logo-h.png" alt="VotoCheck" width="150" height="36" />
     </a>
     <nav class="nav" aria-label="Principal">
-      <a class="nav-link" href="/buscar">Candidatos</a>
+      <a class="nav-link" href="/buscar">Buscar</a>
       <a class="nav-link" href="/quiz">Meu VotoCheck</a>
       <a class="nav-link" href="/partidos">Partidos</a>
       <a class="nav-link" href="/sobre">Como funciona</a>
       <a class="nav-social" href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="VotoCheck no Instagram" data-ev="seguir" data-ev-chave="instagram:header">${Icone.instagram(20)}</a>
       <a class="nav-social" href="${REDES.tiktok}" target="_blank" rel="noopener" aria-label="VotoCheck no TikTok" data-ev="seguir" data-ev-chave="tiktok:header">${Icone.tiktok(20)}</a>
-      <a class="nav-link nav-cta" href="/cola">Minha cola</a>
+      <a class="nav-link nav-cta" href="/eleitos">Eleitos 2026</a>
       <details class="nav-mobile">
         <summary>Menu</summary>
         <div class="nav-mobile-painel">
-          <a href="/buscar">Candidatos</a>
+          <a href="/eleitos">Eleitos 2026</a>
+          <a href="/buscar">Buscar</a>
           <a href="/quiz">Meu VotoCheck</a>
-          <a href="/cola">Minha cola</a>
           <a href="/partidos">Partidos</a>
           <a href="/sobre">Como funciona</a>
           <a href="${REDES.instagram}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:menu">Instagram @votocheck</a>

@@ -74,6 +74,8 @@ import { LOGO_H_B64, LOGO_H_BRANCO_B64, ICONE_B64 } from './lib/marca_assets.js'
 import { LOGOS_ANUNCIANTES } from './lib/anunciantes_logos.js';
 import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
+import { renderEleitosUf, renderEleitosIndex } from './lib/eleitos_html.js';
+import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { renderCola } from './lib/cola_html.js';
 import { registrarVisita, registrarEvento, contar, resumoMetricas, renderPainelMetricas } from './lib/metricas.js';
 import { urlDestinoAnunciante } from './lib/publicidade.js';
@@ -595,6 +597,50 @@ async function contagemPorUfComCache(env, ctx, uf) {
   return out;
 }
 
+// ===== Eleitos 2026 (08/10/2026, plano pós-eleição A1/A3) =====
+// Resultado do 1º turno não muda: cache de 12 h por região. Antes da migration 0014 a consulta
+// falha (coluna `eleito` não existe) e as páginas mostram "resultado ainda não carregado".
+const TTL_ELEITOS = 43200;
+
+/** sq do TSE → { pessoa_id, foto_url } para quem está no 2º turno (16 pessoas). */
+async function pessoas2TComCache(env, ctx) {
+  const chave = new Request('https://cache.interno.votocheck/pessoas-2t-v1');
+  const cache = caches.default;
+  const hit = await cache.match(chave);
+  if (hit) return hit.json();
+  const sqs = (RESULTADO_2026.segundo_turno || []).map((c) => c.sq);
+  if (!sqs.length) return {};
+  const { results } = await env.DB.prepare(
+    `SELECT c.sq_candidato_tse AS sq, c.pessoa_id, p.foto_url FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id
+     WHERE c.ano_eleicao = ? AND c.sq_candidato_tse IN (${sqs.map(() => '?').join(',')})`
+  ).bind(ANO_ATUAL, ...sqs).all();
+  const out = {};
+  for (const r of results || []) out[r.sq] = { pessoa_id: r.pessoa_id, foto_url: r.foto_url };
+  ctx.waitUntil(cache.put(chave, new Response(JSON.stringify(out), { headers: { 'Cache-Control': `max-age=${TTL_ELEITOS}` } })));
+  return out;
+}
+
+/** Eleitos (e quem vai ao 2º turno) de uma UF, ordenados por votos dentro do cargo. */
+async function eleitosUfComCache(env, ctx, uf) {
+  const chave = new Request(`https://cache.interno.votocheck/eleitos-v1-${uf}`);
+  const cache = caches.default;
+  const hit = await cache.match(chave);
+  if (hit) return hit.json();
+  const { results } = await env.DB.prepare(
+    `SELECT c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, ca.slug AS cargo_slug, c.numero_urna,
+            pa.sigla AS partido_sigla, c.situacao_totalizacao_turno AS st, c.votos_t1, c.eleito
+     FROM candidatura c
+     JOIN pessoa p ON p.id = c.pessoa_id
+     JOIN cargo ca ON ca.id = c.cargo_id
+     LEFT JOIN partido pa ON pa.id = c.partido_id
+     WHERE c.ano_eleicao = ? AND c.sg_uf = ? AND (c.eleito = 1 OR c.situacao_totalizacao_turno = '2º turno')
+     ORDER BY c.votos_t1 DESC`
+  ).bind(ANO_ATUAL, uf).all();
+  const linhas = results || [];
+  if (linhas.length) ctx.waitUntil(cache.put(chave, new Response(JSON.stringify(linhas), { headers: { 'Cache-Control': `max-age=${TTL_ELEITOS}` } })));
+  return linhas;
+}
+
 async function fetchInterno(request, env, ctx) {
   const url = new URL(request.url);
 
@@ -616,7 +662,37 @@ async function fetchInterno(request, env, ctx) {
       } catch (e) {
         console.error('Falha em contagemPorUfComCache:', e);
       }
-      return html(renderHomeV2({ ...stats, uf, contagemUf }));
+      let pessoas2T = {};
+      try {
+        pessoas2T = await pessoas2TComCache(env, ctx);
+      } catch (e) {
+        console.error('Falha em pessoas2TComCache:', e);
+      }
+      return html(renderHomeV2({ ...stats, uf, contagemUf, pessoas2T }));
+    }
+
+    if (url.pathname === '/eleitos' && request.method === 'GET') {
+      let pessoas = {};
+      try {
+        pessoas = await pessoas2TComCache(env, ctx);
+      } catch (e) {
+        console.error('Falha em pessoas2TComCache:', e);
+      }
+      return html(renderEleitosIndex({ pessoas }));
+    }
+
+    const eleitosMatch = url.pathname.match(/^\/eleitos\/([a-zA-Z]{2})\/?$/);
+    if (eleitosMatch && request.method === 'GET') {
+      const uf = eleitosMatch[1].toUpperCase();
+      if (!UF_NOMES[uf]) return html404(render404(url.pathname));
+      if (eleitosMatch[1] !== uf.toLowerCase() || url.pathname.endsWith('/')) return Response.redirect(`${url.origin}/eleitos/${uf.toLowerCase()}`, 301);
+      let linhas = [];
+      try {
+        linhas = await eleitosUfComCache(env, ctx, uf);
+      } catch (e) {
+        console.error('Falha em eleitosUfComCache:', e);
+      }
+      return html(renderEleitosUf({ uf, linhas }));
     }
 
     if (url.pathname === '/buscar' && request.method === 'GET') {
@@ -966,6 +1042,8 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
       const cargosGuiaSomente = ['prefeito', 'vereador'];
       const urls = [
         { loc: '/', prioridade: '1.0' },
+        { loc: '/eleitos', prioridade: '0.9' },
+        ...Object.keys(UF_NOMES).map((u) => ({ loc: `/eleitos/${u.toLowerCase()}`, prioridade: '0.9' })),
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
         { loc: '/quiz', prioridade: '0.8' },

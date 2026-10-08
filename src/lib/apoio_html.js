@@ -10,7 +10,7 @@ import { REDES } from './publicidade.js';
 export const PIX_CHAVE = 'pix@votocheck.com.br';
 
 const TEXTOS = {
-  home: 'Dia 4 a gente escolhe quem faz as leis pelos próximos 4 anos. Eu vou conferir antes de votar, com dado oficial e fonte. Confere também:',
+  home: 'Saiu o resultado de 2026: veja quem foi eleito no seu estado e acompanhe o que cada um faz com o mandato, com dado oficial e fonte:',
   perfil: 'Olha o que encontrei no VotoCheck sobre esse candidato, com dado oficial e fonte:',
   quiz: 'Fiz o Meu VotoCheck: em 2 minutos você diz o que importa pra você e vê quem tem essas características.',
   cola: 'Montei minha cola para as eleições no VotoCheck. Monte a sua (são 6 votos!):',
@@ -55,7 +55,7 @@ export function renderCtaTriplo({ contexto = 'home', url = 'https://votocheck.co
         <div class="vc-card">
           <div class="vc-ico">${Icone.instagram(22)}</div>
           <h3>Siga @votocheck</h3>
-          <p>Até o dia 4, um raio-X da eleição por dia, explicado em 30 segundos. Sem torcida.</p>
+          <p>O que os eleitos fazem com o mandato, explicado em 30 segundos e sempre com a fonte.</p>
           <div class="vc-acoes">
             <a class="vc-btn vc-btn--pri vc-btn--sm" href="${REDES.instagram}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:${contexto}">Instagram</a>
             <a class="vc-btn vc-btn--sec vc-btn--sm" href="${REDES.tiktok}" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="tiktok:${contexto}">TikTok</a>
@@ -64,7 +64,7 @@ export function renderCtaTriplo({ contexto = 'home', url = 'https://votocheck.co
         <div class="vc-card">
           <div class="vc-ico vc-ico--teal">${Icone.compartilhar(22)}</div>
           <h3>Mande para 3 pessoas</h3>
-          <p>Aquele grupo da família ou do trabalho em que ninguém sabe em quem votar para deputado. Um clique.</p>
+          <p>Aquele grupo da família ou do trabalho: mostre quem foi eleito no seu estado. Um clique.</p>
           <div class="vc-acoes">
             <a class="vc-btn vc-btn--pri vc-btn--sm" href="${linkWhatsApp(texto, url)}" target="_blank" rel="noopener" data-share data-share-texto="${texto.replace(/"/g, '&quot;')}" data-share-url="${url}">${Icone.whatsapp(18)} Enviar no WhatsApp</a>
             <a class="vc-btn vc-btn--sec vc-btn--sm" href="#" data-copiar="${url}" data-ev-chave="link:${contexto}">${Icone.link(16)} Copiar link</a>

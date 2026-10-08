@@ -15,6 +15,13 @@ import { nomeProprio } from './perfil_html.js';
 import { renderPublicidade } from './publicidade.js';
 import { UF_NOMES } from './home_html.js';
 import { RESULTADO_2026 } from './resultado_2026.js';
+import { renderBlocoBoletim } from './boletim.js';
+import { formCep, ESTILO_MUNICIPIO } from './municipio_html.js';
+
+// Preposição de cada UF: "no Rio de Janeiro", "na Bahia", "em São Paulo".
+const ART = { AC: 'o', AL: '', AP: 'o', AM: 'o', BA: 'a', CE: 'o', DF: 'o', ES: 'o', GO: '', MA: 'o', MT: 'o', MS: 'o', MG: '', PA: 'o', PB: 'a', PR: 'o', PE: '', PI: 'o', RJ: 'o', RN: 'o', RS: 'o', RO: '', RR: '', SC: '', SP: '', SE: '', TO: 'o' };
+export const emUf = (uf) => `${{ o: 'no', a: 'na', '': 'em' }[ART[uf] ?? '']} ${UF_NOMES[uf] || uf}`;
+export const deUf = (uf) => `${{ o: 'do', a: 'da', '': 'de' }[ART[uf] ?? '']} ${UF_NOMES[uf] || uf}`;
 
 export const DATA_2T_FIM = Date.UTC(2026, 9, 26, 3); // 25/10 meia-noite em Brasília
 export const antesDo2T = (agora = Date.now()) => agora < DATA_2T_FIM;
@@ -153,9 +160,11 @@ export function renderEleitosUf({ uf, linhas = [] }) {
     <section class="bx-topo">
       <div class="vc-wrap">
         <nav class="fx-migalha el-migalha" aria-label="Você está em"><a href="/eleitos">Eleitos 2026</a> › ${escapeHtml(nomeUf)}</nav>
-        <h1>Quem foi eleito em ${escapeHtml(nomeUf)}</h1>
+        <h1>Quem foi eleito ${escapeHtml(emUf(uf))}</h1>
         <p class="el-lead">${fmt(t.total)} eleitos no 1º turno de 2026: ${t.governador ? 'o governador, ' : ''}${fmt(t.senador)} senadores, ${fmt(t.deputado_federal)} deputados federais e ${fmt(t.deputado_estadual)} deputados ${uf === 'DF' ? 'distritais' : 'estaduais'}. Toque no nome para ver o histórico, o patrimônio e o dinheiro da campanha de cada um.</p>
         <nav class="el-indice" aria-label="Ir para">${SECOES_UF(uf).map((s) => `<a href="#${s.ancora}">${escapeHtml(s.titulo)}</a>`).join('')}</nav>
+        <style>${ESTILO_MUNICIPIO}</style>
+        <div class="el-cep">${formCep({ tema: 'navy', id: 'cep-uf' }).replace('Seu CEP', 'Os mais votados na sua cidade: digite o CEP')}</div>
       </div>
     </section>
     <div class="bx-corpo">
@@ -165,18 +174,19 @@ export function renderEleitosUf({ uf, linhas = [] }) {
         <nav class="el-ufs" aria-label="Outros estados">${Object.keys(UF_NOMES).sort().map((u) => `<a href="/eleitos/${u.toLowerCase()}" class="${u === uf ? 'ativo' : ''}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`).join('')}</nav>
         <p class="el-fonte">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}). Erro ou dado desatualizado? Escreva para <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.</p>
       </div>
-    </div>`;
+    </div>
+    ${renderBlocoBoletim({ uf, origem: `eleitos_${uf.toLowerCase()}` })}`;
 
   return pagina({
-    titulo: `Eleitos em ${nomeUf} em 2026: deputados, senadores e governador — VotoCheck`,
-    descricao: `Lista oficial dos eleitos em ${nomeUf} em 2026: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} ${uf === 'DF' ? 'distritais' : 'estaduais'}, senadores e governador, com votos, partido e ficha de cada um. Fonte: TSE.`,
+    titulo: `Eleitos ${emUf(uf)} em 2026: deputados, senadores e governador — VotoCheck`,
+    descricao: `Lista oficial dos eleitos ${emUf(uf)} em 2026: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} ${uf === 'DF' ? 'distritais' : 'estaduais'}, senadores e governador, com votos, partido e ficha de cada um. Fonte: TSE.`,
     caminho: `/eleitos/${uf.toLowerCase()}`,
     larga: true,
     corpo,
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
-      name: `Eleitos em ${nomeUf} em 2026`,
+      name: `Eleitos ${emUf(uf)} em 2026`,
       numberOfItems: linhas.length,
       itemListElement: linhas.slice(0, 100).map((l, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE_URL}/candidato/${l.pessoa_id}`, name: nomeProprio(l.nome_urna_atual || l.nome_completo) })),
     },
@@ -221,6 +231,7 @@ export const ESTILO_ELEITOS = `
   .el-indice { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
   .el-indice a { font-size: 13.5px; font-weight: 600; text-decoration: none; color: #C8D2F5; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 13px; }
   .el-indice a:hover { border-color: #fff; color: #fff; }
+  .el-cep { max-width: 620px; margin-top: 8px; }
   .el-nota { font-size: 14px; color: var(--muted); max-width: 820px; margin: 0 0 8px; line-height: 1.55; }
   .el-nota b { color: var(--ink); }
   .el-sec { padding: 28px 0 8px; scroll-margin-top: 16px; }

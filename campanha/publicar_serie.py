@@ -7,8 +7,9 @@
 
 Uso: CF_TOKEN=... BUFFER_API_KEY=... python publicar_serie.py serie_eleitos.json "sp=2026-10-08T12:00" "mg=2026-10-08T18:00" ...
 Horários em Brasília. Pasta das imagens: a do JSON (png/...).
+ATENÇÃO: cada execução cria posts novos no Buffer. Rodar duas vezes = post duplicado.
 """
-import base64, datetime, json, os, sys, urllib.request
+import base64, datetime, json, os, sys, time, urllib.error, urllib.request
 
 ACC = '22688effbd9ab181498d04ccd2cc8d2e'
 KV = '58aea9d36a9c4055bbcff72f7c08c3bd'
@@ -40,25 +41,35 @@ def canais():
 
 
 def main():
-    serie = json.load(open(sys.argv[1]))
+    serie = json.load(open(sys.argv[1], encoding='utf-8'))  # no Windows o padrão é cp1252: quebrava acentos
     base = os.path.dirname(os.path.abspath(sys.argv[1]))
     agenda = dict(a.split('=', 1) for a in sys.argv[2:])
     cs = canais()
     for uf, quando in agenda.items():
-        st = http(f'{SITE}/eleitos/{uf}').status
+        destino = f'{SITE}/eleitos/{uf}' if len(uf) == 2 else SITE + serie[uf].get('link', '/')
+        st = http(destino).status
         if st != 200:
-            raise SystemExit(f'/eleitos/{uf} respondeu {st}: faça o deploy antes de publicar.')
+            raise SystemExit(f'{destino} respondeu {st}: faça o deploy antes de publicar.')
         dia = quando[:10]
         arqs = serie[uf]['arquivos']
         itens = [{'key': f's:{dia}/{os.path.basename(a)}', 'value': base64.b64encode(open(os.path.join(base, a), 'rb').read()).decode(), 'base64': True, 'expiration_ttl': 60 * 60 * 24 * 30} for a in arqs]
         r = json.load(http(f'https://api.cloudflare.com/client/v4/accounts/{ACC}/storage/kv/namespaces/{KV}/bulk', json.dumps(itens).encode(), 'PUT', {'Authorization': 'Bearer ' + TOK, 'Content-Type': 'application/json'}, 300))
         assert r.get('success'), r
         urls = [f'{SITE}/midia/{dia}/{os.path.basename(a)}' for a in arqs]
+        # 08/10: o KV leva alguns segundos para propagar; a 1ª leitura logo após gravar pode dar 404.
         for u in urls:
-            resp = http(u)
-            assert resp.status == 200 and resp.headers.get('Content-Type') == 'image/png', u
+            for tentativa in range(12):
+                try:
+                    resp = http(u)
+                    if resp.status == 200 and resp.headers.get('Content-Type') == 'image/png':
+                        break
+                except urllib.error.HTTPError:
+                    pass
+                time.sleep(10)
+            else:
+                raise SystemExit(f'Mídia não ficou pública a tempo: {u}')
         due = (datetime.datetime.fromisoformat(quando) + datetime.timedelta(hours=3)).strftime('%Y-%m-%dT%H:%M:00.000Z')
-        titulo = f'Eleitos 2026 · {NOMES.get(uf, uf.upper())}'
+        titulo = serie[uf].get('titulo') or f'Eleitos 2026 · {NOMES.get(uf, uf.upper())}'
         for rede in ('instagram', 'tiktok'):
             entrada = {'text': serie[uf]['legenda'], 'channelId': cs[rede], 'schedulingType': 'automatic', 'mode': 'customScheduled', 'dueAt': due,
                        'assets': [{'image': {'url': u}} for u in urls]}

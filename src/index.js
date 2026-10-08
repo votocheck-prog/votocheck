@@ -76,6 +76,8 @@ import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
 import { renderEleitosUf, renderEleitosIndex } from './lib/eleitos_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
+import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
+import { inscreverBoletim, confirmarBoletim, sairBoletim, renderPaginaBoletim, renderResultadoBoletim } from './lib/boletim.js';
 import { renderCola } from './lib/cola_html.js';
 import { registrarVisita, registrarEvento, contar, resumoMetricas, renderPainelMetricas } from './lib/metricas.js';
 import { urlDestinoAnunciante } from './lib/publicidade.js';
@@ -681,6 +683,65 @@ async function fetchInterno(request, env, ctx) {
       return html(renderEleitosIndex({ pessoas }));
     }
 
+    // ===== Eleitos por cidade + CEP (08/10/2026) =====
+    const cidadeMatch = url.pathname.match(/^\/eleitos\/([a-z]{2})\/([a-z0-9-]+)$/);
+    if (cidadeMatch && request.method === 'GET') {
+      const uf = cidadeMatch[1].toUpperCase();
+      if (!UF_NOMES[uf]) return html404(render404(url.pathname));
+      const chave = new Request(`https://cache.interno.votocheck/cidade-v1-${uf}-${cidadeMatch[2]}`);
+      const hit = await caches.default.match(chave);
+      let dados = hit ? await hit.json() : null;
+      if (!dados) {
+        const mun = await env.DB.prepare(`SELECT cd_tse, ibge, uf, nome AS municipio, slug FROM municipio_tse WHERE uf = ? AND slug = ?`).bind(uf, cidadeMatch[2]).first();
+        if (!mun) return html404(render404(url.pathname));
+        const { results } = await env.DB.prepare(
+          `SELECT v.cargo, v.votos, v.pct_cand, c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, p.genero, pa.sigla AS partido_sigla
+           FROM voto_municipio_2026 v
+           JOIN candidatura c ON c.ano_eleicao = ? AND c.sq_candidato_tse = v.sq
+           JOIN pessoa p ON p.id = c.pessoa_id
+           LEFT JOIN partido pa ON pa.id = c.partido_id
+           WHERE v.cd_tse = ?
+           ORDER BY v.cargo, v.votos DESC`
+        ).bind(ANO_ATUAL, mun.cd_tse).all();
+        dados = { mun, linhas: results || [] };
+        ctx.waitUntil(caches.default.put(chave, new Response(JSON.stringify(dados), { headers: { 'Cache-Control': 'max-age=43200' } })));
+      }
+      return html(renderMunicipio(dados));
+    }
+
+    if (url.pathname === '/cep' && request.method === 'GET') {
+      const cep = (url.searchParams.get('cep') || '').replace(/\D/g, '');
+      if (cep.length !== 8) return html(renderCepErro({ cep: url.searchParams.get('cep') || '' }));
+      const chave = new Request(`https://cache.interno.votocheck/cep-v1-${cep}`);
+      let info = null;
+      const hit = await caches.default.match(chave);
+      if (hit) info = await hit.json();
+      else {
+        try {
+          const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { headers: { 'User-Agent': 'VotoCheck/1.0 (votocheck.com.br)' } });
+          if (!r.ok) return html(renderCepErro({ cep, motivo: r.status >= 500 ? 'servico' : '' }));
+          info = await r.json();
+          ctx.waitUntil(caches.default.put(chave, new Response(JSON.stringify(info), { headers: { 'Cache-Control': 'max-age=2592000' } })));
+        } catch (e) {
+          console.error('cep: ViaCEP falhou', e);
+          return html(renderCepErro({ cep, motivo: 'servico' }));
+        }
+      }
+      if (!info || info.erro || !info.ibge) return html(renderCepErro({ cep }));
+      let mun = await env.DB.prepare(`SELECT uf, slug FROM municipio_tse WHERE ibge = ?`).bind(String(info.ibge)).first();
+      if (!mun && info.uf && info.localidade) mun = { uf: String(info.uf).toUpperCase(), slug: slugCidade(info.localidade) };
+      return Response.redirect(`${url.origin}/eleitos/${mun.uf.toLowerCase()}/${mun.slug}`, 302);
+    }
+
+    if (url.pathname === '/sitemap-cidades.xml' && request.method === 'GET') {
+      const { results } = await env.DB.prepare(`SELECT uf, slug FROM municipio_tse ORDER BY uf, slug`).all();
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase()}/${m.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`).join('\n')}
+</urlset>`;
+      return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
+
     const eleitosMatch = url.pathname.match(/^\/eleitos\/([a-zA-Z]{2})\/?$/);
     if (eleitosMatch && request.method === 'GET') {
       const uf = eleitosMatch[1].toUpperCase();
@@ -1011,6 +1072,7 @@ async function fetchInterno(request, env, ctx) {
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap><loc>${SITE_URL}/sitemap-paginas.xml</loc><lastmod>${hoje}</lastmod></sitemap>
+  <sitemap><loc>${SITE_URL}/sitemap-cidades.xml</loc><lastmod>${hoje}</lastmod></sitemap>
 ${Array.from({ length: blocos }, (_, i) => `  <sitemap><loc>${SITE_URL}/sitemap-candidatos-${i + 1}.xml</loc><lastmod>${hoje}</lastmod></sitemap>`).join('\n')}
 </sitemapindex>`;
       return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
@@ -1043,6 +1105,7 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
       const urls = [
         { loc: '/', prioridade: '1.0' },
         { loc: '/eleitos', prioridade: '0.9' },
+        { loc: '/boletim', prioridade: '0.6' },
         ...Object.keys(UF_NOMES).map((u) => ({ loc: `/eleitos/${u.toLowerCase()}`, prioridade: '0.9' })),
         { loc: '/sobre', prioridade: '0.6' },
         { loc: '/buscar', prioridade: '0.8' },
@@ -1418,6 +1481,47 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
           },
         })
       );
+    }
+
+    // ===== Boletim semanal por estado (08/10/2026) =====
+    if (url.pathname === '/boletim' && request.method === 'GET') {
+      const uf = (url.searchParams.get('uf') || '').toUpperCase();
+      return html(renderPaginaBoletim({ status: url.searchParams.get('status') || '', uf: UF_NOMES[uf] ? uf : '' }));
+    }
+    if (url.pathname === '/boletim' && request.method === 'POST') {
+      let form;
+      try {
+        form = await request.formData();
+      } catch (e) {
+        return Response.redirect(`${url.origin}/boletim?status=invalido`, 303);
+      }
+      const uf = String(form.get('uf') || '').toUpperCase();
+      // honeypot: robô preenche o campo escondido; finge sucesso e não grava nada
+      if (form.get('site')) return Response.redirect(`${url.origin}/boletim?status=enviado`, 303);
+      const r = await inscreverBoletim(env, ctx, { email: form.get('email'), uf, origem: form.get('origem'), site: url.origin });
+      return Response.redirect(`${url.origin}/boletim?status=${r.status}${UF_NOMES[uf] ? `&uf=${uf}` : ''}#boletim`, 303);
+    }
+    if (url.pathname === '/boletim/confirmar' && request.method === 'GET') {
+      let uf = null;
+      try {
+        uf = await confirmarBoletim(env, url.searchParams.get('t'));
+      } catch (e) {
+        console.error('boletim: falha ao confirmar', e);
+      }
+      return html(uf
+        ? renderResultadoBoletim({ titulo: 'E-mail confirmado', texto: `Você vai receber o boletim semanal sobre ${UF_NOMES[uf] || uf}. O primeiro envio sai depois do 2º turno. Para sair, use o link no fim de qualquer boletim.`, uf })
+        : renderResultadoBoletim({ titulo: 'Link inválido ou expirado', texto: 'Não encontramos essa inscrição. Faça a inscrição de novo em votocheck.com.br/boletim.' }));
+    }
+    if (url.pathname === '/boletim/sair' && request.method === 'GET') {
+      let ok = false;
+      try {
+        ok = await sairBoletim(env, url.searchParams.get('t'));
+      } catch (e) {
+        console.error('boletim: falha ao sair', e);
+      }
+      return html(ok
+        ? renderResultadoBoletim({ titulo: 'Inscrição cancelada', texto: 'Você não vai mais receber o boletim. Se mudar de ideia, é só se inscrever de novo.' })
+        : renderResultadoBoletim({ titulo: 'Link inválido', texto: 'Não encontramos essa inscrição. Se continuar recebendo e-mails, escreva para contato@votocheck.com.br.' }));
     }
 
     if (url.pathname === '/acompanhar' && request.method === 'POST') {

@@ -33,6 +33,18 @@ export function renderSobre() {
         organização das listas (como ordenar por nome, idade ou partido) são sempre neutros —
         nunca uma avaliação de qualidade.
       </p>
+      <h2 id="posicao" style="font-size:19px; margin-top:32px;">Posição do VotoCheck</h2>
+      <p>
+        Os dados não têm opinião. Mas sobre <strong>regras do sistema político</strong> que afetam
+        todo mundo, o VotoCheck pode ter posição, e diz isso às claras. Hoje, a única é esta:
+        <strong>o valor do fundo eleitoral precisa ser revisto</strong>.
+      </p>
+      <p>
+        Toda peça com posição sai separada das páginas de dados e com o rótulo
+        <strong>"Posição do VotoCheck"</strong>. Ela nunca pede voto, nunca ataca ou defende
+        candidato ou partido, e os números que a sustentam têm a mesma fonte oficial do resto do
+        site. Fichas, listas de eleitos e votações continuam iguais para todos.
+      </p>
       <p>
         Também não inventamos informação. Todo dado mostrado aqui tem uma fonte oficial
         identificada (TSE, Câmara dos Deputados, Senado Federal) — o que chamamos de

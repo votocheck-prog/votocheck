@@ -14,7 +14,7 @@ export function renderTermos() {
     <div style="max-width:680px; margin:0 auto;">
       <h1 style="font-size:clamp(26px,4vw,34px); margin-bottom:8px;">Termos e Condições</h1>
       <p style="color:var(--text-muted); font-size:15px; margin-bottom:32px;">
-        Última revisão: 20/09/2026. Este texto descreve como o VotoCheck funciona e o que você
+        Última revisão: 08/10/2026. Este texto descreve como o VotoCheck funciona e o que você
         pode esperar dele — não é aconselhamento jurídico, e está sujeito a revisão.
       </p>
 
@@ -39,6 +39,11 @@ export function renderTermos() {
         merece o voto de ninguém. Qualquer critério de ordenação de listas (nome, idade,
         partido) é neutro — nunca uma avaliação de mérito.
       </p>
+      <p>
+        Posições institucionais do VotoCheck sobre regras do sistema político (por exemplo, o
+        valor do fundo eleitoral) são publicadas separadamente, sempre com o rótulo "Posição do
+        VotoCheck", e nunca recomendam ou rejeitam candidatos ou partidos.
+      </p>
 
       <h2 style="font-size:19px; margin-top:32px;">4. Precisão e correções</h2>
       <p>
@@ -53,6 +58,17 @@ export function renderTermos() {
         O conteúdo do VotoCheck pode ser usado livremente para fins pessoais e não comerciais,
         sempre citando a fonte. Não é permitido usar o site para automatizar coleta massiva de
         dados (scraping) sem autorização prévia.
+      </p>
+
+      <h2 id="boletim" style="font-size:19px; margin-top:32px;">Boletim por e-mail e acompanhamento</h2>
+      <p>
+        Se você se inscreve no boletim ou no acompanhamento de um representante, guardamos só o seu
+        e-mail, o estado ou o representante escolhido e as datas de inscrição, confirmação e
+        cancelamento. Usamos esses dados apenas para enviar o que você pediu (LGPD, art. 7º, I —
+        consentimento). Não vendemos, não emprestamos e não repassamos a terceiros, exceto ao
+        provedor que faz o envio dos e-mails. O boletim só começa depois que você confirma pelo
+        link enviado; todo e-mail traz o link para sair, e você pode pedir a exclusão dos seus dados
+        a qualquer momento em contato@votocheck.com.br.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">6. Sustentação financeira</h2>

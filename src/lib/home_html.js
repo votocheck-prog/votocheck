@@ -20,6 +20,8 @@ import { renderCtaTriplo } from './apoio_html.js';
 import { renderSegundoTurno, totaisEleitos, governadorUf, antesDo2T, disputas2T } from './eleitos_html.js';
 import { RESULTADO_2026 } from './resultado_2026.js';
 import { nomeProprio } from './perfil_html.js';
+import { renderBlocoBoletim } from './boletim.js';
+import { formCep, ESTILO_MUNICIPIO } from './municipio_html.js';
 
 export const UF_NOMES = {
   AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal',
@@ -196,6 +198,9 @@ function renderMapa(uf) {
           .sort()
           .map((u) => `<a href="/eleitos/${u.toLowerCase()}" class="${u === uf ? 'ativo' : ''}" data-ev="uf" data-ev-chave="${u}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`)
           .join('')}</div>
+        <style>${ESTILO_MUNICIPIO}</style>
+        <p class="vc-lead" style="margin:24px 0 0;font-size:16px">Quer saber quem tem mais ligação com a sua cidade? Digite o CEP e veja os deputados eleitos mais votados nela.</p>
+        ${formCep({ id: 'cep-home' })}
       </div>
       <div>${renderMapaBrasil().replace(/href="\/buscar\?uf=([A-Z]{2})"/g, (_, u) => `href="/eleitos/${u.toLowerCase()}"`).replace(/Ver candidatos de/g, 'Ver eleitos de')}</div>
     </div>
@@ -272,7 +277,7 @@ function renderMetodo() {
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.escudoCheck(16)} Como verificamos</span>
       <h2 class="vc-h2">Cada dado tem origem, data e contexto</h2>
-      <p class="vc-lead">Não publicamos opinião. Cada informação no VotoCheck segue o mesmo caminho, com as mesmas regras para todos os candidatos, de qualquer partido.</p>
+      <p class="vc-lead">Os dados não têm opinião. Cada informação no VotoCheck segue o mesmo caminho, com as mesmas regras para todos, de qualquer partido. Quando o VotoCheck tem posição sobre uma regra do sistema, como o valor do fundo eleitoral, ela vem separada e rotulada: <a href="/sobre#posicao" style="color:#7FB0FF">Posição do VotoCheck</a>.</p>
       <div class="vc-fluxo">
         <div><small>1 · Fonte</small><strong>Quem publicou</strong><span>TSE, Câmara ou Senado, sempre a origem oficial.</span></div>
         <div><small>2 · Evidência</small><strong>O registro</strong><span>A votação, a declaração ou o documento em si.</span></div>
@@ -324,6 +329,7 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
     ${renderHero(uf, contagemUf, atualizadoEm)}
     ${antesDo2T() ? renderSegundoTurno({ pessoas: pessoas2T, ufFoco: uf }) : ''}
     ${renderMapa(uf)}
+    ${renderBlocoBoletim({ uf, origem: 'home' })}
     ${renderQuizTeaser(uf)}
     <div class="vc-wrap" style="padding:40px 24px">${renderPublicidade('A1', 'home')}</div>
     ${renderQuociente(uf)}

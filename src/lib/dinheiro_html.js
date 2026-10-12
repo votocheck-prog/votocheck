@@ -21,7 +21,7 @@ export const CARGOS_DINHEIRO = [
   { slug: 'presidente', nome: 'Presidente' },
 ];
 
-const ESTILO = `
+export const ESTILO_DP = `
   .dp-hero { background: var(--navy); color: #fff; padding: 52px 0 44px; position: relative; overflow: hidden; }
   .dp-hero::after { content: ''; position: absolute; right: -140px; top: -140px; width: 460px; height: 460px; border-radius: 50%; background: radial-gradient(circle, rgba(242,153,74,.25), transparent 65%); }
   .dp-hero .vc-eyebrow { color: #FFC08A; }
@@ -92,7 +92,7 @@ export function renderDinheiroPublico({ uf, cargo, nacional, lista, partidos, to
     .join('');
 
   const corpo = `
-    <style>${ESTILO}</style>
+    <style>${ESTILO_DP}</style>
     <section class="dp-hero">
       <div class="vc-wrap">
         <span class="vc-eyebrow">${Icone.cifrao(16)} Dinheiro público nas eleições 2026</span>
@@ -107,6 +107,7 @@ export function renderDinheiroPublico({ uf, cargo, nacional, lista, partidos, to
         <div class="dp-share">
           <a class="vc-btn vc-btn--pri" href="${linkWhatsApp(textoShare, urlShare)}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoShare)}" data-share-url="${urlShare}" data-ev="dinheiro_compartilhar">${Icone.whatsapp(18)} Mandar para 3 pessoas</a>
           <a class="vc-btn vc-btn--sec" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)" href="https://www.instagram.com/votocheck" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:dinheiro">${Icone.instagram(18)} Seguir @votocheck</a>
+          <a class="vc-btn vc-btn--sec" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)" href="/dinheiro-publico/cota?uf=${uf}" data-ev="cta_cota">${Icone.cifrao(18)} Cota parlamentar dos deputados</a>
         </div>
       </div>
     </section>

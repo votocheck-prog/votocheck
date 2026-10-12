@@ -76,6 +76,7 @@ import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
 import { renderEleitosUf, renderEleitosIndex, renderPaginaSegundoTurno } from './lib/eleitos_html.js';
 import { renderMeusRepresentantes } from './lib/meus_html.js';
+import { renderCota } from './lib/cota_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
@@ -1021,6 +1022,28 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       return html(renderDinheiroPublico({ uf, cargo, ...dados }));
     }
 
+    // 12/10/2026: cota parlamentar (CEAP) por deputado — dado de scripts/importar_cota.py.
+    if (url.pathname === '/dinheiro-publico/cota' && request.method === 'GET') {
+      const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
+      const uf = UF_NOMES[ufParam] ? ufParam : 'SP';
+      const chave = new Request(`https://cache.interno.votocheck/cota-v1-${ANO_ATUAL}`);
+      let dados = null;
+      const hit = await caches.default.match(chave);
+      if (hit) dados = await hit.json();
+      else {
+        const [lR, cR] = await Promise.all([
+          env.DB.prepare(`SELECT r.id_camara, r.nome, r.partido, r.uf, r.total, r.divulgacao, r.divulgacao_mes, r.atualizado_em,
+                (SELECT p.id FROM pessoa p WHERE p.id_camara = r.id_camara LIMIT 1) AS pessoa_id,
+                (SELECT p.foto_url FROM pessoa p WHERE p.id_camara = r.id_camara LIMIT 1) AS foto_url
+             FROM cota_resumo r WHERE r.ano = ?`).bind(ANO_ATUAL).all(),
+          env.DB.prepare(`SELECT categoria, SUM(valor) AS valor FROM cota_parlamentar WHERE ano = ? GROUP BY categoria ORDER BY valor DESC`).bind(ANO_ATUAL).all(),
+        ]);
+        dados = { linhas: lR.results || [], categorias: cR.results || [] };
+        ctx.waitUntil(caches.default.put(chave, new Response(JSON.stringify(dados), { headers: { 'Cache-Control': 'max-age=43200' } })));
+      }
+      return html(renderCota({ uf, ano: ANO_ATUAL, ...dados }));
+    }
+
     if (url.pathname === '/quanto-vale-seu-voto' && request.method === 'GET') {
       const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
       return html(renderPesoVoto({ uf: UF_NOMES[ufParam] ? ufParam : 'SP' }));
@@ -1164,6 +1187,7 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
         { loc: '/buscar', prioridade: '0.8' },
         { loc: '/partidos', prioridade: '0.6' },
         { loc: '/dinheiro-publico', prioridade: '0.7' },
+        { loc: '/dinheiro-publico/cota', prioridade: '0.7' },
         { loc: '/quanto-vale-seu-voto', prioridade: '0.7' },
         { loc: '/2022', prioridade: '0.7' },
         { loc: '/perderam-o-mandato', prioridade: '0.7' },
@@ -1516,8 +1540,26 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         console.error('perfil: falha ao carregar temas', e);
       }
 
+      // 12/10/2026: cota parlamentar (CEAP) do ano, só para quem tem id da Câmara (ver scripts/importar_cota.py).
+      let cota = null;
+      let cotaCats = [];
+      if (pessoa.id_camara) {
+        try {
+          const [cR, kR] = await Promise.all([
+            db.prepare(`SELECT total, divulgacao, atualizado_em FROM cota_resumo WHERE id_camara = ? AND ano = ?`).bind(String(pessoa.id_camara), ANO_ATUAL).first(),
+            db.prepare(`SELECT categoria, valor FROM cota_parlamentar WHERE id_camara = ? AND ano = ? ORDER BY valor DESC LIMIT 6`).bind(String(pessoa.id_camara), ANO_ATUAL).all(),
+          ]);
+          cota = cR || null;
+          cotaCats = kR.results || [];
+        } catch (e) {
+          console.error('perfil: falha ao carregar cota', e);
+        }
+      }
+
       return html(
         renderPerfil({
+          cota,
+          cotaCats,
           plano,
           fin,
           temas,

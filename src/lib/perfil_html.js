@@ -14,6 +14,7 @@ import { Icone } from './icones.js';
 import { renderPublicidade } from './publicidade.js';
 import { linkWhatsApp } from './apoio_html.js';
 import { botaoFav } from './meus_html.js';
+import { blocoCotaPerfil } from './cota_html.js';
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null;
@@ -320,7 +321,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null }) {
+export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -568,6 +569,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     ${blocoBens}
 
     ${blocoCampanha}
+    ${blocoCotaPerfil({ cota, categorias: cotaCats, uf: principal?.sg_uf || '', ano: 2026 })}
 
     ${blocoVotos}
 

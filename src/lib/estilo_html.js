@@ -1154,6 +1154,19 @@ const SCRIPT_BASE = `
  * Opções novas (v2): `larga` (sem container de 920px — a página controla as próprias seções),
  * `ogImagem` (URL absoluta da imagem de preview), `jsonLd` (objeto schema.org), `faixa` (contagem).
  */
+/** 12/10/2026: ponte site → redes (playbook). O Google traz visita, quase ninguém virava seguidor. */
+function faixaSeguir() {
+  return `<section class="vc-seguir" aria-label="Siga o VotoCheck">
+  <div class="vc-wrap vc-seguir-in">
+    <p><strong>O que os eleitos fazem com o seu voto, em 30 segundos.</strong> Toda semana no Instagram e no TikTok, sempre com fonte.</p>
+    <div class="vc-seguir-bt">
+      <a class="vc-btn vc-btn--pri" href="https://www.instagram.com/votocheck" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="instagram:faixa">${Icone.instagram(18)} Seguir no Instagram</a>
+      <a class="vc-btn vc-btn--sec" href="https://www.tiktok.com/@votocheck" target="_blank" rel="noopener" data-ev="seguir" data-ev-chave="tiktok:faixa">${Icone.tiktok ? Icone.tiktok(18) : ''} TikTok</a>
+    </div>
+  </div>
+</section>`;
+}
+
 export function pagina({ titulo, descricao, corpo, caminho = '/', noindex = false, larga = false, ogImagem = null, jsonLd = null, faixa = true }) {
   const urlCompleta = `${SITE_URL}${caminho}`;
   const og = ogImagem || `${SITE_URL}/og-image.png`;
@@ -1183,7 +1196,7 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow" />\n' : ''}<link re
 <meta name="twitter:image" content="${escapeHtml(og)}" />
 ${FONTES_HEAD}
 ${String(caminho).startsWith('/admin') ? '' : `<script>${SCRIPT_GA}</script>`}
-<style>${ESTILO_BASE}${ESTILO_DS}${ESTILO_FAV}${ESTILO_GA}.nav-fav-n{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:#fff;color:var(--blue);font-size:12px;margin-left:4px;padding:0 5px}.nav-mobile-painel .nav-fav-n{background:var(--blue);color:#fff}.nav-fav-n[hidden]{display:none}</style>
+<style>${ESTILO_BASE}${ESTILO_DS}${ESTILO_FAV}${ESTILO_GA}.nav-fav-n{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:#fff;color:var(--blue);font-size:12px;margin-left:4px;padding:0 5px}.nav-mobile-painel .nav-fav-n{background:var(--blue);color:#fff}.nav-fav-n[hidden]{display:none}.vc-seguir{background:#fff;border-top:1px solid var(--line);padding:22px 0}.vc-seguir-in{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.vc-seguir p{margin:0;font-size:15px;color:var(--ink-2);max-width:620px}.vc-seguir p strong{color:var(--ink)}.vc-seguir-bt{display:flex;gap:8px;flex-wrap:wrap}</style>
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
@@ -1192,6 +1205,7 @@ ${cabecalho()}
 <main class="container${larga ? ' vc-full' : ''}">
 ${corpo}
 </main>
+${caminho === '/' || String(caminho).startsWith('/admin') || String(corpo).includes('instagram.com/votocheck') ? '' : faixaSeguir()}
 ${rodape()}
 ${String(caminho).startsWith('/admin') ? '' : AVISO_GA}
 <script>${SCRIPT_BASE}${SCRIPT_FAV}</script>

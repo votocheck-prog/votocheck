@@ -1,4 +1,4 @@
-"""VotoCheck — "Posição do VotoCheck" · fundo eleitoral, carrossel 1 (08/10/2026).
+"""VotoCheck — fundo eleitoral, carrossel 1 (08/10/2026; neutro desde 12/10: só fatos, sem posição).
 Números: D1 (financiamento_campanha × resultado 1º turno, TSE) + LOA 2026 (imprensa: Poder360/CNN; SBPC para CNPq).
 Uso: python fundo_carrossel.py  (precisa do d1.py no diretório pai e CHROME)"""
 import asyncio, json, os, sys
@@ -33,7 +33,7 @@ def rod(f): return f'<div class="rod"><div class="fonte">{f}</div><img src="logo
 def page(b): return f'<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>{CSS}</style></head><body><div class="s">{b}</div></body></html>'
 T = 6
 s = []
-s.append(page(f'''<div><span class="chip-pos">Posição do VotoCheck</span></div><div class="eyebrow">Dinheiro público nas campanhas de 2026</div>
+s.append(page(f'''<div class="eyebrow">Dinheiro público nas campanhas de 2026</div>
 <h1 style="font-size:98px">R$ {f'{tot/1e9:.1f}'.replace('.', ',')} bilhões.<br><em>{pct_nao}% foram para<br>quem não se elegeu.</em></h1>
 <p class="lead" style="margin-top:36px">Fundo eleitoral + fundo partidário, pelo que os próprios candidatos declararam ao TSE. Arrasta →</p>{rod(F_TSE)}'''))
 mx = max(g['nao'], g['eleito'])
@@ -48,14 +48,14 @@ s.append(page(f'''<div class="pag">4/{T}</div><div class="eyebrow">Um dado que p
 <p class="lead" style="font-size:36px">Somados: R$ {mi(poucos['pub'])} milhões. Nenhum deles se elegeu.</p>{rod(F_TSE)}'''))
 s.append(page(f'''<div class="pag">5/{T}</div><div class="eyebrow">Quem decidiu o valor</div><h2 style="font-size:72px">O governo propôs<br>R$ 1 bilhão.<br><em>O Congresso aprovou<br>R$ 4,9 bilhões.</em></h2>
 <p class="lead" style="font-size:36px">Só o fundo eleitoral de 2026 é quase 3 vezes o orçamento do CNPq no ano (R$ 1,64 bi), que paga as bolsas de pesquisa do país.</p>{rod('Fontes: LOA 2026 (Comissão Mista de Orçamento, set/2025; Poder360) · CNPq: LOA 2026, nota da SBPC (27/02/2026)')}'''))
-s.append(page(f'''<div class="pag">6/{T}</div><div><span class="chip-pos">Posição do VotoCheck</span></div><h2>O valor do fundo<br><em>precisa ser revisto.</em></h2>
-<p class="lead">Quem define é o Congresso, todo ano, no Orçamento. Em 2027, os eleitos de 2026 votam o fundo das eleições municipais de 2028. Veja quanto o seu deputado recebeu e cobre.</p>
+s.append(page(f'''<div class="pag">6/{T}</div><div class="eyebrow">E agora?</div><h2>Em 2027, os eleitos<br><em>votam o próximo fundo.</em></h2>
+<p class="lead">Quem define o valor é o Congresso, todo ano, no Orçamento. O fundo das eleições de 2028 será votado pelos eleitos de 2026. Veja quanto o seu deputado recebeu e pergunte como ele vai votar.</p>
 <div style="margin-top:40px"><span class="btn">votocheck.com.br/dinheiro-publico</span></div>
-<p class="lead" style="margin-top:36px;font-size:32px">Salve, mande para 3 pessoas e siga @votocheck.</p>{rod('Os dados do VotoCheck valem para todos, sem partido. A posição sobre o fundo está em votocheck.com.br/sobre')}'''))
+<p class="lead" style="margin-top:36px;font-size:32px">Salve, mande para 3 pessoas e siga @votocheck.</p>{rod('VotoCheck: fatos com fonte oficial, sem partido e sem opinião.')}'''))
 leg = (f'R$ {f"{tot/1e9:.1f}".replace(".", ",")} bilhões de dinheiro público chegaram às campanhas de 2026. {pct_nao}% foram para quem não se elegeu.\n\n'
        f'No carrossel: para onde foi o fundo eleitoral e partidário, quanto custou cada voto de deputado federal (R$ {reais(cpv_e)} para quem se elegeu, R$ {reais(cpv_n)} para quem perdeu) '
        f'e os {num(poucos["n"])} candidatos que receberam pelo menos R$ 100 mil e tiveram menos de mil votos.\n\n'
-       'Posição do VotoCheck: o valor do fundo precisa ser revisto. O governo propôs R$ 1 bilhão para 2026; o Congresso aprovou R$ 4,9 bilhões. Em 2027, os eleitos de 2026 votam o fundo de 2028.\n\n'
+       'O governo propôs R$ 1 bilhão para 2026; o Congresso aprovou R$ 4,9 bilhões. Em 2027, os eleitos de 2026 votam o fundo de 2028.\n\n'
        'Quanto o seu deputado recebeu: votocheck.com.br/dinheiro-publico (link na bio).\n\n'
        'Dados: TSE, prestação de contas parcial (receitas até 26/09/2026) e resultado do 1º turno. Valores finais saem depois da prestação de contas final.\n'
        '#fundoeleitoral #eleicoes2026 #dinheiropublico #votocheck')

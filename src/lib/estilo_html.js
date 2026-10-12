@@ -10,10 +10,12 @@
  *   - Assinatura: "Confira antes de decidir."
  */
 
+import { SCRIPT_GA, AVISO_GA, ESTILO_GA } from './analytics.js';
 import { FAVICON_32_B64 } from './assets_data.js';
 import { ESTILO_DS, FONTES_HEAD } from './ds.js';
 import { Icone } from './icones.js';
 import { REDES, renderApoiadores } from './publicidade.js';
+import { SCRIPT_FAV, ESTILO_FAV } from './meus_html.js';
 
 export const SITE_URL = 'https://votocheck.com.br';
 
@@ -1022,7 +1024,7 @@ export function faixaContagem(agora = new Date()) {
   const n = diasAte(alvo.d);
   const quando = n <= 0 ? `<strong>Hoje é dia de votar</strong> · ${alvo.nome}` : n === 1 ? `<strong>Amanhã</strong> é o ${alvo.nome}` : `Faltam <strong class="tabnum">${n} dias</strong> para o ${alvo.nome} · ${alvo.data}`;
   // 08/10/2026: depois do 1º turno a cola sai da faixa; o link leva a quem disputa o 2º turno.
-  const link = alvo.nome === '2º turno' ? `<a href="/eleitos#segundo-turno">Veja quem disputa →</a>` : `<a href="/cola">Monte sua cola →</a>`;
+  const link = alvo.nome === '2º turno' ? `<a href="/segundo-turno">Veja quem disputa →</a>` : `<a href="/cola">Monte sua cola →</a>`;
   return `<div class="vc-faixa">${quando}${link}</div>`;
 }
 
@@ -1032,19 +1034,21 @@ export function cabecalho() {
       <img src="/static/logo-h.png" alt="VotoCheck" width="150" height="36" />
     </a>
     <nav class="nav" aria-label="Principal">
-      <a class="nav-link" href="/buscar">Buscar</a>
-      <a class="nav-link" href="/dinheiro-publico">Dinheiro público</a>
+      <a class="nav-link" href="/eleitos">Eleitos 2026</a>
+      <a class="nav-link" href="/quiz">Meu VotoCheck</a>
       <a class="nav-link" href="/partidos">Partidos</a>
-      <a class="nav-link" href="/sobre">Como funciona</a>
+      <a class="nav-link" href="/dinheiro-publico">Dinheiro público</a>
       <a class="nav-social" href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="VotoCheck no Instagram" data-ev="seguir" data-ev-chave="instagram:header">${Icone.instagram(20)}</a>
       <a class="nav-social" href="${REDES.tiktok}" target="_blank" rel="noopener" aria-label="VotoCheck no TikTok" data-ev="seguir" data-ev-chave="tiktok:header">${Icone.tiktok(20)}</a>
-      <a class="nav-link nav-cta" href="/eleitos">Eleitos 2026</a>
+      <a class="nav-link nav-cta" href="/meus-representantes">Meus representantes <b class="nav-fav-n" data-fav-count hidden></b></a>
       <details class="nav-mobile">
         <summary>Menu</summary>
         <div class="nav-mobile-painel">
+          <a href="/meus-representantes">Meus representantes <b class="nav-fav-n" data-fav-count hidden></b></a>
           <a href="/eleitos">Eleitos 2026</a>
-          <a href="/buscar">Buscar</a>
-          <a href="/boletim">Boletim semanal</a>
+          <a href="/quiz">Meu VotoCheck</a>
+          <a href="/buscar">Buscar por nome</a>
+          <a href="/boletim">Boletim mensal</a>
           <a href="/dinheiro-publico">Dinheiro público</a>
           <a href="/partidos">Partidos</a>
           <a href="/sobre">Como funciona</a>
@@ -1073,7 +1077,10 @@ export function rodape() {
           <ul>
             <li><a href="/eleitos">Eleitos por estado</a></li>
             <li><a href="/#estados">Os mais votados na sua cidade</a></li>
-            <li><a href="/boletim">Boletim semanal</a></li>
+            <li><a href="/quiz">Meu VotoCheck</a></li>
+            <li><a href="/meus-representantes">Meus representantes</a></li>
+            <li><a href="/segundo-turno">2º turno</a></li>
+            <li><a href="/boletim">Boletim mensal</a></li>
             <li><a href="/buscar">Buscar por nome</a></li>
           </ul>
         </div>
@@ -1175,7 +1182,8 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow" />\n' : ''}<link re
 <meta name="twitter:description" content="${escapeHtml(descricao)}" />
 <meta name="twitter:image" content="${escapeHtml(og)}" />
 ${FONTES_HEAD}
-<style>${ESTILO_BASE}${ESTILO_DS}</style>
+${String(caminho).startsWith('/admin') ? '' : `<script>${SCRIPT_GA}</script>`}
+<style>${ESTILO_BASE}${ESTILO_DS}${ESTILO_FAV}${ESTILO_GA}.nav-fav-n{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:#fff;color:var(--blue);font-size:12px;margin-left:4px;padding:0 5px}.nav-mobile-painel .nav-fav-n{background:var(--blue);color:#fff}.nav-fav-n[hidden]{display:none}</style>
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
@@ -1185,7 +1193,8 @@ ${cabecalho()}
 ${corpo}
 </main>
 ${rodape()}
-<script>${SCRIPT_BASE}</script>
+${String(caminho).startsWith('/admin') ? '' : AVISO_GA}
+<script>${SCRIPT_BASE}${SCRIPT_FAV}</script>
 </body>
 </html>`;
 }

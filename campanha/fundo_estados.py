@@ -21,20 +21,20 @@ a, z = rows[0], rows[-1]; mx = a['cpv']; T = 5
 def tabela(itens, pag):
     linhas = ''.join(f'<div class="row"><span>{NOMES[x["uf"]]}</span><span class="t"><i style="width:{100*x["cpv"]/mx:.1f}%"></i></span><b>R$ {br(x["cpv"])}</b></div>' for x in itens)
     return page(f'<div class="pag">{pag}/{T}</div><h2 style="font-size:58px;margin-bottom:26px">Dinheiro público por voto<br>de deputado federal eleito</h2>{linhas}{rod(F)}')
-s = [page(f'''<div><span class="chip-pos">Posição do VotoCheck</span></div><div class="eyebrow">Fundo eleitoral · por estado</div>
+s = [page(f'''<div class="eyebrow">Fundo eleitoral · por estado</div>
 <h1 style="font-size:84px">{ART[a["uf"]]} {NOMES[a["uf"]]}, cada voto de deputado eleito custou <em>R$ {br(a["cpv"])}</em> de dinheiro público.</h1>
 <p class="lead" style="margin-top:30px">{ART[z["uf"]]} {NOMES[z["uf"]]}, R$ {br(z["cpv"])}. Veja o seu estado. Arrasta →</p>{rod(F)}'''),
      tabela(rows[:14], 2), tabela(rows[14:], 3),
      page(f'''<div class="pag">4/{T}</div><div class="eyebrow">Por que a diferença</div><h2 style="font-size:66px">Cada eleito recebeu<br>quase o mesmo.<br><em>O que muda é o voto.</em></h2>
 <div class="duo"><div><small>Média por eleito em {NOMES[a["uf"]]}</small><b>R$ {br(a["media"]/1e6,1)} mi</b><span>{a["n"]} deputados</span></div><div><small>Média por eleito em {NOMES[z["uf"]]}</small><b>R$ {br(z["media"]/1e6,1)} mi</b><span>{z["n"]} deputados</span></div></div>
 <p class="lead" style="font-size:33px">Todo estado tem no mínimo 8 deputados, mesmo com poucos eleitores. Com valores de campanha parecidos e menos votos por vaga, o custo de cada voto sobe.</p>{rod(F + ' · Constituição, art. 45')}'''),
-     page(f'''<div class="pag">5/{T}</div><div><span class="chip-pos">Posição do VotoCheck</span></div><h2>O valor do fundo<br><em>precisa ser revisto.</em></h2>
-<p class="lead">Veja quanto o deputado do seu estado recebeu de dinheiro público e cobre quem vai votar o próximo fundo, em 2027.</p>
+     page(f'''<div class="pag">5/{T}</div><div class="eyebrow">E agora?</div><h2>Em 2027, os eleitos<br><em>votam o próximo fundo.</em></h2>
+<p class="lead">Veja quanto o deputado do seu estado recebeu de dinheiro público e pergunte como ele vai votar o fundo de 2028.</p>
 <div style="margin-top:40px"><span class="btn">votocheck.com.br/dinheiro-publico</span></div>
-<p class="lead" style="margin-top:36px;font-size:32px">Salve e mande para quem é do seu estado.</p>{rod('Os dados do VotoCheck valem para todos, sem partido. A posição sobre o fundo está em votocheck.com.br/sobre')}''')]
+<p class="lead" style="margin-top:36px;font-size:32px">Salve e mande para quem é do seu estado.</p>{rod('VotoCheck: fatos com fonte oficial, sem partido e sem opinião.')}''')]
 leg = (f'{ART[a["uf"]]} {NOMES[a["uf"]]}, cada voto de deputado federal eleito custou R$ {br(a["cpv"])} de dinheiro público. {ART[z["uf"]]} {NOMES[z["uf"]]}, R$ {br(z["cpv"])}.\n\n'
        'No carrossel, os 27 estados: quanto do fundo eleitoral e partidário os deputados federais eleitos receberam, dividido pelos votos que tiveram. Cada eleito recebeu valores parecidos; o que muda é quantos votos cada vaga precisa.\n\n'
-       'Posição do VotoCheck: o valor do fundo precisa ser revisto. Veja quanto o deputado do seu estado recebeu: votocheck.com.br/dinheiro-publico (link na bio).\n\n'
+       'Veja quanto o deputado do seu estado recebeu: votocheck.com.br/dinheiro-publico (link na bio).\n\n'
        'Dados: TSE, prestação de contas parcial (receitas até 26/09/2026) e resultado do 1º turno.\n#fundoeleitoral #eleicoes2026 #dinheiropublico #votocheck')
 async def render():
     arqs = []

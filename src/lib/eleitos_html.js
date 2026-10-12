@@ -17,6 +17,7 @@ import { UF_NOMES } from './home_html.js';
 import { RESULTADO_2026 } from './resultado_2026.js';
 import { renderBlocoBoletim } from './boletim.js';
 import { formCep, ESTILO_MUNICIPIO } from './municipio_html.js';
+import { botaoFav } from './meus_html.js';
 
 // Preposição de cada UF: "no Rio de Janeiro", "na Bahia", "em São Paulo".
 const ART = { AC: 'o', AL: '', AP: 'o', AM: 'o', BA: 'a', CE: 'o', DF: 'o', ES: 'o', GO: '', MA: 'o', MT: 'o', MS: 'o', MG: '', PA: 'o', PB: 'a', PR: 'o', PE: '', PI: 'o', RJ: 'o', RN: 'o', RS: 'o', RO: '', RR: '', SC: '', SP: '', SE: '', TO: 'o' };
@@ -119,7 +120,7 @@ const SECOES_UF = (uf) => [
     : { slug: 'deputado_estadual', titulo: 'Assembleia Legislativa', ancora: 'assembleia', sub: 'Mandato de 4 anos.' },
 ];
 
-function linhaEleito(c) {
+function linhaEleito(c, uf = '') {
   const nome = nomeProprio(c.nome_urna_atual || c.nome_completo);
   // Só a exceção ganha etiqueta: "média" (vaga das sobras). Quociente é o caso comum.
   const via = /média/i.test(c.st || '') ? 'pelas sobras' : c.st === '2º turno' ? '2º turno' : '';
@@ -130,7 +131,7 @@ function linhaEleito(c) {
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
         <div class="bx-meta">${escapeHtml(c.partido_sigla || '')}${c.votos_t1 ? ` · <span class="tabnum">${fmt(c.votos_t1)}</span> votos` : ''}</div>
       </div>
-      ${via ? `<div class="bx-dir"><span class="el-via">${via}</span></div>` : '<div></div>'}
+      <div class="bx-dir">${via ? `<span class="el-via">${via}</span>` : ''}${c.eleito ? botaoFav({ id: c.pessoa_id, cargo: c.cargo_slug, nome, partido: c.partido_sigla || '', uf }) : ''}</div>
     </div>`;
 }
 
@@ -144,7 +145,7 @@ export function renderEleitosUf({ uf, linhas = [] }) {
       const itens = porCargo(s.slug);
       let cabeca = s.sub || '';
       if (s.slug === 'governador') cabeca = gov.segundo ? 'Ninguém passou de 50% dos votos válidos: a decisão fica para o 2º turno, em 25 de outubro.' : 'Eleito no 1º turno. Posse em 6 de janeiro de 2027.';
-      const cards = itens.map(linhaEleito);
+      const cards = itens.map((c) => linhaEleito(c, uf));
       if (cards.length > 10) cards.splice(10, 0, renderPublicidade('A2', `eleitos${uf}${s.slug}`));
       return `
       <section class="el-sec" id="${s.ancora}" aria-labelledby="t-${s.ancora}">
@@ -213,7 +214,7 @@ export function renderEleitosIndex({ pessoas = {} } = {}) {
       </div>
     </section>
     <div class="bx-corpo"><div class="vc-wrap"><div class="el-uf-grid">${estados}</div></div></div>
-    ${antesDo2T() ? renderSegundoTurno({ pessoas }) : ''}
+    ${antesDo2T() ? `<div class="vc-wrap"><a class="el-2t-link" href="/segundo-turno">${Icone.calendario(18)} <span><b>2º turno em 25 de outubro</b> Presidente e governadores: quem disputa e com quantos votos chegou</span> →</a></div>` : ''}
     <div class="vc-wrap"><p class="el-fonte" style="padding-bottom:48px">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}).</p></div>`;
   return pagina({
     titulo: 'Eleitos em 2026 por estado: deputados, senadores e governadores — VotoCheck',
@@ -224,7 +225,35 @@ export function renderEleitosIndex({ pessoas = {} } = {}) {
   });
 }
 
+/** Página avulsa do 2º turno (12/10/2026): saiu da home para não ocupar espaço lá. */
+export function renderPaginaSegundoTurno({ pessoas = {}, ufFoco = '' } = {}) {
+  const bloco = renderSegundoTurno({ pessoas, ufFoco, comTitulo: false });
+  const corpo = `
+    <style>${ESTILO_BUSCA}${ESTILO_ELEITOS}</style>
+    <section class="bx-topo">
+      <div class="vc-wrap">
+        <nav class="fx-migalha el-migalha" aria-label="Você está em"><a href="/eleitos">Eleitos 2026</a> › 2º turno</nav>
+        <h1>2º turno em 25 de outubro</h1>
+        <p class="el-lead">Presidente da República e governador nos estados onde ninguém passou de 50% dos votos válidos. Os nomes seguem a ordem de votos do 1º turno, como o TSE divulgou. Toque no nome para ver histórico, patrimônio e dinheiro de campanha.</p>
+      </div>
+    </section>
+    ${bloco || `<div class="vc-wrap" style="padding:40px 0"><div class="bx-vazio">Resultado do 2º turno ainda não carregado.</div></div>`}
+    <div class="vc-wrap" style="padding-bottom:48px"><p class="el-fonte"><a href="/eleitos">Ver todos os eleitos no 1º turno →</a></p></div>`;
+  return pagina({
+    titulo: '2º turno 2026: quem disputa presidente e governador — VotoCheck',
+    descricao: 'Quem disputa o 2º turno de 25 de outubro de 2026 para presidente e governador, com os votos do 1º turno e a ficha de cada candidato. Fonte: TSE.',
+    caminho: '/segundo-turno',
+    larga: true,
+    corpo,
+  });
+}
+
 export const ESTILO_ELEITOS = `
+  .el-2t-link { display: flex; align-items: center; gap: 12px; margin: 8px 0 24px; padding: 16px 18px; background: #fff; border: 1px solid var(--line); border-radius: 16px; text-decoration: none; color: var(--ink); font-size: 14.5px; }
+  .el-2t-link:hover { border-color: var(--blue); }
+  .el-2t-link svg { color: var(--blue); flex: none; }
+  .el-2t-link span { flex: 1; color: var(--ink-2); }
+  .el-2t-link b { display: block; font-family: var(--font-display); font-size: 17px; color: var(--ink); }
   .el-lead { color: #C3CDF0; font-size: 16.5px; max-width: 760px; margin: 0; line-height: 1.55; }
   .el-migalha { margin: 0 0 10px; font-size: 13.5px; color: #93A2D8; }
   .el-migalha a { color: #9EC0FF; text-decoration: none; }

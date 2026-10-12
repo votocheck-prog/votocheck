@@ -23,16 +23,18 @@ import { renderPublicidade } from './publicidade.js';
 import { PERGUNTAS, ESPECTRO, ZONAS_ESPECTRO, partidosOrdenados, zonaPrincipal } from './quiz_config.js';
 import { Icone } from './icones.js';
 import { renderCtaApoio } from './jornada_html.js';
-import { ESTILO_BUSCA, SLOT_COLA, calcularIdade } from './busca_html.js';
+import { ESTILO_BUSCA, calcularIdade } from './busca_html.js';
+import { botaoFav } from './meus_html.js';
+import { emUf } from './eleitos_html.js';
 import { UF_NOMES } from './home_html.js';
 
+// 08/10/2026 (v5): só eleitos de 2026 para os cargos que a pessoa pode salvar em "Meus
+// representantes". Distrital não tem botão: no DF, "Deputado Estadual" vira distrital no servidor.
 const CARGOS_QUIZ = [
-  { slug: 'presidente', nome: 'Presidente', semUf: true },
-  { slug: 'governador', nome: 'Governador' },
-  { slug: 'senador', nome: 'Senador' },
   { slug: 'deputado_federal', nome: 'Deputado Federal' },
-  { slug: 'deputado_estadual', nome: 'Deputado Estadual' },
-  { slug: 'deputado_distrital', nome: 'Deputado Distrital' },
+  { slug: 'deputado_estadual', nome: 'Deputado Estadual ou Distrital' },
+  { slug: 'senador', nome: 'Senador' },
+  { slug: 'deputado_distrital', nome: 'Deputado Distrital', oculto: true },
 ];
 
 const UFS = [
@@ -50,7 +52,7 @@ const ICONE_CARGO = { presidente: 'predio', governador: 'mapa', senador: 'balanc
 
 function renderEscolhaCargo(ufPadrao = '') {
   const ufOk = UFS.includes(ufPadrao) ? ufPadrao : '';
-  const botoes = CARGOS_QUIZ.map(
+  const botoes = CARGOS_QUIZ.filter((c) => !c.oculto).map(
     (c) => `<button type="submit" name="cargo" value="${c.slug}" class="qz-cargo" data-semuf="${c.semUf ? 1 : 0}">
       <i>${(Icone[ICONE_CARGO[c.slug]] || Icone.urna)(20)}</i><strong>${escapeHtml(c.nome)}</strong><span>${c.semUf ? 'Brasil' : 'no seu estado'}</span></button>`
   ).join('');
@@ -94,13 +96,13 @@ function renderEscolhaCargo(ufPadrao = '') {
       <div class="vc-wrap qz-hero-grid">
         <div>
           <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck · 2 minutos</span>
-          <h1>Diga o que importa <em>pra você</em>. A gente mostra quem tem.</h1>
-          <p class="qz-hero-lead">Você escolhe os critérios. O VotoCheck cruza com os dados oficiais e mostra quais candidatos têm essas características, com a fonte de cada uma.</p>
+          <h1>Quem foi eleito <em>do jeito que você quer</em>?</h1>
+          <p class="qz-hero-lead">Você diz o que importa, inclusive se quer alguém com base na sua cidade. O VotoCheck cruza com os dados oficiais dos eleitos de 2026 e mostra quem tem essas características. Salve até 3 de cada cargo em <a href="/meus-representantes" style="color:#5FE3C8">Meus representantes</a> para acompanhar e cobrar.</p>
           <div class="qz-selos"><span>Sem ranking</span><span>Sem nota</span><span>Sem cadastro</span><span>Anônimo</span></div>
         </div>
         <form class="qz-painel" method="GET" action="/quiz">
           <div class="qz-painel-topo">
-            <b>Para qual voto você quer ajuda?</b>
+            <b>Qual cargo você quer acompanhar?</b>
             <label class="qz-uf">Estado
               <select name="uf" aria-label="Seu estado">
                 <option value="">—</option>
@@ -109,7 +111,7 @@ function renderEscolhaCargo(ufPadrao = '') {
             </label>
           </div>
           <div class="qz-cargos">${botoes}</div>
-          <small>Cada cargo é comparado só com quem disputa o mesmo cargo, no mesmo estado.</small>
+          <small>Só eleitos em 2026, comparados com os do mesmo cargo e estado. No DF, "Estadual" mostra os distritais.</small>
         </form>
       </div>
     </section>
@@ -118,14 +120,14 @@ function renderEscolhaCargo(ufPadrao = '') {
         <span class="vc-eyebrow">${Icone.lampada(16)} Como funciona</span>
         <h2 style="font-size:clamp(24px,3vw,32px);margin:6px 0 20px">${PERGUNTAS.length + 1} perguntas. Você pode pular qualquer uma.</h2>
         <div class="qz-passos">
-          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Idade, sexo declarado, escolaridade, patrimônio declarado, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
-          <div class="qz-passo"><b>2</b><h3>A gente cruza</h3><p>Suas respostas são comparadas com o registro oficial de cada candidatura no TSE e com os mandatos na Câmara e no Senado.</p></div>
-          <div class="qz-passo"><b>3</b><h3>Você decide</h3><p>A lista sai em ordem alfabética, dividida entre quem combina e quem diverge, com o motivo. Daí é só abrir a ficha e montar a cola.</p></div>
+          <div class="qz-passo"><b>1</b><h3>Você responde</h3><p>Base eleitoral na sua cidade (pelo CEP), idade, sexo declarado, escolaridade, patrimônio, troca de partido e papel do Estado. "Tanto faz" tira o critério da conta.</p></div>
+          <div class="qz-passo"><b>2</b><h3>A gente cruza</h3><p>Suas respostas são comparadas com os dados oficiais de cada eleito: registro no TSE, votos por cidade e mandatos na Câmara e no Senado.</p></div>
+          <div class="qz-passo"><b>3</b><h3>Você acompanha</h3><p>A lista sai em ordem alfabética, entre quem combina e quem diverge, com o motivo. Salve seus favoritos e tenha perfil e contatos à mão para cobrar.</p></div>
         </div>
         <div class="qz-nao">
           <div>${Icone.semNota(18)}<span><strong>Não é ranking.</strong> Ninguém ganha ponto nem nota.</span></div>
           <div>${Icone.escudoCheck(18)}<span><strong>Não é pesquisa.</strong> Suas respostas não são somadas nem publicadas.</span></div>
-          <div>${Icone.check(18)}<span><strong>Não indica voto.</strong> O VotoCheck mostra dados; a escolha é sua.</span></div>
+          <div>${Icone.check(18)}<span><strong>Não escolhe por você.</strong> O VotoCheck mostra dados; quem você acompanha é decisão sua.</span></div>
         </div>
       </div>
     </section>
@@ -139,8 +141,8 @@ function renderEscolhaCargo(ufPadrao = '') {
 
 export function renderQuizEscolhaCargo({ uf = '' } = {}) {
   return pagina({
-    titulo: 'Meu VotoCheck — descubra quem tem o que importa pra você | VotoCheck',
-    descricao: 'Em 2 minutos, diga o que importa pra você e veja quais candidatos têm essas características. Sem ranking, sem nota, sem cadastro.',
+    titulo: 'Meu VotoCheck: encontre os eleitos que combinam com você | VotoCheck',
+    descricao: 'Em 2 minutos, diga o que importa pra você e veja quais deputados e senadores eleitos em 2026 têm essas características, inclusive base na sua cidade. Sem ranking, sem cadastro.',
     caminho: '/quiz',
     ogImagem: 'https://votocheck.com.br/og/pagina/quiz.jpg',
     larga: true,
@@ -161,6 +163,27 @@ function cardSimNao(p, indice, total) {
         <button type="button" class="quiz-opcao quiz-opcao--tantofaz" data-valor="tanto_faz">Tanto faz</button>
       </div>
       <input type="hidden" name="${p.slug}" value="" />
+    </div>`;
+}
+
+/** v5 (12/10/2026): base eleitoral na cidade. O CEP é resolvido no navegador (ViaCEP) e só o
+ *  código IBGE da cidade vai na URL do resultado — nunca o CEP. */
+function cardBaseLocal(p, indice, total, uf) {
+  return `
+    <div class="quiz-card" data-slug="${p.slug}" data-tipo="base_local" data-uf="${escapeHtml(uf || '')}">
+      <div class="quiz-card-num">${indice} de ${total}</div>
+      <p class="quiz-card-texto">${escapeHtml(p.texto)}</p>
+      <p class="quiz-card-ajuda">${escapeHtml(p.ajuda)}</p>
+      <label class="qz-cep"><span>Seu CEP</span>
+        <input type="text" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000" data-cep aria-describedby="qz-cep-msg" />
+      </label>
+      <p class="qz-cep-msg" id="qz-cep-msg" aria-live="polite"></p>
+      <div class="quiz-opcoes" role="group">
+        <button type="button" class="quiz-opcao" data-valor="sim">Sim, quero quem tem base aqui</button>
+        <button type="button" class="quiz-opcao quiz-opcao--tantofaz" data-valor="tanto_faz">Tanto faz</button>
+      </div>
+      <input type="hidden" name="${p.slug}" value="" />
+      <input type="hidden" name="mun" value="" disabled />
     </div>`;
 }
 
@@ -268,11 +291,14 @@ function filtroPartidos() {
  *  sem JS, ainda dá pra preencher os campos escondidos manualmente (URL) e enviar o form. */
 export function renderQuiz({ cargo, uf }) {
   const cargoInfo = cargoQuizPorSlug(cargo);
-  const totalPerguntas = PERGUNTAS.length + 1; // + espectro
+  // Senador não tem voto por cidade carregado (voto_municipio_2026 só tem deputados).
+  const perguntas = PERGUNTAS.filter((p) => !(p.slug === 'base_local' && cargo === 'senador'));
+  const totalPerguntas = perguntas.length + 1; // + espectro
 
   const cardsHtml = [
-    ...PERGUNTAS.map((p, i) => {
+    ...perguntas.map((p, i) => {
       const indice = i + 1;
+      if (p.slug === 'base_local') return cardBaseLocal(p, indice, totalPerguntas, uf);
       if (p.tipo === 'sim_nao') return cardSimNao(p, indice, totalPerguntas);
       if (p.tipo === 'tres_opcoes') return cardTresOpcoes(p, indice, totalPerguntas);
       if (p.tipo === 'escala') return cardEscala(p, indice, totalPerguntas);
@@ -311,6 +337,12 @@ export function renderQuiz({ cargo, uf }) {
       .qe-niveis span { font-size: 11px; line-height: 1.2; color: var(--muted); }
       .qe-niveis button.ativo { background: var(--blue); border-color: var(--blue); }
       .qe-niveis button.ativo b, .qe-niveis button.ativo span { color: #fff; }
+      .qz-cep { display: grid; gap: 6px; margin: 4px 0 6px; max-width: 260px; }
+      .qz-cep span { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+      .qz-cep input { font: 600 18px var(--font-body); letter-spacing: .04em; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 12px; background: #fff; color: var(--ink); }
+      .qz-cep input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,89,245,.15); }
+      .qz-cep-msg { min-height: 20px; font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; }
+      .qz-cep-msg.erro { color: #B42318; }
       .qz-bloco-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
       .qz-bloco-topo .quiz-partido-bloco-nome { margin: 0; }
       .qz-bloco-chave { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
@@ -382,6 +414,34 @@ export function renderQuiz({ cargo, uf }) {
             });
           }
 
+          if (tipo === 'base_local') {
+            var bts = Array.prototype.slice.call(card.querySelectorAll('.quiz-opcao'));
+            var inCep = card.querySelector('[data-cep]'), msg = card.querySelector('.qz-cep-msg');
+            var mun = card.querySelector('input[name="mun"]'), ufQuiz = card.dataset.uf;
+            function marcar(btn, ok) {
+              bts.forEach(function (b) { b.classList.remove('quiz-opcao--ativa'); });
+              if (btn) btn.classList.add('quiz-opcao--ativa');
+              hidden.value = ok ? 'sim' : ''; mun.disabled = !ok; if (!ok) mun.value = '';
+              card.classList.toggle('quiz-respondida', ok); atualizarProgresso();
+            }
+            function avisar(t, erro) { msg.textContent = t; msg.classList.toggle('erro', !!erro); }
+            inCep.addEventListener('input', function () { var d = inCep.value.replace(/\D/g, '').slice(0, 8); inCep.value = d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; if (msg.classList.contains('erro')) avisar('', false); });
+            bts.forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                if (btn.dataset.valor === 'tanto_faz') { card.dataset.bloqueio = ''; marcar(btn, false); avisar('', false); return; }
+                var cep = inCep.value.replace(/\D/g, '');
+                if (cep.length !== 8) { card.dataset.bloqueio = '1'; avisar('Digite os 8 números do seu CEP para usar esse critério.', true); inCep.focus(); return; }
+                card.dataset.bloqueio = '1'; avisar('Procurando sua cidade…', false);
+                fetch('https://viacep.com.br/ws/' + cep + '/json/').then(function (r) { return r.json(); }).then(function (j) {
+                  if (!j || j.erro || !j.ibge) { avisar('Não encontramos esse CEP. Confira os números.', true); return; }
+                  if (ufQuiz && j.uf && j.uf.toUpperCase() !== ufQuiz) { avisar('Esse CEP é de ' + j.localidade + '/' + j.uf + ', fora de ' + ufQuiz + '. Troque o estado ou use um CEP de ' + ufQuiz + '.', true); return; }
+                  mun.value = j.ibge; marcar(btn, true); avisar('Cidade: ' + j.localidade + '/' + j.uf + '.', false);
+                  card.dataset.bloqueio = ''; setTimeout(function () { if (passos[atual] === card) mostrar(atual + 1); }, 450);
+                }).catch(function () { avisar('Não conseguimos consultar o CEP agora. Tente de novo ou marque "Tanto faz".', true); });
+              });
+            });
+          }
+
           if (tipo === 'escala' || tipo === 'espectro') {
             var slider = card.querySelector('.quiz-slider');
             card.querySelectorAll('[data-nivel]').forEach(function (b) {
@@ -426,7 +486,7 @@ export function renderQuiz({ cargo, uf }) {
         document.getElementById('qz-pular').addEventListener('click', function () { mostrar(atual + 1); });
         cards.forEach(function (card, idx) {
           card.querySelectorAll('.quiz-opcao').forEach(function (b) {
-            b.addEventListener('click', function () { setTimeout(function () { if (atual === idx) mostrar(idx + 1); }, 280); });
+            b.addEventListener('click', function () { setTimeout(function () { if (atual === idx && card.dataset.bloqueio !== '1' && card.dataset.tipo !== 'base_local') mostrar(idx + 1); else if (atual === idx && card.dataset.tipo === 'base_local' && b.dataset.valor === 'tanto_faz') mostrar(idx + 1); }, 280); });
           });
           var sl = card.querySelector('.quiz-slider');
           if (sl) {
@@ -464,8 +524,8 @@ export function renderQuiz({ cargo, uf }) {
     </script>`;
 
   return pagina({
-    titulo: 'Meu VotoCheck — responda e encontre candidatos — VotoCheck',
-    descricao: 'Declare suas preferências e encontre candidatos com essas características, sem ranking.',
+    titulo: 'Meu VotoCheck: responda e encontre seus representantes — VotoCheck',
+    descricao: 'Declare suas preferências e encontre os eleitos com essas características, sem ranking.',
     caminho: `/quiz?cargo=${encodeURIComponent(cargo)}${uf ? `&uf=${encodeURIComponent(uf)}` : ''}`,
     noindex: true,
     corpo,
@@ -506,7 +566,6 @@ function bucketOcupacao(ocupacao) {
 function cardCandidato(c, tagsDivergencia) {
   const idade = calcularIdade(c.data_nascimento);
   const nome = nomeProprio(c.nome_urna_atual || '');
-  const slot = SLOT_COLA[c.cargo_slug];
   // 27/09/2026: ocupação declarada entra na busca de texto (não tem coluna própria na lista, mas
   // dá pra "refinar" a lista pelo mesmo campo de filtro — ver .qr-filtro/ESTILO_RESULTADO abaixo)
   // e também no combo dedicado de profissão (data-ocupacao, bucketOcupacao acima).
@@ -518,11 +577,12 @@ function cardCandidato(c, tagsDivergencia) {
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
         <div class="bx-meta">${escapeHtml(c.partido_sigla || 'sem partido')}${c.sg_uf && c.sg_uf !== 'BR' ? ` · ${escapeHtml(c.sg_uf)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>
+        ${c.votos_t1 ? `<div class="bx-meta">${Number(c.votos_t1).toLocaleString('pt-BR')} votos em 2026</div>` : ''}
+        ${c.base_local ? `<div class="qr-base">${Icone.mapa(13)} Base na sua cidade</div>` : ''}
         ${tagsDivergencia && tagsDivergencia.length ? `<div class="qr-tags">${tagsDivergencia.map((t) => `<span>${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
       <div class="bx-dir">
-        ${c.numero_urna ? `<span class="bx-num">${escapeHtml(c.numero_urna)}</span>` : ''}
-        ${slot && c.numero_urna ? `<button type="button" class="bx-cola" data-cola-add data-slot="${slot}" data-cargo="${escapeHtml(c.cargo_slug)}" data-nome="${escapeHtml(nome)}" data-numero="${escapeHtml(c.numero_urna)}" data-partido="${escapeHtml(c.partido_sigla || '')}" data-pessoa="${escapeHtml(c.pessoa_id)}" data-foto="${escapeHtml(c.foto_url || '')}" aria-label="Adicionar ${escapeHtml(nome)} à cola">+ cola</button>` : ''}
+        ${botaoFav({ id: c.pessoa_id, cargo: c.cargo_slug, nome, partido: c.partido_sigla || '', uf: c.sg_uf || '' })}
       </div>
     </div>`;
 }
@@ -536,6 +596,7 @@ const RUBRICA_CURTA = {
   declarou_bens: 'declaração de bens',
   formacao_superior: 'formação superior',
   sexo_declarado: 'sexo declarado',
+  base_local: 'base na sua cidade',
   espectro_estado_mercado: 'papel do Estado',
   faixa_idade: 'faixa de idade',
   patrimonio: 'patrimônio declarado',
@@ -581,6 +642,7 @@ const ESTILO_RESULTADO = `
   .qr-filtro-select { color: var(--ink); }
   .qr-filtro:focus, .qr-filtro-select:focus { outline: none; border-color: var(--blue); }
   .qr-sec + .qr-sec { margin-top: 36px; }
+  .qr-base { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; font-size: 11.5px; font-weight: 700; color: #0B6B58; background: #E3F7F2; border-radius: 999px; padding: 2px 8px; }
   .qr-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
   .qr-tags span { font-size: 11.5px; font-weight: 600; color: #8A4B12; background: #FFF3E3; border-radius: 999px; padding: 2px 8px; }
   .qr-tags span::before { content: '≠ '; }
@@ -606,18 +668,19 @@ function listaCandidatos(itens, idLista, comTags) {
 }
 
 function renderPerfilEleitor(respostasLegiveis, voltarQuery) {
-  const textoConvite = 'Fiz o Meu VotoCheck: em 2 minutos você diz o que importa pra você e vê quais candidatos têm essas características. Sem ranking, com fonte oficial.';
+  const textoConvite = 'Fiz o Meu VotoCheck: em 2 minutos você diz o que importa pra você e vê quais eleitos têm essas características, inclusive quem tem base na sua cidade. Sem ranking, com fonte oficial.';
   return `
     <div class="qr-perfil">
-      <h2>Seu perfil de eleitor</h2>
-      <p>O que você disse que importa nesta rodada. Não é nota de ninguém: é o resumo das suas respostas.</p>
+      <h2>O que você procura</h2>
+      <p>O que você disse que importa em quem te representa. Não é nota de ninguém: é o resumo das suas respostas.</p>
       ${respostasLegiveis.length
         ? `<ul>${respostasLegiveis.map((r) => `<li>${Icone.checkCirculo(16)}<span>${escapeHtml(r)}</span></li>`).join('')}</ul>`
         : `<p style="font-size:14px;color:var(--ink-2);margin:0">Você pulou todas as perguntas. <a href="/quiz?${escapeHtml(voltarQuery)}">Responder agora</a> filtra a lista.</p>`}
       <div class="qr-acoes">
-        <a class="vc-btn vc-btn--pri" href="/cola">${Icone.impressora(18)} Montar minha cola</a>
+        <a class="vc-btn vc-btn--pri" href="/meus-representantes">${Icone.coracao(18)} Ver meus representantes <b data-fav-count hidden class="nav-fav-n"></b></a>
+        <small>Toque em "Salvar" nos cards: até 3 por cargo, guardados só neste aparelho.</small>
         <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(textoConvite, 'https://votocheck.com.br/quiz')}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoConvite)}" data-share-url="https://votocheck.com.br/quiz" data-ev="quiz_compartilhar">${Icone.compartilhar(18)} Convidar alguém a fazer</a>
-        <small>O convite leva só o link do quiz, nunca suas respostas ou candidatos.</small>
+        <small>O convite leva só o link do quiz, nunca suas respostas ou escolhas.</small>
       </div>
     </div>`;
 }
@@ -632,21 +695,22 @@ export function renderQuizResultado({
   totalCandidatos,
   respostasLegiveis,
   voltarQuery,
+  cidade = '',
 }) {
   const semNenhumaResposta = totalPerguntasRespondidas === 0;
-  const local = uf ? ` em ${escapeHtml(UF_NOMES[uf] || uf)}` : ' no Brasil';
+  const local = uf ? ` ${escapeHtml(emUf(uf))}` : ' no Brasil';
   const cargoMin = escapeHtml(String(cargoNome || '').toLowerCase());
   const nComb = combinam.length;
 
   const titulo = semNenhumaResposta
-    ? `Todos os ${totalCandidatos} candidatos a ${cargoMin}${local}`
+    ? `Todos os ${totalCandidatos} eleitos para ${cargoMin}${local}`
     : nComb === 0
-      ? `Ninguém a ${cargoMin}${local} bate com tudo o que você pediu`
-      : `<em>${nComb}</em> ${nComb === 1 ? 'candidato' : 'candidatos'} a ${cargoMin}${local} ${nComb === 1 ? 'combina' : 'combinam'} com o que você disse`;
+      ? `Nenhum eleito para ${cargoMin}${local} bate com tudo o que você pediu`
+      : `<em>${nComb}</em> ${nComb === 1 ? 'eleito' : 'eleitos'} para ${cargoMin}${local} ${nComb === 1 ? 'combina' : 'combinam'} com o que você disse`;
 
   const sub = semNenhumaResposta
     ? 'Você não respondeu nenhuma pergunta, então a lista está completa, em ordem alfabética.'
-    : `Comparamos suas ${totalPerguntasRespondidas} ${totalPerguntasRespondidas === 1 ? 'resposta' : 'respostas'} com os dados oficiais de ${totalCandidatos} candidaturas. A ordem é sempre alfabética: não é ranking.`;
+    : `Comparamos suas ${totalPerguntasRespondidas} ${totalPerguntasRespondidas === 1 ? 'resposta' : 'respostas'} com os dados oficiais dos ${totalCandidatos} eleitos${cidade ? `, usando ${escapeHtml(cidade)} como sua cidade` : ''}. A ordem é sempre alfabética: não é ranking.`;
 
   const secaoCombinam = semNenhumaResposta
     ? `<section class="qr-sec">${listaCandidatos(combinam, 'qr-l1', false)}</section>`
@@ -654,10 +718,10 @@ export function renderQuizResultado({
         <div class="qr-sec-titulo"><h2>Combinam com você</h2><span>${nComb} de ${totalCandidatos}</span></div>
         ${nComb
           ? listaCandidatos(combinam, 'qr-l1', false)
-          : `<div class="qr-vazio"><strong>Nenhum candidato bateu com todos os critérios.</strong><br>Veja abaixo onde cada um diverge, ou <a href="/quiz?${escapeHtml(voltarQuery)}">afrouxe alguma resposta</a> (marcar "tanto faz" tira o critério).</div>`}
+          : `<div class="qr-vazio"><strong>Nenhum eleito bateu com todos os critérios.</strong><br>Veja abaixo onde cada um diverge, ou <a href="/quiz?${escapeHtml(voltarQuery)}">afrouxe alguma resposta</a> (marcar "tanto faz" tira o critério).</div>`}
       </section>
       <section class="qr-sec">
-        <div class="qr-sec-titulo"><h2>Divergem em algum ponto</h2><span>${naoBateram.length} candidatos · a etiqueta mostra onde</span></div>
+        <div class="qr-sec-titulo"><h2>Divergem em algum ponto</h2><span>${naoBateram.length} ${naoBateram.length === 1 ? 'eleito' : 'eleitos'} · a etiqueta mostra onde</span></div>
         ${naoBateram.length
           ? listaCandidatos(naoBateram, 'qr-l2', true)
           : '<div class="qr-vazio">Ninguém neste recorte divergiu de nenhuma resposta sua.</div>'}
@@ -678,16 +742,16 @@ export function renderQuizResultado({
         <div class="qr-links">
           <a href="/quiz?${escapeHtml(voltarQuery)}">← Ajustar respostas</a>
           <a href="/quiz">Trocar de cargo</a>
-          <a href="/buscar?cargo=${escapeHtml(cargo)}${uf ? `&uf=${escapeHtml(uf)}` : ''}">Ver lista completa</a>
+          <a href="/eleitos${uf ? `/${escapeHtml(uf.toLowerCase())}` : ''}">Todos os eleitos${uf ? ` de ${escapeHtml(uf)}` : ''}</a>
         </div>
       </div>
     </section>
     <section class="qr-corpo">
       <div class="vc-wrap qr-grid">
         <div>
-          <p class="qr-filtro-legenda">Muitas opções ainda? Saiba a profissão e trajetória profissional do candidato pra refinar sua pesquisa:</p>
+          <p class="qr-filtro-legenda">Muitas opções ainda? Filtre por nome, partido ou profissão declarada:</p>
           <div class="qr-filtros-linha">
-            <input class="qr-filtro" type="search" placeholder="Filtrar por nome, número ou partido" aria-label="Filtrar lista" data-qr-filtro>
+            <input class="qr-filtro" type="search" placeholder="Filtrar por nome ou partido" aria-label="Filtrar lista" data-qr-filtro>
             <select class="qr-filtro-select" aria-label="Filtrar por profissão" data-qr-profissao>
               <option value="">Todas as profissões</option>
               ${OCUPACOES_COMBO.map((o) => `<option value="${o.slug}">${escapeHtml(o.label)}</option>`).join('')}
@@ -700,7 +764,7 @@ export function renderQuizResultado({
         </div>
         <aside class="qr-lado">
           ${renderPerfilEleitor(respostasLegiveis, voltarQuery)}
-          <div class="qr-nota">${Icone.escudoCheck(16)} <strong>Como ler:</strong> "combina" e "diverge" falam só dos critérios que você escolheu responder. Dado ausente na fonte oficial nunca conta contra o candidato. Abra a ficha para ver a fonte de cada informação.</div>
+          <div class="qr-nota">${Icone.escudoCheck(16)} <strong>Como ler:</strong> "combina" e "diverge" falam só dos critérios que você escolheu responder. Dado ausente na fonte oficial nunca conta contra ninguém. "Base na sua cidade" usa os votos do 1º turno de 2026 (TSE). Abra a ficha para ver a fonte de cada informação.</div>
         </aside>
       </div>
       <div class="vc-wrap" style="margin-top:28px">${renderCtaApoio({ contexto: 'quiz' })}</div>
@@ -734,7 +798,7 @@ export function renderQuizResultado({
         var info=document.querySelector('[data-qr-info]');
         if(info){
           info.hidden=!ativo;
-          if(ativo) info.innerHTML=(n1+n2)?('Com esse filtro: <b>'+n1+'</b> '+(n1===1?'combina':'combinam')+(document.getElementById('qr-l2')?' e <b>'+n2+'</b> '+(n2===1?'diverge':'divergem')+' em algo':'')+'.'):'Nenhum candidato com esse filtro. Tente outra profissão ou limpe a busca.';
+          if(ativo) info.innerHTML=(n1+n2)?('Com esse filtro: <b>'+n1+'</b> '+(n1===1?'combina':'combinam')+(document.getElementById('qr-l2')?' e <b>'+n2+'</b> '+(n2===1?'diverge':'divergem')+' em algo':'')+'.'):'Nenhum eleito com esse filtro. Tente outra profissão ou limpe a busca.';
         }
       }
       if(f)f.addEventListener('input',aplicarFiltros);
@@ -744,7 +808,7 @@ export function renderQuizResultado({
 
   return pagina({
     titulo: `Meu VotoCheck — resultado — VotoCheck`,
-    descricao: 'Candidatos que combinam com as suas respostas no Meu VotoCheck, sem ranking.',
+    descricao: 'Eleitos que combinam com as suas respostas no Meu VotoCheck, sem ranking.',
     caminho: `/quiz/resultado`,
     noindex: true,
     larga: true,

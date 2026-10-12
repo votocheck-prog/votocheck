@@ -13,6 +13,7 @@ import { renderCtaApoio } from './jornada_html.js';
 import { Icone } from './icones.js';
 import { renderPublicidade } from './publicidade.js';
 import { linkWhatsApp } from './apoio_html.js';
+import { botaoFav } from './meus_html.js';
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null;
@@ -551,6 +552,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
 
     <div class="fx-acoes">
       ${slot && principal?.numero_urna ? `<button class="vc-btn vc-btn--pri" type="button" id="add-cola" data-slot="${slot}" data-cargo="${escapeHtml(cargoSlug)}" data-nome="${escapeHtml(nomeExibicao)}" data-numero="${escapeHtml(principal.numero_urna)}" data-partido="${escapeHtml(principal.partido_sigla || '')}">${Icone.impressora(18)} Adicionar à minha cola</button>` : ''}
+      ${res && res.eleito ? botaoFav({ id: pessoa.id, cargo: cargoSlug, nome: nomeExibicao, partido: principal?.partido_sigla || '', uf: principal?.sg_uf || '' }, 'vc-fav--grande') : ''}
       <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(textoShare, urlFicha)}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoShare)}" data-share-url="${urlFicha}">${Icone.whatsapp(18)} Compartilhar</a>
       <a class="vc-btn vc-btn--sec" href="#acompanhar">${Icone.sino(18)} Acompanhar</a>
     </div>

@@ -70,6 +70,17 @@ export const TANTO_FAZ = 'tanto_faz';
 // própria em quiz_html.js, sempre por último — é assim que a regra "tanto faz sempre por último"
 // já valia antes e continua valendo aqui, sem precisar repetir em cada pergunta.
 export const PERGUNTAS = [
+  // 08/10/2026 (v5, pós-eleição): o quiz passa a comparar só ELEITOS de 2026. Nova pergunta de
+  // localidade — "base eleitoral" = estar entre os 10 mais votados da cidade do CEP ou entre os 10
+  // que mais dependem dela (tabela voto_municipio_2026). Não vale para senador (eleito pelo estado).
+  {
+    slug: 'base_local',
+    ordem: 0,
+    tipo: 'sim_nao',
+    texto: 'Prefere quem tem base eleitoral na sua cidade?',
+    ajuda: 'Digite seu CEP. Conta como base quem ficou entre os 10 mais votados da sua cidade ou entre os 10 que tiraram dela a maior parte da própria votação (TSE, 1º turno).',
+    opcoes: [{ valor: 'sim', label: 'Sim, quero quem tem base na minha cidade' }],
+  },
   {
     slug: 'faixa_idade',
     ordem: 1,
@@ -85,7 +96,7 @@ export const PERGUNTAS = [
     slug: 'sexo_declarado',
     ordem: 2,
     tipo: 'sim_nao',
-    texto: 'Tem alguma preferência quanto ao sexo declarado do candidato?',
+    texto: 'Tem alguma preferência quanto ao sexo declarado de quem te representa?',
     ajuda: 'Como consta no registro da candidatura no TSE.',
     opcoes: [
       { valor: 'masculino', label: 'Prefiro masculino' },
@@ -107,8 +118,8 @@ export const PERGUNTAS = [
     slug: 'patrimonio',
     ordem: 4,
     tipo: 'tres_opcoes',
-    texto: 'Qual patrimônio declarado você prefere no candidato?',
-    ajuda: 'Soma dos bens que o próprio candidato declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
+    texto: 'Qual patrimônio declarado você prefere em quem te representa?',
+    ajuda: 'Soma dos bens que o próprio eleito declarou ao TSE em 2026. Quem não declarou bens conta como até R$ 1 milhão.',
     opcoes: [
       { valor: 'ate1mi', label: 'Não declarou ou declarou até R$ 1 milhão' },
       { valor: 'acima1mi', label: 'Declarou acima de R$ 1 milhão' },
@@ -140,7 +151,7 @@ export const PERGUNTAS = [
  */
 export const ESPECTRO = {
   slug: 'espectro_estado_mercado',
-  ordem: 6,
+  ordem: 7,
   tipo: 'espectro',
   textoIntro: 'Como você acredita que o Estado/poder público deve interferir na vida das pessoas?',
   opcaoA:
@@ -154,7 +165,7 @@ export const ESPECTRO = {
   tituloB: 'Estado focado no essencial',
   resumoB: 'Cuida do essencial e deixa recursos e infraestrutura com empresas privadas, fiscalizando. Estrutura mais enxuta, com menos controle direto.',
   niveis: ['Totalmente A', 'Mais para A', 'Meio-termo', 'Mais para B', 'Totalmente B'],
-  aviso: 'Usa a família ideológica do partido do candidato (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra no seu resultado se você tocar no cursor.',
+  aviso: 'Usa a família ideológica do partido do eleito (a mesma da página de Partidos), nunca uma posição pessoal verificada dele — e só entra no seu resultado se você tocar no cursor.',
 };
 
 export const TODAS_PERGUNTAS = [...PERGUNTAS, ESPECTRO];
@@ -210,6 +221,7 @@ function avaliarEspectro(posicaoUsuario, zonaCandidato) {
 /** Descreve, em linguagem natural, o que o usuário escolheu numa pergunta — usado só no "seu
  *  perfil de eleitor" (nunca perto de um candidato específico). Nunca lança exceção. */
 const TEMA_CURTO = {
+  base_local: 'Base eleitoral na sua cidade',
   faixa_idade: 'Idade',
   sexo_declarado: 'Sexo declarado',
   formacao_superior: 'Ensino superior completo',
@@ -257,6 +269,9 @@ export function avaliarCandidato(respostas, sinais) {
   if ('alinhamento_bancada' in respostas) {
     const r = avaliarEscala(respostas.alinhamento_bancada, sinais.alinhamentoBancadaPct);
     if (r) porPergunta.alinhamento_bancada = r;
+  }
+  if ('base_local' in respostas) {
+    porPergunta.base_local = sinais.baseLocal === null || sinais.baseLocal === undefined ? 'sem_dado' : sinais.baseLocal ? 'match' : 'diverge';
   }
   if ('trocou_de_partido' in respostas) {
     porPergunta.trocou_de_partido = avaliarSimNaoPesaContra(respostas.trocou_de_partido, sinais.trocouPartido);

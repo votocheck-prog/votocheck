@@ -33,17 +33,16 @@ export function renderSobre() {
         organização das listas (como ordenar por nome, idade ou partido) são sempre neutros —
         nunca uma avaliação de qualidade.
       </p>
-      <h2 id="posicao" style="font-size:19px; margin-top:32px;">Posição do VotoCheck</h2>
+      <h2 id="posicao" style="font-size:19px; margin-top:32px;">Fundo eleitoral: fatos, não opinião</h2>
       <p>
-        Os dados não têm opinião. Mas sobre <strong>regras do sistema político</strong> que afetam
-        todo mundo, o VotoCheck pode ter posição, e diz isso às claras. Hoje, a única é esta:
-        <strong>o valor do fundo eleitoral precisa ser revisto</strong>.
+        O VotoCheck é neutro também sobre as regras do sistema político. Não defendemos nem
+        atacamos o fundo eleitoral ou qualquer outra regra. O que fazemos é mostrar os fatos com
+        fonte oficial: quanto dinheiro público foi para as campanhas, para quem foi, quanto custou
+        cada voto, quem aprovou o valor e quando ele será votado de novo.
       </p>
       <p>
-        Toda peça com posição sai separada das páginas de dados e com o rótulo
-        <strong>"Posição do VotoCheck"</strong>. Ela nunca pede voto, nunca ataca ou defende
-        candidato ou partido, e os números que a sustentam têm a mesma fonte oficial do resto do
-        site. Fichas, listas de eleitos e votações continuam iguais para todos.
+        Esses números valem para todos os partidos, do mesmo jeito. A conclusão é sua, e cobrar
+        quem vota o fundo também. Fichas, listas de eleitos e votações seguem as mesmas regras.
       </p>
       <p>
         Também não inventamos informação. Todo dado mostrado aqui tem uma fonte oficial
@@ -54,8 +53,19 @@ export function renderSobre() {
       <h2 style="font-size:19px; margin-top:32px;">Acompanhe quem foi eleito</h2>
       <p>
         Veja os eleitos do seu estado em <a href="/eleitos">Eleitos 2026</a>, descubra pelo CEP quem
-        tem mais ligação com a sua cidade e receba toda semana, no <a href="/boletim">boletim</a>, o
-        que os deputados e senadores do seu estado fizeram, sempre com a fonte.
+        tem mais ligação com a sua cidade e receba todo mês, no <a href="/boletim">boletim</a>, o
+        que os deputados e senadores do seu estado fizeram, sempre com a fonte. Para novidades com
+        mais frequência, siga o VotoCheck no Instagram e no TikTok.
+      </p>
+
+      <h2 style="font-size:19px; margin-top:32px;">Meu VotoCheck e Meus representantes</h2>
+      <p>
+        No <a href="/quiz">Meu VotoCheck</a> você declara o que procura em quem te representa, inclusive
+        se quer alguém com base eleitoral na sua cidade, e vê quais eleitos de 2026 têm essas
+        características. Não há ranking nem nota, e o VotoCheck não escolhe por você. Os eleitos que
+        você quiser acompanhar (até 3 deputados federais, 3 estaduais e 3 senadores) ficam salvos em
+        <a href="/meus-representantes">Meus representantes</a>, só no seu aparelho, com perfil e contatos
+        oficiais à mão para cobrar.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">Cobertura atual</h2>

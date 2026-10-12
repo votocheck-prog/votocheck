@@ -14,7 +14,7 @@ export function renderTermos() {
     <div style="max-width:680px; margin:0 auto;">
       <h1 style="font-size:clamp(26px,4vw,34px); margin-bottom:8px;">Termos e Condições</h1>
       <p style="color:var(--text-muted); font-size:15px; margin-bottom:32px;">
-        Última revisão: 08/10/2026. Este texto descreve como o VotoCheck funciona e o que você
+        Última revisão: 12/10/2026. Este texto descreve como o VotoCheck funciona e o que você
         pode esperar dele — não é aconselhamento jurídico, e está sujeito a revisão.
       </p>
 
@@ -40,9 +40,9 @@ export function renderTermos() {
         partido) é neutro — nunca uma avaliação de mérito.
       </p>
       <p>
-        Posições institucionais do VotoCheck sobre regras do sistema político (por exemplo, o
-        valor do fundo eleitoral) são publicadas separadamente, sempre com o rótulo "Posição do
-        VotoCheck", e nunca recomendam ou rejeitam candidatos ou partidos.
+        Também não tomamos posição sobre regras do sistema político, como o fundo eleitoral.
+        Sobre elas, publicamos fatos com fonte oficial (valores, destino do dinheiro, quem votou
+        e quando), sem recomendar ou rejeitar candidatos, partidos ou propostas.
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">4. Precisão e correções</h2>
@@ -69,6 +69,22 @@ export function renderTermos() {
         provedor que faz o envio dos e-mails. O boletim só começa depois que você confirma pelo
         link enviado; todo e-mail traz o link para sair, e você pode pedir a exclusão dos seus dados
         a qualquer momento em contato@votocheck.com.br.
+      </p>
+
+      <h2 id="cookies" style="font-size:19px; margin-top:32px;">Medição de audiência (Google Analytics)</h2>
+      <p>
+        Usamos o Google Analytics 4 para saber quantas pessoas visitam o site, quais páginas são mais
+        úteis e de onde vêm os acessos, com base no legítimo interesse (LGPD, art. 7º, IX) de melhorar
+        o serviço. Ele grava cookies de medição (<code>_ga</code>) no seu navegador. Os recursos de
+        publicidade estão desligados: não usamos esses dados para anúncios, não cruzamos com
+        Google Signals e não vendemos nem repassamos nada a anunciantes. Também temos uma contagem
+        própria de visitas, sem cookie e sem dado pessoal.
+      </p>
+      <p>
+        Você pode recusar quando quiser; a recusa vale para este navegador. Medição do Google
+        Analytics neste navegador: <strong data-ga-estado>ativa</strong>.
+        <button type="button" data-ga="0" style="font:inherit;font-weight:600;margin-left:6px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;">Recusar</button>
+        <button type="button" data-ga="1" style="font:inherit;font-weight:600;margin-left:4px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;">Permitir</button>
       </p>
 
       <h2 style="font-size:19px; margin-top:32px;">6. Sustentação financeira</h2>

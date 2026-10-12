@@ -58,35 +58,43 @@ async function selosPresenca(env, { pessoaId, cargoId }) {
 }
 
 /** Selo de patrimônio: variação % de `bens_declarados_total` entre os dois ciclos mais recentes
- *  da mesma pessoa, comparada à variação % média entre pares do mesmo cargo. */
-async function selosPatrimonio(env, { pessoaId, cargoId }) {
-  const db = env.DB;
-  const row = await db
-    .prepare(
-      `WITH candidaturas_cargo AS (
-         SELECT pessoa_id, ano_eleicao, bens_declarados_total,
-                ROW_NUMBER() OVER (PARTITION BY pessoa_id ORDER BY ano_eleicao DESC) as rn
-         FROM candidatura
-         WHERE cargo_id = ?1 AND bens_declarados_total IS NOT NULL AND bens_declarados_total > 0
-       ),
-       variacao_por_pessoa AS (
-         SELECT c1.pessoa_id,
-                (c1.bens_declarados_total - c2.bens_declarados_total) * 100.0 / c2.bens_declarados_total as variacao_pct
-         FROM candidaturas_cargo c1
-         JOIN candidaturas_cargo c2 ON c2.pessoa_id = c1.pessoa_id AND c2.rn = c1.rn + 1
-         WHERE c1.rn = 1
-       )
-       SELECT
-         (SELECT variacao_pct FROM variacao_por_pessoa WHERE pessoa_id = ?2) as propria,
-         (SELECT AVG(variacao_pct) FROM variacao_por_pessoa) as media`
-    )
-    .bind(cargoId, pessoaId)
-    .first();
+ *  da mesma pessoa, comparada à variação % média entre pares do mesmo cargo.
+ *  12/10/2026: a consulta varria o cargo inteiro a CADA ficha aberta (~57 mil linhas por chamada,
+ *  ~95% de todas as leituras do D1). Agora o mapa pessoa → variação do cargo é calculado uma vez e
+ *  fica 24 h no Cache API; a ficha só consulta o mapa. Resultado idêntico. */
+async function variacoesDoCargo(env, cargoId) {
+  const chave = new Request(`https://cache.interno.votocheck/selo-patrimonio-v1-${cargoId}`);
+  const hit = await caches.default.match(chave);
+  if (hit) return hit.json();
+  const { results } = await env.DB.prepare(
+    `WITH candidaturas_cargo AS (
+       SELECT pessoa_id, ano_eleicao, bens_declarados_total,
+              ROW_NUMBER() OVER (PARTITION BY pessoa_id ORDER BY ano_eleicao DESC) as rn
+       FROM candidatura
+       WHERE cargo_id = ?1 AND bens_declarados_total IS NOT NULL AND bens_declarados_total > 0
+     )
+     SELECT c1.pessoa_id,
+            (c1.bens_declarados_total - c2.bens_declarados_total) * 100.0 / c2.bens_declarados_total as variacao_pct
+     FROM candidaturas_cargo c1
+     JOIN candidaturas_cargo c2 ON c2.pessoa_id = c1.pessoa_id AND c2.rn = c1.rn + 1
+     WHERE c1.rn = 1`
+  ).bind(cargoId).all();
+  const porPessoa = {};
+  let soma = 0;
+  for (const r of results || []) { porPessoa[r.pessoa_id] = r.variacao_pct; soma += r.variacao_pct; }
+  const n = Object.keys(porPessoa).length;
+  const dados = { porPessoa, media: n ? soma / n : null };
+  await caches.default.put(chave, new Response(JSON.stringify(dados), { headers: { 'Cache-Control': 'max-age=86400' } }));
+  return dados;
+}
 
-  if (!row || row.propria === null || row.media === null) return null;
-  const desvio = desvioPercentual(row.propria, row.media);
+async function selosPatrimonio(env, { pessoaId, cargoId }) {
+  const { porPessoa, media } = await variacoesDoCargo(env, cargoId);
+  const propria = porPessoa[pessoaId];
+  if (propria === undefined || propria === null || media === null) return null;
+  const desvio = desvioPercentual(propria, media);
   if (desvio === null) return null;
-  return { variacaoPropiaPct: row.propria, mediaCargoPct: row.media, desvioPct: desvio };
+  return { variacaoPropiaPct: propria, mediaCargoPct: media, desvioPct: desvio };
 }
 
 /**

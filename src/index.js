@@ -49,7 +49,7 @@ import { DIVIDA_ATIVA_HTML } from './lib/divida_ativa_html.js';
 import { processarClippingsMensais } from './lib/clipping_mensal.js';
 import { emailClippingMensal } from './lib/acompanhamento_email.js';
 import { renderHomepage, renderResultados } from './lib/busca_html.js';
-import { renderPerfil, renderNaoEncontrado } from './lib/perfil_html.js';
+import { renderPerfil, renderNaoEncontrado, nomeProprio } from './lib/perfil_html.js';
 import { renderSobre } from './lib/sobre_html.js';
 import { renderCargoPagina, GUIA_CARGOS } from './lib/cargos_guia.js';
 import { renderTermos, renderFaq } from './lib/institucional_html.js';
@@ -74,7 +74,8 @@ import { LOGO_H_B64, LOGO_H_BRANCO_B64, ICONE_B64 } from './lib/marca_assets.js'
 import { LOGOS_ANUNCIANTES } from './lib/anunciantes_logos.js';
 import { PIX_QR_B64 } from './lib/jornada_html.js';
 import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
-import { renderEleitosUf, renderEleitosIndex } from './lib/eleitos_html.js';
+import { renderEleitosUf, renderEleitosIndex, renderPaginaSegundoTurno } from './lib/eleitos_html.js';
+import { renderMeusRepresentantes } from './lib/meus_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
@@ -332,7 +333,7 @@ function generoNormalizado(genero) {
   return null;
 }
 
-const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado-v3';
+const CACHE_KEY_QUIZ_PREFIX = 'https://cache.interno.votocheck/quiz-resultado-v5';
 
 /**
  * GET /quiz/resultado — calcula, dentro do recorte de cargo (+UF), quais candidatos "combinam"
@@ -368,7 +369,9 @@ async function rotaQuizResultado(url, env, ctx) {
   const siglasMarcadas = PARTIDOS_INFO.filter((p) => url.searchParams.get(`partido_${p.sigla}`) === '1').map((p) => p.sigla);
   const filtroPartidoAtivo = siglasMarcadas.length > 0 && siglasMarcadas.length < totalPartidosConhecidos;
 
-  const cargoRow = await env.DB.prepare(`SELECT id, nome FROM cargo WHERE slug = ?`).bind(cargoSlug).first();
+  // v5: no DF não há deputado estadual — o botão "Estadual ou Distrital" busca os distritais.
+  const cargoBusca = cargoSlug === 'deputado_estadual' && uf === 'DF' ? 'deputado_distrital' : cargoSlug;
+  const cargoRow = await env.DB.prepare(`SELECT id, nome FROM cargo WHERE slug = ?`).bind(cargoBusca).first();
   if (!cargoRow) return html404(render404(url.pathname));
 
   const precisaTrocaPartido = 'trocou_de_partido' in respostas;
@@ -388,7 +391,7 @@ async function rotaQuizResultado(url, env, ctx) {
       : null,
   ].filter(Boolean);
 
-  const condicoes = ['c.ano_eleicao = ?', 'c.cargo_id = ?'];
+  const condicoes = ['c.ano_eleicao = ?', 'c.cargo_id = ?', 'c.eleito = 1'];
   const params = [ANO_ATUAL, cargoRow.id];
   if (!cargoInfo.semUf) {
     condicoes.push('c.sg_uf = ?');
@@ -410,7 +413,7 @@ async function rotaQuizResultado(url, env, ctx) {
   const buscarNoD1 = async (comOcupacao = true) => {
     const r = await env.DB.prepare(
       `SELECT c.pessoa_id, p.nome_urna_atual, p.foto_url, p.grau_instrucao, p.genero, ${comOcupacao ? 'c.ocupacao' : 'NULL AS ocupacao'}, c.sg_uf, ca.nome as cargo_nome, ca.slug as cargo_slug, c.numero_urna,
-              pa.sigla as partido_sigla, pa.numero as partido_numero, c.reeleicao, c.declarou_bens,
+              pa.sigla as partido_sigla, pa.numero as partido_numero, c.reeleicao, c.declarou_bens, c.sq_candidato_tse, c.votos_t1,
               p.data_nascimento, c.bens_declarados_total,
               EXISTS (SELECT 1 FROM mandato m WHERE m.pessoa_id = c.pessoa_id AND m.data_fim IS NULL) as tem_mandato
               ${colunasExtra.length ? ', ' + colunasExtra.join(', ') : ''}
@@ -453,6 +456,25 @@ async function rotaQuizResultado(url, env, ctx) {
     }
   }
 
+  // v5: base eleitoral na cidade — o navegador manda só o IBGE da cidade (mun), nunca o CEP.
+  // Conta como base quem está no top 10 absoluto ou relativo da cidade (voto_municipio_2026).
+  let cidade = '';
+  let baseSq = null;
+  const munIbge = (url.searchParams.get('mun') || '').replace(/\D/g, '');
+  if ('base_local' in respostas) {
+    try {
+      const mun = munIbge.length === 7 ? await env.DB.prepare(`SELECT cd_tse, nome, uf FROM municipio_tse WHERE ibge = ?`).bind(munIbge).first() : null;
+      if (mun && cargoBusca !== 'senador') {
+        cidade = `${nomeProprio(mun.nome)}/${mun.uf}`;
+        const { results } = await env.DB.prepare(`SELECT sq FROM voto_municipio_2026 WHERE cd_tse = ? AND cargo = ?`).bind(mun.cd_tse, cargoBusca).all();
+        baseSq = new Set((results || []).map((r) => String(r.sq)));
+      }
+    } catch (e) {
+      console.error('quiz: base_local falhou', e);
+    }
+    if (!baseSq) delete respostas.base_local; // sem cidade válida, o critério sai da conta
+  }
+
   const totalPerguntasRespondidas = Object.keys(respostas).length;
   const combinam = [];
   const naoBateram = [];
@@ -460,7 +482,9 @@ async function rotaQuizResultado(url, env, ctx) {
   if (totalPerguntasRespondidas > 0) {
     for (const c of candidatos) {
       const partidoInfo = PARTIDOS_INFO.find((p) => p.numero === c.partido_numero);
+      if (baseSq) c.base_local = baseSq.has(String(c.sq_candidato_tse));
       const sinais = {
+        baseLocal: baseSq ? c.base_local : null,
         reeleicao: c.tem_mandato ? 'S' : 'N',
         idade: idadeDe(c.data_nascimento),
         patrimonio: c.bens_declarados_total ?? 0,
@@ -500,6 +524,7 @@ async function rotaQuizResultado(url, env, ctx) {
       totalCandidatos: candidatos.length,
       respostasLegiveis,
       voltarQuery: voltarQuery.toString(),
+      cidade,
     })
   );
 }
@@ -665,23 +690,44 @@ async function fetchInterno(request, env, ctx) {
       } catch (e) {
         console.error('Falha em contagemPorUfComCache:', e);
       }
-      let pessoas2T = {};
-      try {
-        pessoas2T = await pessoas2TComCache(env, ctx);
-      } catch (e) {
-        console.error('Falha em pessoas2TComCache:', e);
-      }
-      return html(renderHomeV2({ ...stats, uf, contagemUf, pessoas2T }));
+      // 12/10/2026: o 2º turno saiu da home (página /segundo-turno).
+      return html(renderHomeV2({ ...stats, uf, contagemUf }));
     }
 
     if (url.pathname === '/eleitos' && request.method === 'GET') {
+      return html(renderEleitosIndex());
+    }
+
+    // ===== 12/10/2026: 2º turno em página avulsa + Meus representantes =====
+    if (url.pathname === '/segundo-turno' && request.method === 'GET') {
       let pessoas = {};
       try {
         pessoas = await pessoas2TComCache(env, ctx);
       } catch (e) {
-        console.error('Falha em pessoas2TComCache:', e);
+        console.error('Falha em pessoas2TComCache (/segundo-turno):', e);
       }
-      return html(renderEleitosIndex({ pessoas }));
+      const ufCf = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
+      return html(renderPaginaSegundoTurno({ pessoas, ufFoco: ufCf }));
+    }
+    if (url.pathname === '/meus-representantes' && request.method === 'GET') {
+      return html(renderMeusRepresentantes());
+    }
+    if (url.pathname === '/api/representantes' && request.method === 'GET') {
+      const ids = [...new Set((url.searchParams.get('ids') || '').split(',').map((x) => x.trim()).filter((x) => /^\d{1,12}$/.test(x)))].slice(0, 12);
+      if (!ids.length) return new Response('{}', { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+      const { results } = await env.DB.prepare(
+        `SELECT c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, pa.sigla AS partido, c.sg_uf AS uf, c.votos_t1 AS votos,
+                (SELECT r.url FROM rede_social_candidato r WHERE r.candidatura_id = c.id AND r.url LIKE '%instagram.com%' ORDER BY r.ordem LIMIT 1) AS instagram,
+                (SELECT co.valor FROM contato_oficial co WHERE co.pessoa_id = c.pessoa_id AND co.tipo = 'email' AND co.invalido = 0 LIMIT 1) AS email,
+                (SELECT co.valor FROM contato_oficial co WHERE co.pessoa_id = c.pessoa_id AND co.tipo = 'telefone' AND co.invalido = 0 LIMIT 1) AS telefone
+         FROM candidatura c JOIN pessoa p ON p.id = c.pessoa_id LEFT JOIN partido pa ON pa.id = c.partido_id
+         WHERE c.ano_eleicao = ? AND c.pessoa_id IN (${ids.map(() => '?').join(',')})`
+      ).bind(ANO_ATUAL, ...ids.map(Number)).all();
+      const mapa = {};
+      for (const r of results || []) {
+        mapa[r.pessoa_id] = { nome: nomeProprio(r.nome_urna_atual || r.nome_completo || ''), foto_url: r.foto_url, partido: r.partido, uf: r.uf, votos: r.votos, instagram: r.instagram, email: r.email, telefone: r.telefone };
+      }
+      return new Response(JSON.stringify(mapa), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
     }
 
     // ===== Eleitos por cidade + CEP (08/10/2026) =====
@@ -1021,10 +1067,8 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       return html(renderPartidos({ representantesPorSigla, contagemPorSigla, bancadaOficial }));
     }
 
-    // 08/10/2026: o Meu VotoCheck (quiz para escolher candidato) saiu depois do 1º turno — decisão do Rodrigo.
-    if ((url.pathname === '/quiz' || url.pathname.startsWith('/quiz/')) && request.method === 'GET') {
-      return Response.redirect(`${url.origin}/eleitos`, 301);
-    }
+    // 12/10/2026 (v5): o Meu VotoCheck voltou, remodelado para os ELEITOS de 2026 (dep. federal,
+    // estadual/distrital e senador) + base eleitoral na cidade. Alimenta "Meus representantes".
     if (url.pathname === '/quiz' && request.method === 'GET') {
       const cargoSlug = (url.searchParams.get('cargo') || '').trim();
       const ufCfQuiz = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
@@ -1112,6 +1156,8 @@ ${results.map((r) => `  <url><loc>${SITE_URL}/candidato/${r.pessoa_id}</loc><cha
       const urls = [
         { loc: '/', prioridade: '1.0' },
         { loc: '/eleitos', prioridade: '0.9' },
+        { loc: '/quiz', prioridade: '0.8' },
+        { loc: '/segundo-turno', prioridade: '0.7' },
         { loc: '/boletim', prioridade: '0.6' },
         ...Object.keys(UF_NOMES).map((u) => ({ loc: `/eleitos/${u.toLowerCase()}`, prioridade: '0.9' })),
         { loc: '/sobre', prioridade: '0.6' },
@@ -1495,7 +1541,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       );
     }
 
-    // ===== Boletim semanal por estado (08/10/2026) =====
+    // ===== Boletim mensal por estado (08/10/2026; mensal desde 12/10) =====
     if (url.pathname === '/boletim' && request.method === 'GET') {
       const uf = (url.searchParams.get('uf') || '').toUpperCase();
       return html(renderPaginaBoletim({ status: url.searchParams.get('status') || '', uf: UF_NOMES[uf] ? uf : '' }));
@@ -1521,7 +1567,7 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         console.error('boletim: falha ao confirmar', e);
       }
       return html(uf
-        ? renderResultadoBoletim({ titulo: 'E-mail confirmado', texto: `Você vai receber o boletim semanal sobre ${UF_NOMES[uf] || uf}. O primeiro envio sai depois do 2º turno. Para sair, use o link no fim de qualquer boletim.`, uf })
+        ? renderResultadoBoletim({ titulo: 'E-mail confirmado', texto: `Você vai receber o boletim mensal sobre ${UF_NOMES[uf] || uf}. O primeiro envio sai em novembro. Para sair, use o link no fim de qualquer boletim.`, uf })
         : renderResultadoBoletim({ titulo: 'Link inválido ou expirado', texto: 'Não encontramos essa inscrição. Faça a inscrição de novo em votocheck.com.br/boletim.' }));
     }
     if (url.pathname === '/boletim/sair' && request.method === 'GET') {
@@ -1710,6 +1756,12 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 export default {
   async fetch(request, env, ctx) {
     try {
+      // HEAD = GET sem corpo (RFC 9110). Sem isso, monitores de uptime e alguns crawlers
+      // recebiam 404 em toda rota (as rotas comparam method === 'GET'). Não conta visita.
+      if (request.method === 'HEAD') {
+        const r = await fetchInterno(new Request(request, { method: 'GET' }), env, ctx);
+        return new Response(null, { status: r.status, statusText: r.statusText, headers: r.headers });
+      }
       const resposta = await fetchInterno(request, env, ctx);
       // Medição (D14): conta visitas de páginas HTML públicas, sem cookie. Nunca atrasa a resposta.
       if (request.method === 'GET' && resposta.status === 200 && (resposta.headers.get('Content-Type') || '').startsWith('text/html')) {

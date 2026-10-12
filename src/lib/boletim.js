@@ -1,9 +1,9 @@
 /**
- * VotoCheck — Boletim semanal por estado (08/10/2026, plano pós-eleição A4).
+ * VotoCheck — Boletim mensal por estado (08/10/2026; mensal desde 12/10/2026, decisão do Rodrigo).
  *
  * Inscrição opcional: só e-mail + UF. Confirmação dupla (o e-mail só entra na lista depois do
  * clique no link), descadastro em 1 clique pelo mesmo token. O site continua sem cadastro
- * obrigatório. Envio semanal começa depois do 2º turno (fábrica v2 — ver plano).
+ * obrigatório. Envio mensal (a cada 30 dias) começa em novembro, depois do 2º turno (fábrica v2 — ver plano).
  *
  * Rotas (src/index.js): GET /boletim · POST /boletim · GET /boletim/confirmar?t= · GET /boletim/sair?t=
  * Tabela: boletim_inscricao (migration 0015).
@@ -13,6 +13,7 @@ import { enviarEmail } from './email.js';
 import { emailValido } from './acompanhamento.js';
 import { UF_NOMES } from './home_html.js';
 import { Icone } from './icones.js';
+import { REDES } from './publicidade.js';
 
 function gerarToken() {
   const b = new Uint8Array(24);
@@ -74,11 +75,13 @@ function emailConfirmacao({ uf, token, site }) {
   const link = `${site}/boletim/confirmar?t=${token}`;
   const sair = `${site}/boletim/sair?t=${token}`;
   const subject = 'Confirme seu e-mail para receber o boletim do VotoCheck';
-  const text = `Falta um clique para receber o boletim semanal do VotoCheck sobre ${nomeUf}.
+  const text = `Falta um clique para receber o boletim mensal do VotoCheck sobre ${nomeUf}.
 
 Confirme aqui: ${link}
 
-Toda semana: como votaram os deputados e senadores do seu estado, quanto gastaram e o que mudou, sempre com a fonte oficial. O primeiro envio sai depois do 2º turno (25/10).
+Uma vez por mês: como votaram os deputados e senadores do seu estado, quanto gastaram e o que mudou, sempre com a fonte oficial. O primeiro envio sai em novembro.
+
+Quer acompanhar com mais frequência? Siga o VotoCheck no Instagram (instagram.com/votocheck) e no TikTok (tiktok.com/@votocheck).
 
 Não foi você? É só ignorar este e-mail: sem a confirmação, seu endereço não entra na lista.
 Para sair a qualquer momento: ${sair}
@@ -86,9 +89,10 @@ Para sair a qualquer momento: ${sair}
 VotoCheck · votocheck.com.br`;
   const html = `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0A1440">
-    <p style="font-size:16px;line-height:1.5">Falta um clique para receber o boletim semanal do VotoCheck sobre <strong>${escapeHtml(nomeUf)}</strong>.</p>
+    <p style="font-size:16px;line-height:1.5">Falta um clique para receber o boletim mensal do VotoCheck sobre <strong>${escapeHtml(nomeUf)}</strong>.</p>
     <p style="margin:24px 0"><a href="${link}" style="background:#0059F5;color:#fff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;display:inline-block">Confirmar meu e-mail</a></p>
-    <p style="font-size:14px;line-height:1.5;color:#3A4461">Toda semana: como votaram os deputados e senadores do seu estado, quanto gastaram e o que mudou, sempre com a fonte oficial. O primeiro envio sai depois do 2º turno (25/10).</p>
+    <p style="font-size:14px;line-height:1.5;color:#3A4461">Uma vez por mês: como votaram os deputados e senadores do seu estado, quanto gastaram e o que mudou, sempre com a fonte oficial. O primeiro envio sai em novembro.</p>
+    <p style="font-size:14px;line-height:1.5;color:#3A4461">Quer acompanhar com mais frequência? Siga o VotoCheck no <a href="${REDES.instagram}">Instagram</a> e no <a href="${REDES.tiktok}">TikTok</a>.</p>
     <p style="font-size:13px;line-height:1.5;color:#6B7590;margin-top:28px">Não foi você? É só ignorar: sem a confirmação, seu endereço não entra na lista. Para sair a qualquer momento: <a href="${sair}" style="color:#6B7590">cancelar</a>.</p>
     <p style="font-size:12px;color:#9AA3B5">VotoCheck · votocheck.com.br</p>
   </div>`;
@@ -108,8 +112,9 @@ export function renderBlocoBoletim({ uf = '', origem = 'home', status = '' } = {
     <style>${ESTILO_BOLETIM}</style>
     <div class="vc-wrap bo-grid">
       <div>
-        <h2 class="vc-h2" id="bo-titulo">Toda semana, o que os eleitos do seu estado fizeram</h2>
-        <p class="vc-lead">Como votaram, quanto gastaram e o que mudou, sempre com a fonte oficial. Um e-mail por semana, a partir do fim de outubro. Sai com 1 clique.</p>
+        <h2 class="vc-h2" id="bo-titulo">Todo mês, o que os eleitos do seu estado fizeram</h2>
+        <p class="vc-lead">Como votaram, quanto gastaram e o que mudou, sempre com a fonte oficial. Um e-mail por mês, a partir de novembro. Sai com 1 clique.</p>
+        <p class="bo-redes">Quer novidades com mais frequência? Siga o VotoCheck no <a href="${REDES.instagram}" target="_blank" rel="noopener">Instagram</a> e no <a href="${REDES.tiktok}" target="_blank" rel="noopener">TikTok</a>.</p>
       </div>
       <form class="bo-form" method="POST" action="/boletim" novalidate>
         <input type="hidden" name="origem" value="${escapeHtml(origem)}" />
@@ -131,8 +136,8 @@ export function renderBlocoBoletim({ uf = '', origem = 'home', status = '' } = {
 
 export function renderPaginaBoletim({ status = '', uf = '' } = {}) {
   return pagina({
-    titulo: 'Boletim semanal do VotoCheck — o que os eleitos do seu estado fizeram',
-    descricao: 'Receba toda semana como votaram, quanto gastaram e o que mudou com os deputados e senadores do seu estado, com fonte oficial. Grátis, sai com 1 clique.',
+    titulo: 'Boletim mensal do VotoCheck — o que os eleitos do seu estado fizeram',
+    descricao: 'Receba todo mês como votaram, quanto gastaram e o que mudou com os deputados e senadores do seu estado, com fonte oficial. Grátis, sai com 1 clique.',
     caminho: '/boletim',
     larga: true,
     corpo: renderBlocoBoletim({ uf, origem: 'pagina', status }),
@@ -154,6 +159,8 @@ export function renderResultadoBoletim({ titulo, texto, uf = '' }) {
 }
 
 export const ESTILO_BOLETIM = `
+  .bo-redes { color: #C3CDF0; font-size: 14.5px; margin: 14px 0 0; }
+  .bo-redes a { color: #5FE3C8; font-weight: 700; }
   .bo-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
   .bo-form { background: #fff; color: var(--ink); border-radius: 20px; padding: 24px; box-shadow: 0 30px 60px -30px rgba(0,0,0,.6); }
   .bo-label { display: block; font-size: 14px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }

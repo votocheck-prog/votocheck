@@ -17,7 +17,7 @@ import { Icone } from './icones.js';
 import { renderMapaBrasil } from './mapa_brasil.js';
 import { renderPublicidade } from './publicidade.js';
 import { renderCtaTriplo } from './apoio_html.js';
-import { renderSegundoTurno, totaisEleitos, governadorUf, antesDo2T, disputas2T } from './eleitos_html.js';
+import { totaisEleitos, governadorUf, antesDo2T, disputas2T } from './eleitos_html.js';
 import { RESULTADO_2026 } from './resultado_2026.js';
 import { nomeProprio } from './perfil_html.js';
 import { renderBlocoBoletim } from './boletim.js';
@@ -74,7 +74,7 @@ function renderPainel(uf) {
   const pres = disputas2T().find((d) => d.cargo === 'presidente');
   const nomes = (lista) => lista.map((c) => nomeProprio(c.nome)).join(' × ');
   const linhas = [];
-  if (pres && antesDo2T()) linhas.push({ n: '2T', cargo: 'Presidente', det: `2º turno: ${nomes(pres.cands)}`, href: '/eleitos#segundo-turno' });
+  if (pres && antesDo2T()) linhas.push({ n: '2T', cargo: 'Presidente', det: `2º turno: ${nomes(pres.cands)}`, href: '/segundo-turno' });
   if (uf) {
     const g = governadorUf(uf);
     linhas.push({ n: g.segundo ? '2T' : t.governador, cargo: 'Governador', det: g.eleito ? `${nomeProprio(g.eleito.nome)} (${g.eleito.partido}), eleito no 1º turno` : g.segundo ? `2º turno: ${nomes(g.segundo)}` : 'resultado em carga', href: `${base}#governador` });
@@ -125,7 +125,7 @@ function renderHero(uf, contagemUf, atualizadoEm) {
         <p class="vc-busca-dica">Digite o nome do seu deputado ou o número em que você votou.</p>
         <div class="vc-hero-acoes">
           <a class="vc-btn vc-btn--claro" href="${base}" data-ev="cta_home" data-ev-chave="eleitos">${Icone.pessoas(18)} Ver os eleitos ${uf ? `de ${escapeHtml(uf)}` : 'por estado'}</a>
-          ${antesDo2T() ? `<a class="vc-btn vc-btn--claro" href="#segundo-turno" data-ev="cta_home" data-ev-chave="2turno">${Icone.calendario(18)} Quem disputa o 2º turno</a>` : ''}
+          ${antesDo2T() ? `<a class="vc-btn vc-btn--claro" href="/segundo-turno" data-ev="cta_home" data-ev-chave="2turno">${Icone.calendario(18)} Quem disputa o 2º turno</a>` : ''}
         </div>
         <div class="vc-selo-fontes"><span class="ponto"></span><span>Fontes: <b>TSE</b> · <b>Câmara dos Deputados</b> · <b>Senado Federal</b></span></div>
       </div>
@@ -141,25 +141,6 @@ function renderMapa(uf) {
   // como uma 3ª opção ao lado das outras 2). Cada caixa ganhou um "saiba mais →" no rodapé, como
   // se fossem notícias — ver .vc-card--navy em ds.js.
   return `
-  <section class="vc-sec" style="padding:40px 0" id="dinheiro">
-    <div class="vc-wrap vc-grid vc-grid-3">
-      <a href="/dinheiro-publico${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy" data-ev="home_dinheiro">
-        <h3>R$ 5,3 bi em dinheiro público nas campanhas de 2026</h3>
-        <p>Veja quanto cada candidato do seu estado recebeu do fundo eleitoral e do fundo partidário.</p>
-        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
-      </a>
-      <a href="/2022${uf ? `?uf=${uf}` : ''}" class="vc-card vc-card--navy">
-        <h3>Em 2022, quem o seu voto ajudou a eleger indiretamente</h3>
-        <p>Digite em quem votou e veja para onde o voto foi.</p>
-        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
-      </a>
-      <a href="/perderam-o-mandato" class="vc-card vc-card--navy">
-        <h3>Eleitos que perderam o mandato, você ajudou a elegê-los?</h3>
-        <p>E quanto da vaga veio dos votos de outros.</p>
-        <span class="vc-mais">Saiba mais ${Icone.seta(16)}</span>
-      </a>
-    </div>
-  </section>
   <section class="vc-sec vc-sec--branca" id="estados">
     <div class="vc-wrap vc-mapa-grid">
       <div>
@@ -175,6 +156,126 @@ function renderMapa(uf) {
         ${formCep({ id: 'cep-home' })}
       </div>
       <div>${renderMapaBrasil().replace(/href="\/buscar\?uf=([A-Z]{2})"/g, (_, u) => `href="/eleitos/${u.toLowerCase()}"`).replace(/Ver candidatos de/g, 'Ver eleitos de')}</div>
+    </div>
+  </section>`;
+}
+
+/** 12/10/2026: banner rotativo das páginas temáticas (substitui as 3 caixas navy e ocupa o espaço
+ *  que era do 2º turno). Rolagem nativa com scroll-snap: funciona sem JS (arrasta/rola); com JS
+ *  ganha pontos, setas e avanço automático a cada 7 s, que pausa no hover/foco e não roda com
+ *  prefers-reduced-motion. */
+function renderVitrine(uf) {
+  const q = uf ? `?uf=${uf}` : '';
+  const slides = [
+    { href: '/partidos', ev: 'partidos', eyebrow: 'Congresso 2027', titulo: 'Quem ganhou e quem perdeu cadeiras', texto: 'A nova bancada de cada partido na Câmara e no Senado, e os que mais cresceram e encolheram em relação a hoje.', num: '98 → 121', legenda: 'deputados do PL a partir de 2027', cta: 'Ver os partidos' },
+    { href: `/dinheiro-publico${q}`, ev: 'dinheiro', eyebrow: 'Dinheiro público', titulo: 'R$ 5,3 bi do seu imposto pagaram as campanhas', texto: 'Quanto cada candidato recebeu do fundo eleitoral e do fundo partidário, e quanto custou cada voto.', num: '64%', legenda: 'do dinheiro foi para quem não se elegeu', cta: 'Ver para onde foi' },
+    { href: '', ev: 'cidade', eyebrow: 'Sua cidade', titulo: 'Quem tem base eleitoral onde você mora', texto: 'Digite o CEP e veja os deputados mais votados na sua cidade e os que dependem mais dela, com perfil e contatos.', num: 'CEP', legenda: 'basta digitar para ver os seus', cta: 'Buscar pela cidade', ancora: '#estados' },
+    { href: '/judiciario', ev: 'judiciario', eyebrow: 'Judiciário', titulo: 'Ninguém ali é eleito. Mas decide muita coisa', texto: 'Quem são os ministros do STF e do TSE, quem os indicou e o que cabe a cada tribunal na eleição.', num: '0', legenda: 'votos recebidos por ministros do STF', cta: 'Entender o Judiciário' },
+    { href: `/quanto-vale-seu-voto${q}`, ev: 'quanto_vale', eyebrow: 'Seu voto', titulo: 'Quanto vale o seu voto para deputado', texto: 'O peso do voto muda muito de estado para estado. Veja quantos votos custa uma cadeira onde você vota.', num: '1 voto', legenda: 'não vale o mesmo em todo o país', cta: 'Calcular o meu' },
+    { href: '/perderam-o-mandato', ev: 'perderam', eyebrow: 'Perderam o mandato', titulo: 'Eleitos em 2022 que perderam a vaga', texto: 'Você ajudou a eleger algum deles? E quanto da vaga veio dos votos de outras pessoas da mesma lista.', num: '6', legenda: 'casos documentados, com a fonte de cada um', cta: 'Ver os casos' },
+  ];
+  const n = slides.length;
+  return `
+  <section class="vc-vit" aria-roledescription="carrossel" aria-label="Para explorar no VotoCheck">
+    <style>
+      .vc-vit { padding: 40px 0 8px; }
+      .vc-vit-trilho { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; border-radius: 22px; scrollbar-width: none; }
+      .vc-vit-trilho::-webkit-scrollbar { display: none; }
+      .vc-vit-slide { scroll-snap-align: start; background: var(--navy); color: #fff; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 32px; align-items: center; padding: 40px 44px; position: relative; overflow: hidden; text-decoration: none; min-height: 268px; }
+      .vc-vit-slide::after { content: ''; position: absolute; right: -120px; top: -140px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(0,180,149,.20), transparent 65%); pointer-events: none; }
+      .vc-vit-slide small { display: block; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8FB0FF; margin-bottom: 10px; }
+      .vc-vit-slide h3 { color: #fff; font-size: clamp(24px, 3vw, 34px); line-height: 1.12; letter-spacing: -.02em; margin: 0 0 12px; }
+      .vc-vit-slide p { color: #C3CDF0; font-size: 16px; line-height: 1.55; margin: 0 0 20px; max-width: 520px; }
+      .vc-vit-cta { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--navy); background: #fff; border-radius: 999px; padding: 11px 18px; }
+      .vc-vit-slide:hover .vc-vit-cta, .vc-vit-slide:focus-visible .vc-vit-cta { background: #5FE3C8; }
+      .vc-vit-slide:focus-visible { outline: 3px solid #5FE3C8; outline-offset: -3px; }
+      .vc-vit-num { position: relative; z-index: 1; border-left: 1px solid rgba(255,255,255,.16); padding-left: 32px; }
+      .vc-vit-num b { display: block; font-family: var(--font-display); font-size: clamp(44px, 6vw, 76px); line-height: 1; color: #5FE3C8; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+      .vc-vit-num span { display: block; color: #C3CDF0; font-size: 15px; margin-top: 10px; max-width: 260px; }
+      .vc-vit-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+      .vc-vit-pontos { display: flex; gap: 6px; flex-wrap: wrap; }
+      .vc-vit-pontos button { font: 600 13px var(--font-body); color: var(--ink-2); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+      .vc-vit-pontos button[aria-current="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+      .vc-vit-setas { display: flex; gap: 6px; }
+      .vc-vit-setas button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--ink); }
+      .vc-vit-setas button:hover, .vc-vit-pontos button:hover { border-color: var(--blue); }
+      .vc-vit-setas .ant svg { transform: rotate(180deg); }
+      @media (max-width: 760px) {
+        .vc-vit { padding-top: 28px; }
+        .vc-vit-slide { grid-template-columns: 1fr; gap: 18px; padding: 28px 22px; min-height: 0; }
+        .vc-vit-num { border-left: 0; padding-left: 0; order: -1; }
+        .vc-vit-num b { font-size: 44px; }
+        .vc-vit-pontos { display: none; }
+        .vc-vit-ctrl { justify-content: flex-end; }
+        .vc-vit-ctrl::before { content: attr(data-pos); font-size: 13px; color: var(--muted); font-weight: 600; margin-right: auto; }
+      }
+      @media (prefers-reduced-motion: reduce) { .vc-vit-trilho { scroll-behavior: auto; } }
+    </style>
+    <div class="vc-wrap">
+      <div class="vc-vit-trilho" tabindex="-1">
+        ${slides
+          .map(
+            (sl, i) => `
+        <a class="vc-vit-slide" href="${sl.href}${sl.ancora || ''}" role="group" aria-roledescription="slide" aria-label="${i + 1} de ${n}: ${escapeHtml(sl.eyebrow)}" data-ev="home_vitrine" data-ev-chave="${sl.ev}"${i ? ' tabindex="-1"' : ''}>
+          <div><small>${escapeHtml(sl.eyebrow)}</small><h3>${escapeHtml(sl.titulo)}</h3><p>${escapeHtml(sl.texto)}</p><span class="vc-vit-cta">${escapeHtml(sl.cta)} ${Icone.seta(16)}</span></div>
+          <div class="vc-vit-num" aria-hidden="true"><b>${escapeHtml(sl.num)}</b><span>${escapeHtml(sl.legenda)}</span></div>
+        </a>`
+          )
+          .join('')}
+      </div>
+      <div class="vc-vit-ctrl" data-pos="1 de ${n}">
+        <div class="vc-vit-pontos">${slides.map((sl, i) => `<button type="button" data-ir="${i}" aria-label="Ir para: ${escapeHtml(sl.eyebrow)}"${i ? '' : ' aria-current="true"'}>${escapeHtml(sl.eyebrow)}</button>`).join('')}</div>
+        <div class="vc-vit-setas"><button type="button" class="ant" data-passo="-1" aria-label="Anterior">${Icone.seta(18)}</button><button type="button" data-passo="1" aria-label="Próximo">${Icone.seta(18)}</button></div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var raiz=document.currentScript.closest('.vc-vit'), tr=raiz.querySelector('.vc-vit-trilho'), sl=tr.children, n=sl.length, atual=0, timer=null, pausa=false;
+      var ctrl=raiz.querySelector('.vc-vit-ctrl'), pts=raiz.querySelectorAll('[data-ir]');
+      var reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function marcar(i){ atual=i; ctrl.setAttribute('data-pos',(i+1)+' de '+n); pts.forEach(function(p,k){ if(k===i)p.setAttribute('aria-current','true'); else p.removeAttribute('aria-current'); }); for(var k=0;k<n;k++){ if(k===i)sl[k].removeAttribute('tabindex'); else sl[k].setAttribute('tabindex','-1'); } }
+      function ir(i){ i=(i+n)%n; tr.scrollTo({left:sl[i].offsetLeft-tr.offsetLeft,behavior:reduz?'auto':'smooth'}); marcar(i); }
+      var t; tr.addEventListener('scroll',function(){ clearTimeout(t); t=setTimeout(function(){ var i=Math.round(tr.scrollLeft/tr.clientWidth); if(i!==atual)marcar(i); },80); },{passive:true});
+      pts.forEach(function(p){ p.addEventListener('click',function(){ ir(+p.dataset.ir); }); });
+      raiz.querySelectorAll('[data-passo]').forEach(function(b){ b.addEventListener('click',function(){ ir(atual+(+b.dataset.passo)); }); });
+      function inicia(){ if(reduz||timer)return; timer=setInterval(function(){ if(!pausa&&!document.hidden)ir(atual+1); },7000); }
+      ['mouseenter','focusin','touchstart'].forEach(function(e){ raiz.addEventListener(e,function(){ pausa=true; },{passive:true}); });
+      ['mouseleave','focusout'].forEach(function(e){ raiz.addEventListener(e,function(){ pausa=false; }); });
+      if('IntersectionObserver' in window){ new IntersectionObserver(function(en){ en.forEach(function(x){ if(x.isIntersecting)inicia(); else{ clearInterval(timer); timer=null; } }); },{threshold:.4}).observe(raiz); } else inicia();
+    })();
+    </script>
+  </section>`;
+}
+
+/** 12/10/2026: Meu VotoCheck volta à home, remodelado para os eleitos + "Meus representantes". */
+function renderMeuVotoCheck(uf) {
+  return `
+  <section class="vc-sec" id="meu-votocheck">
+    <div class="vc-wrap vc-mvc">
+      <style>
+        .vc-mvc { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 40px; align-items: center; }
+        .vc-mvc-lista { display: grid; gap: 10px; }
+        .vc-mvc-lista div { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+        .vc-mvc-lista b { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--navy); color: #fff; font-family: var(--font-display); font-size: 17px; }
+        .vc-mvc-lista strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 2px; }
+        .vc-mvc-lista span { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+        .vc-mvc-acoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+        @media (max-width: 860px) { .vc-mvc { grid-template-columns: 1fr; gap: 24px; } }
+      </style>
+      <div>
+        <span class="vc-eyebrow">${Icone.bussola(16)} Meu VotoCheck</span>
+        <h2 class="vc-h2">Quem foi eleito do jeito que você quer?</h2>
+        <p class="vc-lead">Diga o que importa pra você, inclusive se quer alguém com base na sua cidade, e veja quais deputados e senadores eleitos combinam. Sem ranking e sem o VotoCheck escolher por você.</p>
+        <div class="vc-mvc-acoes">
+          <a class="vc-btn vc-btn--pri" href="/quiz${uf ? `?uf=${uf}` : ''}" data-ev="cta_home" data-ev-chave="quiz">${Icone.bussola(18)} Fazer o Meu VotoCheck</a>
+          <a class="vc-btn vc-btn--sec" href="/meus-representantes" data-ev="cta_home" data-ev-chave="meus">${Icone.coracao(18)} Meus representantes <b data-fav-count hidden class="nav-fav-n"></b></a>
+        </div>
+      </div>
+      <div class="vc-mvc-lista">
+        <div><b>1</b><p style="margin:0"><strong>Responda em 2 minutos</strong><span>Base na sua cidade pelo CEP, idade, escolaridade, patrimônio, troca de partido e papel do Estado.</span></p></div>
+        <div><b>2</b><p style="margin:0"><strong>Veja quem combina</strong><span>Entre os eleitos do seu estado, em ordem alfabética, com o motivo de cada diferença.</span></p></div>
+        <div><b>3</b><p style="margin:0"><strong>Salve e cobre</strong><span>Até 3 deputados federais, 3 estaduais e 3 senadores, com perfil e contatos oficiais. Fica só no seu aparelho.</span></p></div>
+      </div>
     </div>
   </section>`;
 }
@@ -218,7 +319,7 @@ function renderMetodo() {
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.escudoCheck(16)} Como verificamos</span>
       <h2 class="vc-h2">Cada dado tem origem, data e contexto</h2>
-      <p class="vc-lead">Os dados não têm opinião. Cada informação no VotoCheck segue o mesmo caminho, com as mesmas regras para todos, de qualquer partido. Quando o VotoCheck tem posição sobre uma regra do sistema, como o valor do fundo eleitoral, ela vem separada e rotulada: <a href="/sobre#posicao" style="color:#7FB0FF">Posição do VotoCheck</a>.</p>
+      <p class="vc-lead">Os dados não têm opinião. Cada informação no VotoCheck segue o mesmo caminho, com as mesmas regras para todos, de qualquer partido. Isso vale também para temas como o fundo eleitoral: mostramos <a href="/sobre#posicao" style="color:#7FB0FF">fatos, não opinião</a>.</p>
       <div class="vc-fluxo">
         <div><small>1 · Fonte</small><strong>Quem publicou</strong><span>TSE, Câmara ou Senado, sempre a origem oficial.</span></div>
         <div><small>2 · Evidência</small><strong>O registro</strong><span>A votação, a declaração ou o documento em si.</span></div>
@@ -268,8 +369,9 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
   // logo depois do bloco do VotoCheck, como já era.
   const corpo = `
     ${renderHero(uf, contagemUf, atualizadoEm)}
-    ${antesDo2T() ? renderSegundoTurno({ pessoas: pessoas2T, ufFoco: uf }) : ''}
+    ${renderVitrine(uf)}
     ${renderMapa(uf)}
+    ${renderMeuVotoCheck(uf)}
     ${renderBlocoBoletim({ uf, origem: 'home' })}
     <div class="vc-wrap" style="padding:40px 24px">${renderPublicidade('A1', 'home')}</div>
     ${renderQuociente(uf)}

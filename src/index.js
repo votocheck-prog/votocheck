@@ -1382,6 +1382,35 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       return imagemPng(OG_IMAGE_B64, { cacheSegundos: 604800 });
     }
 
+    // ===== 27/10/2026: Workers AI — capas ilustrativas da mídia (só admin) =====
+    // Regra: nunca rosto ou cena de político real; só metáfora (urna, Congresso, dinheiro). A peça
+    // leva o rótulo "imagem ilustrativa gerada por IA". Cache no KV por hash do prompt: nunca gera 2x.
+    if (url.pathname === '/admin/ia-imagem' && request.method === 'POST') {
+      if (!env.ADMIN_TOKEN || !requireAdminToken(request, env)) return new Response('não autorizado', { status: 401 });
+      if (!env.AI) return new Response('sem binding AI', { status: 500 });
+      const p = await request.json().catch(() => ({}));
+      const prompt = String(p.prompt || '').slice(0, 2000);
+      if (!prompt) return new Response('prompt vazio', { status: 400 });
+      const steps = Math.min(8, Math.max(1, Number(p.steps) || 4));
+      const seed = Number.isInteger(p.seed) ? p.seed : undefined;
+      const dig = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${prompt}|${steps}|${seed ?? ''}`));
+      const chave = `ia:${[...new Uint8Array(dig)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+      let b64 = await env.OG.get(chave);
+      if (!b64) {
+        let r;
+        try {
+          r = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps });
+        } catch (e) {
+          return new Response(`Workers AI: ${String(e && e.message || e)}`, { status: 502 });
+        }
+        b64 = r?.image;
+        if (!b64) return new Response('sem imagem', { status: 502 });
+        ctx.waitUntil(env.OG.put(chave, b64));
+      }
+      const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      return new Response(bin, { headers: { 'Content-Type': 'image/jpeg', 'X-Cache-Key': chave } });
+    }
+
     // ===== 27/10/2026: cobrança estruturada (plano pós-eleição §8) =====
     const cobrarMatch = url.pathname.match(/^\/cobrar\/(\d+)$/);
     if (cobrarMatch && request.method === 'GET') {

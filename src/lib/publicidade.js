@@ -21,10 +21,10 @@ export const REDES = {
 export const ANUNCIANTES = [
   { id: 'bpkids', nome: 'BP Kids', sigla: 'BK', cor: '#F2994A', titulo: 'Camisetas personalizadas para crianças', texto: 'Estampas com o nome e o estilo de cada criança.', cta: 'Conhecer a BP Kids', url: 'https://bpkids.com.br', ativo: true },
   { id: 'bprock', nome: 'BP Rock', sigla: 'BR', cor: '#1F1F1F', titulo: 'Camisetas de rock personalizadas', texto: 'Sua banda, seu estilo, sua camiseta.', cta: 'Conhecer a BP Rock', url: 'https://bprock.com.br', ativo: true },
-  { id: 'myfacecode', nome: 'MyFaceCode', sigla: 'MF', cor: '#6C3CE1', titulo: 'Descubra as origens no seu rosto', texto: 'Análise fenotípica facial que revela traços da sua ancestralidade.', cta: 'Fazer minha análise', url: 'https://myfacecode.com.br', ativo: true },
+  { id: 'myfacecode', nome: 'MyFaceCode', sigla: 'MF', cor: '#6C3CE1', titulo: 'Veja o que o algoritmo vê no seu rosto', texto: 'Análise facial gratuita em 468 pontos, calibrada para a América Latina.', cta: 'Fazer a análise grátis', url: 'https://myfacecode.com.br', ativo: true },
   { id: 'valoracheck', nome: 'ValoraCheck', sigla: 'VC', cor: '#0E7C66', titulo: 'Quanto vale o seu imóvel?', texto: 'Avaliação imobiliária com dados de mercado e consultoria de patrimônio.', cta: 'Avaliar meu imóvel', url: 'https://valoracheck.com.br', ativo: true },
   { id: 'filafree', nome: 'Fila Free', sigla: 'FF', cor: '#0059F5', titulo: 'Menos espera na saída da escola', texto: 'Gestão inteligente de filas e da espera.', cta: 'Conhecer o Fila Free', url: 'https://filafree.com.br', ativo: true },
-  { id: 'minhalenda', nome: 'Minha Lenda', sigla: 'ML', cor: '#B7791F', titulo: 'Histórias em que seu filho é o herói', texto: 'Livros, e-books e audiobooks infantis personalizados.', cta: 'Conhecer a Minha Lenda', url: 'https://minhalenda.com.br', ativo: false },
+  { id: 'minhalenda', nome: 'Minha Lenda', sigla: 'ML', cor: '#B7791F', titulo: 'O livro em que a criança é a protagonista', texto: 'Com o rosto dela, e família, amigos e pet no elenco. Digital, impresso ou audiobook.', cta: 'Ler a primeira página grátis', url: 'https://minhalenda.com.br', ativo: true },
 ];
 
 function ativos() {
@@ -48,7 +48,7 @@ export function renderPublicidade(espaco, semente = '') {
   return `
   <a class="vc-pub" href="${href}" target="_blank" rel="sponsored noopener" data-ev="pub_impressao" data-ev-chave="${a.id}:${espaco}">
     <span class="vc-pub-rotulo">Publicidade</span>
-    <img class="vc-pub-logo" src="/static/anunciante/${a.id}.png?v=2" alt="${escapeHtml(a.nome)}" width="72" height="72" loading="lazy" />
+    <img class="vc-pub-logo" src="/static/anunciante/${a.id}.png?v=3" alt="${escapeHtml(a.nome)}" width="72" height="72" loading="lazy" />
     <span class="vc-pub-texto"><strong>${escapeHtml(a.titulo)}</strong><span>${escapeHtml(a.nome)} · ${escapeHtml(a.texto)}</span></span>
     <span class="vc-pub-cta">${escapeHtml(a.cta)} →</span>
   </a>`;
@@ -59,7 +59,7 @@ export function renderApoiadores() {
   const lista = ativos();
   if (!lista.length) return '';
   return `<div class="rod-apoio"><small>Publicidade · Apoiadores</small><div class="vc-apoiadores">${lista
-    .map((a) => `<a href="/p/${a.id}?e=A5" target="_blank" rel="sponsored noopener" title="${escapeHtml(a.nome)}"><img src="/static/anunciante/${a.id}.png?v=2" alt="${escapeHtml(a.nome)}" width="60" height="60" loading="lazy" /></a>`)
+    .map((a) => `<a href="/p/${a.id}?e=A5" target="_blank" rel="sponsored noopener" title="${escapeHtml(a.nome)}"><img src="/static/anunciante/${a.id}.png?v=3" alt="${escapeHtml(a.nome)}" width="60" height="60" loading="lazy" /></a>`)
     .join('')}</div></div>`;
 }
 

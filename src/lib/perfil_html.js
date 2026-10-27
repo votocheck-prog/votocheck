@@ -14,6 +14,7 @@ import { Icone } from './icones.js';
 import { renderPublicidade } from './publicidade.js';
 import { linkWhatsApp } from './apoio_html.js';
 import { botaoFav } from './meus_html.js';
+import { blocoCobrarFicha } from './cobranca_html.js';
 import { blocoCotaPerfil } from './cota_html.js';
 
 function calcularIdade(dataNascimento) {
@@ -38,7 +39,10 @@ export function resultado2026(c, genero) {
   const st = c && c.situacao_totalizacao_turno;
   if (!st || Number(c.ano_eleicao) !== 2026 || /^#|nulo/i.test(st)) return null;
   const a = genero === 'F' ? 'a' : 'o';
-  if (/^eleit/i.test(st)) return { rotulo: `Eleit${a} em 2026`, detalhe: st, classe: 'vc-chip--teal', decidido: true, eleito: true };
+  // 27/10/2026: quem foi ao 2º turno tem votos_t2 — o detalhe diz em qual turno.
+  const t2 = c.votos_t2 != null && Number(c.votos_t2) > 0;
+  if (/^eleit/i.test(st)) return { rotulo: `Eleit${a} em 2026`, detalhe: t2 ? `Eleit${a} no 2º turno` : st, classe: 'vc-chip--teal', decidido: true, eleito: true, t2 };
+  if (t2) return { rotulo: `Não eleit${a} em 2026`, detalhe: `Não eleit${a} no 2º turno`, classe: 'vc-chip--cinza', decidido: true, eleito: false, t2 };
   if (/2º turno/i.test(st)) return { rotulo: 'Disputa o 2º turno · 25/10', detalhe: '2º turno', classe: '', decidido: false, eleito: false };
   if (/suplente/i.test(st)) return { rotulo: `Suplente`, detalhe: st, classe: 'vc-chip--cinza', decidido: true, eleito: false };
   return { rotulo: `Não eleit${a} em 2026`, detalhe: st, classe: 'vc-chip--cinza', decidido: true, eleito: false };
@@ -244,7 +248,9 @@ const ESTILO_FICHA = `
   .fx-numero b { display: block; font-family: var(--font-display); font-size: 40px; font-weight: 800; letter-spacing: .08em; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .fx-numero a { font-size: 12.5px; color: #9EC0FF; font-weight: 600; text-decoration: none; }
   @media (max-width: 720px) { .fx-topo { grid-template-columns: auto 1fr; } .fx-numero { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; } .fx-foto { width: 76px; height: 76px; font-size: 28px; border-radius: 16px; } }
-  .fx-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 28px; }
+  .fx-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 28px; }
+  .fx-cob-n { font-size: 13.5px; color: var(--muted); margin-right: 6px; }
+  .fx-cob-n b { color: var(--ink); font-family: var(--font-display); font-size: 16px; }
   .fx-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 32px; }
   @media (max-width: 820px) { .fx-resumo { grid-template-columns: 1fr 1fr; } }
   .fx-kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
@@ -321,7 +327,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
+export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -352,9 +358,10 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
   const publico = fin ? (Number(fin.fefc) || 0) + (Number(fin.fundo_partidario) || 0) : 0;
   if (fin) kpis.splice(1, 0, `<div class="fx-kpi fx-kpi--pub"><small>${Icone.cifrao(14)} Dinheiro público na campanha</small><b class="tabnum">${brl(publico)}</b><span>${fin.total ? `${Math.round((100 * publico) / fin.total)}% do que arrecadou · <a href="#campanha">ver origem</a>` : 'nenhuma receita declarada ao TSE até agora'}</span></div>`);
   if (res) {
-    const votosT1 = Number(principal.votos_t1);
-    const pctT1 = principal.pct_t1 != null ? Number(principal.pct_t1).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
-    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · 1º turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras'))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
+    const votosT1 = Number(res.t2 ? principal.votos_t2 : principal.votos_t1);
+    const pctBase = res.t2 ? principal.pct_t2 : principal.pct_t1;
+    const pctT1 = pctBase != null ? Number(pctBase).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
+    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · ${res.t2 ? '2º' : '1º'} turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras'))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
   }
   kpis.push(`<div class="fx-kpi"><small>${Icone.usuario(14)} Perfil</small><b>${idade ? `${idade} anos` : '—'}</b><span>${escapeHtml(nomeProprio(pessoa.grau_instrucao || '')) || 'escolaridade não informada'}</span></div>`);
 
@@ -552,6 +559,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
     </div>
 
     <div class="fx-acoes">
+      ${podeCobrar ? blocoCobrarFicha({ pessoaId: pessoa.id, nome: nomeExibicao, total: cobrancas }) : ''}
       ${slot && principal?.numero_urna ? `<button class="vc-btn vc-btn--pri" type="button" id="add-cola" data-slot="${slot}" data-cargo="${escapeHtml(cargoSlug)}" data-nome="${escapeHtml(nomeExibicao)}" data-numero="${escapeHtml(principal.numero_urna)}" data-partido="${escapeHtml(principal.partido_sigla || '')}">${Icone.impressora(18)} Adicionar à minha cola</button>` : ''}
       ${res && res.eleito ? botaoFav({ id: pessoa.id, cargo: cargoSlug, nome: nomeExibicao, partido: principal?.partido_sigla || '', uf: principal?.sg_uf || '' }, 'vc-fav--grande') : ''}
       <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(textoShare, urlFicha)}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoShare)}" data-share-url="${urlFicha}">${Icone.whatsapp(18)} Compartilhar</a>
@@ -621,7 +629,7 @@ export function renderPerfil({ pessoa, candidaturas, mandatos, filiacoes, atribu
 
   const partidoTxt = principal?.partido_sigla ? ` (${principal.partido_sigla})` : '';
   const numTxt = principal?.numero_urna ? ` ${principal.numero_urna}` : '';
-  const votosRes = principal && Number(principal.votos_t1) ? Number(principal.votos_t1).toLocaleString('pt-BR') : '';
+  const votosRes = principal && Number(principal.votos_t2) ? Number(principal.votos_t2).toLocaleString('pt-BR') : principal && Number(principal.votos_t1) ? Number(principal.votos_t1).toLocaleString('pt-BR') : '';
   return pagina({
     // 08/10/2026: depois do 1º turno a busca virou "quantos votos teve X" (Search Console): o
     // título e a descrição passam a trazer os votos e o resultado oficial do TSE.

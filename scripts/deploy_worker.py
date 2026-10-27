@@ -82,6 +82,8 @@ for nome, valor in (("RESEND_API_KEY", RESEND_API_KEY), ("ADMIN_TOKEN", ADMIN_TO
 
 bindings = [
     {"type": "d1", "name": "DB", "id": DB_ID},
+    # 27/10/2026: Workers AI (franquia grátis de 10 mil neurons/dia) para capas ilustrativas da mídia.
+    {"type": "ai", "name": "AI"},
     # 26/09/2026: imagens de preview (og:image) pré-geradas de cada ficha — ver scripts/og/.
     {"type": "kv_namespace", "name": "OG", "namespace_id": os.environ.get("CF_KV_OG", "58aea9d36a9c4055bbcff72f7c08c3bd")},
 ]

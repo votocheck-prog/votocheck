@@ -78,6 +78,7 @@ def q(s):
 
 linhas, segundo_turno, totais, data_tot = [], [], {}, None
 governadores = {}
+resultado_t2 = []
 for ele, uf, cargo in alvos():
     d = baixar(ele, uf, cargo)
     if not d:
@@ -94,6 +95,8 @@ for ele, uf, cargo in alvos():
                 for c in par.get('cand', []):
                     st = c.get('st') or None
                     eleito = 1 if (st or '').startswith('Eleito') else 0
+                    if TURNO == 2:
+                        resultado_t2.append({'uf': uf.upper(), 'cargo': slug, 'sq': c['sqcand'], 'nome': c.get('nmu'), 'partido': par.get('sg'), 'numero': c.get('n'), 'votos': num(c.get('vap')), 'pct': pct(c.get('pvap')), 'eleito': eleito})
                     if st == '2º turno':
                         segundo_turno.append({'uf': uf.upper(), 'cargo': slug, 'sq': c['sqcand'], 'nome': c.get('nmu'), 'partido': par.get('sg'), 'numero': c.get('n'), 'votos': num(c.get('vap')), 'pct': pct(c.get('pvap'))})
                     if slug == 'governador' and (eleito or st == '2º turno'):
@@ -130,3 +133,23 @@ if TURNO == 1:
     )
     open(os.path.join(RAIZ, 'src', 'lib', 'resultado_2026.js'), 'w', encoding='utf-8').write(js)
     print('src/lib/resultado_2026.js atualizado;', len(segundo_turno), 'no 2º turno;', sum(totais.values()), 'eleitos no 1º turno')
+
+if TURNO == 2:
+    # 27/10/2026: acrescenta o resultado do 2º turno aos metadados do 1º (sem refazer o 1º).
+    caminho = os.path.join(RAIZ, 'src', 'lib', 'resultado_2026.js')
+    txt = open(caminho, encoding='utf-8').read()
+    meta = json.loads(txt.split('export const RESULTADO_2026 = ', 1)[1].rstrip().rstrip(';'))
+    resultado_t2.sort(key=lambda x: (x['cargo'] != 'presidente', x['uf'], -(x['votos'] or 0)))
+    meta['totalizacao_t2'] = data_tot.strftime('%d/%m/%Y %H:%M') if data_tot else None
+    meta['resultado_t2'] = resultado_t2
+    for r in resultado_t2:
+        if r['cargo'] == 'governador' and r['eleito']:
+            meta['governadores'][r['uf']] = [{'sq': r['sq'], 'nome': r['nome'], 'partido': r['partido'], 'situacao': 'Eleito no 2º turno', 'pct': r['pct']}]
+    js = (
+        '// Gerado por scripts/importar_resultados_2026.py — NÃO editar à mão.\n'
+        '// Metadados do resultado oficial de 2026 (1º e 2º turno). O detalhe por candidatura está no D1\n'
+        '// (candidatura.situacao_totalizacao_turno, votos_t1/t2, pct_t1/t2, eleito — migration 0014).\n'
+        f'export const RESULTADO_2026 = {json.dumps(meta, ensure_ascii=False, indent=1)};\n'
+    )
+    open(caminho, 'w', encoding='utf-8').write(js)
+    print('resultado_2026.js: 2º turno com', len(resultado_t2), 'candidaturas;', sum(r['eleito'] for r in resultado_t2), 'eleitos')

@@ -30,10 +30,17 @@ export const antesDo2T = (agora = Date.now()) => agora < DATA_2T_FIM;
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('pt-BR'));
 const fmtPct = (n) => (n == null ? '' : `${Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`);
 const dataTot = () => (RESULTADO_2026.totalizacao_t1 || '').replace(' ', ', ');
+const dataTot2 = () => (RESULTADO_2026.totalizacao_t2 || '').replace(' ', ', ');
+/** 27/10/2026: rodapé de fonte com os dois turnos (o 1º foi retotalizado depois de decisões da Justiça Eleitoral). */
+export const fonteResultado = () => `Fonte: TSE, resultado oficial de 2026 (1º turno: totalização de ${dataTot()}${RESULTADO_2026.totalizacao_t2 ? `; 2º turno: ${dataTot2()}` : ''}).`;
+/** Nota do Rio de Janeiro: não houve 2º turno para governador (TRE-RJ, 15/10/2026). */
+export const NOTA_RJ = 'No Rio de Janeiro não houve 2º turno para governador. Depois que o TSE manteve o indeferimento da candidatura de Anthony Garotinho, os votos dele foram anulados e o TRE-RJ retotalizou o resultado: Douglas Ruas (PL) passou a 50,88% dos votos válidos e foi proclamado eleito em 15/10/2026.';
 
 /** Totais de eleitos no 1º turno. Sem uf = Brasil. */
 export function totaisEleitos(uf = '') {
-  const t = RESULTADO_2026.eleitos_t1 || {};
+  // 27/10/2026: soma os eleitos do 1º turno com os do 2º (governadores; o presidente é nacional).
+  const t = { ...(RESULTADO_2026.eleitos_t1 || {}) };
+  for (const r of RESULTADO_2026.resultado_t2 || []) if (r.eleito && r.cargo === 'governador') t[`${r.uf}|governador`] = (t[`${r.uf}|governador`] || 0) + 1;
   const soma = (cargo) => Object.entries(t).filter(([k]) => (!uf || k.startsWith(`${uf}|`)) && k.endsWith(`|${cargo}`)).reduce((a, [, v]) => a + v, 0);
   return {
     governador: soma('governador'),
@@ -53,15 +60,22 @@ export function governadorUf(uf) {
   return segundo.length ? { segundo } : {};
 }
 
-/** Disputas do 2º turno agrupadas (presidente primeiro). `pessoas` = { sq: {pessoa_id, foto_url} }. */
+/** Disputas do 2º turno agrupadas (presidente primeiro). `pessoas` = { sq: {pessoa_id, foto_url} }.
+ *  27/10/2026: com o resultado carregado, usa os votos do 2º turno (e a marca de eleito). */
 export function disputas2T(pessoas = {}) {
   const grupos = new Map();
-  for (const c of RESULTADO_2026.segundo_turno || []) {
+  const temT2 = (RESULTADO_2026.resultado_t2 || []).length > 0;
+  for (const c of temT2 ? RESULTADO_2026.resultado_t2 : RESULTADO_2026.segundo_turno || []) {
     const chave = `${c.cargo}|${c.uf}`;
     if (!grupos.has(chave)) grupos.set(chave, { cargo: c.cargo, uf: c.uf, cands: [] });
-    grupos.get(chave).cands.push({ ...c, ...(pessoas[c.sq] || {}) });
+    grupos.get(chave).cands.push({ ...c, ...(pessoas[c.sq] || {}), t2: temT2 });
   }
   return [...grupos.values()];
+}
+
+/** Presidente eleito em 2026 (2º turno), ou null. */
+export function presidenteEleito() {
+  return (RESULTADO_2026.resultado_t2 || []).find((r) => r.cargo === 'presidente' && r.eleito) || null;
 }
 
 function foto(c, nome) {
@@ -73,13 +87,13 @@ function foto(c, nome) {
 function linha2T(c) {
   const nome = nomeProprio(c.nome);
   return `
-    <div class="el2-cand">
+    <div class="el2-cand${c.t2 && c.eleito ? ' el2-cand--eleito' : ''}">
       ${foto(c, nome)}
       <div class="el2-info">
         ${c.pessoa_id ? `<a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>` : `<span class="bx-nome">${escapeHtml(nome)}</span>`}
-        <div class="bx-meta">${escapeHtml(c.partido)} · ${escapeHtml(c.numero)}</div>
+        <div class="bx-meta">${c.t2 && c.eleito ? '<span class="el2-eleito">Eleito</span> · ' : ''}${escapeHtml(c.partido)} · ${escapeHtml(c.numero)}</div>
       </div>
-      <div class="el2-pct"><b class="tabnum">${fmtPct(c.pct)}</b><small>no 1º turno</small></div>
+      <div class="el2-pct"><b class="tabnum">${fmtPct(c.pct)}</b><small>${c.t2 ? `${fmt(c.votos)} votos` : 'no 1º turno'}</small></div>
       <span class="el2-barra" aria-hidden="true"><i style="width:${Math.min(100, Number(c.pct) || 0).toFixed(1)}%"></i></span>
     </div>`;
 }
@@ -103,10 +117,10 @@ export function renderSegundoTurno({ pessoas = {}, ufFoco = '', comTitulo = true
   <section class="vc-sec vc-sec--branca" id="segundo-turno">
     <style>${ESTILO_BUSCA}${ESTILO_ELEITOS}</style>
     <div class="vc-wrap">
-      ${comTitulo ? `<h2 class="vc-h2">2º turno em 25 de outubro</h2>
-      <p class="vc-lead">Presidente e governador em ${ufsGov.length} estados (${ufsGov.join(', ')}). Os nomes aparecem na ordem de votos do 1º turno, como o TSE divulgou. Toque para ver a ficha completa de cada um.</p>` : ''}
+      ${comTitulo ? `<h2 class="vc-h2">Resultado do 2º turno</h2>
+      <p class="vc-lead">Presidente e governador em ${ufsGov.length} estados (${ufsGov.join(', ')}), em 25 de outubro de 2026.</p>` : ''}
       <div class="el2-grid">${cards}</div>
-      <p class="el-fonte">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}). Percentual sobre os votos válidos.</p>
+      <p class="el-fonte">${lista[0]?.cands[0]?.t2 ? `Fonte: TSE, resultado oficial do 2º turno (totalização de ${escapeHtml(dataTot2())}).` : `Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}).`} Percentual sobre os votos válidos.</p>
     </div>
   </section>`;
 }
@@ -129,7 +143,7 @@ function linhaEleito(c, uf = '') {
       ${foto(c, nome)}
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>
-        <div class="bx-meta">${escapeHtml(c.partido_sigla || '')}${c.votos_t1 ? ` · <span class="tabnum">${fmt(c.votos_t1)}</span> votos` : ''}</div>
+        <div class="bx-meta">${escapeHtml(c.partido_sigla || '')}${c.votos_t2 ? ` · <span class="tabnum">${fmt(c.votos_t2)}</span> votos no 2º turno` : c.votos_t1 ? ` · <span class="tabnum">${fmt(c.votos_t1)}</span> votos` : ''}</div>
       </div>
       <div class="bx-dir">${via ? `<span class="el-via">${via}</span>` : ''}${c.eleito ? botaoFav({ id: c.pessoa_id, cargo: c.cargo_slug, nome, partido: c.partido_sigla || '', uf }) : ''}</div>
     </div>`;
@@ -144,8 +158,8 @@ export function renderEleitosUf({ uf, linhas = [] }) {
     .map((s) => {
       const itens = porCargo(s.slug);
       let cabeca = s.sub || '';
-      if (s.slug === 'governador') cabeca = gov.segundo ? 'Ninguém passou de 50% dos votos válidos: a decisão fica para o 2º turno, em 25 de outubro.' : 'Eleito no 1º turno. Posse em 6 de janeiro de 2027.';
-      const cards = itens.map((c) => linhaEleito(c, uf));
+      if (s.slug === 'governador') cabeca = gov.segundo ? 'Ninguém passou de 50% dos votos válidos: a decisão fica para o 2º turno, em 25 de outubro.' : /2º turno/.test(gov.eleito?.situacao || '') ? 'Eleito no 2º turno, em 25 de outubro. Posse em 6 de janeiro de 2027.' : uf === 'RJ' ? `${NOTA_RJ} Posse em 6 de janeiro de 2027.` : 'Eleito no 1º turno. Posse em 6 de janeiro de 2027.';
+      const cards = itens.filter((c) => c.eleito).map((c) => linhaEleito(c, uf));
       if (cards.length > 10) cards.splice(10, 0, renderPublicidade('A2', `eleitos${uf}${s.slug}`));
       return `
       <section class="el-sec" id="${s.ancora}" aria-labelledby="t-${s.ancora}">
@@ -162,7 +176,7 @@ export function renderEleitosUf({ uf, linhas = [] }) {
       <div class="vc-wrap">
         <nav class="fx-migalha el-migalha" aria-label="Você está em"><a href="/eleitos">Eleitos 2026</a> › ${escapeHtml(nomeUf)}</nav>
         <h1>Quem foi eleito ${escapeHtml(emUf(uf))}</h1>
-        <p class="el-lead">${fmt(t.total)} eleitos no 1º turno de 2026: ${t.governador ? 'o governador, ' : ''}${fmt(t.senador)} senadores, ${fmt(t.deputado_federal)} deputados federais e ${fmt(t.deputado_estadual)} deputados ${uf === 'DF' ? 'distritais' : 'estaduais'}. Toque no nome para ver o histórico, o patrimônio e o dinheiro da campanha de cada um.</p>
+        <p class="el-lead">${fmt(t.total)} eleitos em 2026: ${t.governador ? 'o governador, ' : ''}${fmt(t.senador)} senadores, ${fmt(t.deputado_federal)} deputados federais e ${fmt(t.deputado_estadual)} deputados ${uf === 'DF' ? 'distritais' : 'estaduais'}. Toque no nome para ver o histórico, o patrimônio e o dinheiro da campanha de cada um.</p>
         <nav class="el-indice" aria-label="Ir para">${SECOES_UF(uf).map((s) => `<a href="#${s.ancora}">${escapeHtml(s.titulo)}</a>`).join('')}</nav>
         <style>${ESTILO_MUNICIPIO}</style>
         <div class="el-cep">${formCep({ tema: 'navy', id: 'cep-uf' }).replace('Seu CEP', 'Os mais votados na sua cidade: digite o CEP')}</div>
@@ -173,7 +187,7 @@ export function renderEleitosUf({ uf, linhas = [] }) {
         <p class="el-nota">Dentro de cada cargo, a lista segue o número de votos, do maior para o menor. É dado do TSE, não ranking de quem é melhor. A maioria das vagas de deputado sai pelo quociente (votos do partido ou federação). Quem aparece com a etiqueta <b>pelas sobras</b> ganhou uma das vagas que restaram, distribuídas pela maior média.</p>
         ${secoes}
         <nav class="el-ufs" aria-label="Outros estados">${Object.keys(UF_NOMES).sort().map((u) => `<a href="/eleitos/${u.toLowerCase()}" class="${u === uf ? 'ativo' : ''}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`).join('')}</nav>
-        <p class="el-fonte">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}). Erro ou dado desatualizado? Escreva para <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.</p>
+        <p class="el-fonte">${escapeHtml(fonteResultado())} Erro ou dado desatualizado? Escreva para <a href="mailto:contato@votocheck.com.br">contato@votocheck.com.br</a>.</p>
       </div>
     </div>
     ${renderBlocoBoletim({ uf, origem: `eleitos_${uf.toLowerCase()}` })}`;
@@ -196,12 +210,13 @@ export function renderEleitosUf({ uf, linhas = [] }) {
 
 export function renderEleitosIndex({ pessoas = {} } = {}) {
   const t = totaisEleitos();
+  const pres = presidenteEleito();
   const estados = Object.keys(UF_NOMES)
     .sort()
     .map((u) => {
       const tu = totaisEleitos(u);
       const g = governadorUf(u);
-      const govTxt = g.eleito ? `Governador: ${nomeProprio(g.eleito.nome)} (${g.eleito.partido})` : g.segundo ? 'Governador: 2º turno' : '';
+      const govTxt = g.eleito ? `Governador: ${nomeProprio(g.eleito.nome)} (${g.eleito.partido})${/2º turno/.test(g.eleito.situacao || '') ? ', no 2º turno' : ''}` : g.segundo ? 'Governador: 2º turno' : '';
       return `<a class="el-uf-card" href="/eleitos/${u.toLowerCase()}"><b>${escapeHtml(UF_NOMES[u])}</b><span class="tabnum">${fmt(tu.total)} eleitos</span><small>${escapeHtml(govTxt)}</small></a>`;
     })
     .join('');
@@ -210,15 +225,15 @@ export function renderEleitosIndex({ pessoas = {} } = {}) {
     <section class="bx-topo">
       <div class="vc-wrap">
         <h1>Eleitos em 2026</h1>
-        <p class="el-lead">${fmt(t.total)} pessoas foram eleitas no 1º turno: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} deputados estaduais e distritais, ${fmt(t.senador)} senadores e ${fmt(t.governador)} governadores. Escolha seu estado.</p>
+        <p class="el-lead">${pres ? `${escapeHtml(nomeProprio(pres.nome))} (${escapeHtml(pres.partido)}) foi eleito presidente no 2º turno, com ${fmtPct(pres.pct)} dos votos válidos. ` : ''}Nos estados, ${fmt(t.total)} pessoas foram eleitas: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} deputados estaduais e distritais, ${fmt(t.senador)} senadores e ${fmt(t.governador)} governadores. Escolha seu estado.</p>
       </div>
     </section>
     <div class="bx-corpo"><div class="vc-wrap"><div class="el-uf-grid">${estados}</div></div></div>
-    ${antesDo2T() ? `<div class="vc-wrap"><a class="el-2t-link" href="/segundo-turno">${Icone.calendario(18)} <span><b>2º turno em 25 de outubro</b> Presidente e governadores: quem disputa e com quantos votos chegou</span> →</a></div>` : ''}
-    <div class="vc-wrap"><p class="el-fonte" style="padding-bottom:48px">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml(dataTot())}).</p></div>`;
+    <div class="vc-wrap"><a class="el-2t-link" href="/segundo-turno">${Icone.calendario(18)} <span><b>Resultado do 2º turno</b> Presidente e governadores em 6 estados, com os votos de 25 de outubro</span> →</a></div>
+    <div class="vc-wrap"><p class="el-fonte" style="padding-bottom:48px">${escapeHtml(fonteResultado())}</p></div>`;
   return pagina({
     titulo: 'Eleitos em 2026 por estado: deputados, senadores e governadores — VotoCheck',
-    descricao: `Quem foi eleito em 2026 em cada estado: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} estaduais e distritais, ${fmt(t.senador)} senadores e ${fmt(t.governador)} governadores no 1º turno. Fonte: TSE.`,
+    descricao: `Quem foi eleito em 2026 em cada estado: ${fmt(t.deputado_federal)} deputados federais, ${fmt(t.deputado_estadual)} estaduais e distritais, ${fmt(t.senador)} senadores e ${fmt(t.governador)} governadores, com o resultado do 2º turno. Fonte: TSE.`,
     caminho: '/eleitos',
     larga: true,
     corpo,
@@ -227,21 +242,23 @@ export function renderEleitosIndex({ pessoas = {} } = {}) {
 
 /** Página avulsa do 2º turno (12/10/2026): saiu da home para não ocupar espaço lá. */
 export function renderPaginaSegundoTurno({ pessoas = {}, ufFoco = '' } = {}) {
+  const pres = presidenteEleito();
   const bloco = renderSegundoTurno({ pessoas, ufFoco, comTitulo: false });
   const corpo = `
     <style>${ESTILO_BUSCA}${ESTILO_ELEITOS}</style>
     <section class="bx-topo">
       <div class="vc-wrap">
         <nav class="fx-migalha el-migalha" aria-label="Você está em"><a href="/eleitos">Eleitos 2026</a> › 2º turno</nav>
-        <h1>2º turno em 25 de outubro</h1>
-        <p class="el-lead">Presidente da República e governador nos estados onde ninguém passou de 50% dos votos válidos. Os nomes seguem a ordem de votos do 1º turno, como o TSE divulgou. Toque no nome para ver histórico, patrimônio e dinheiro de campanha.</p>
+        <h1>Resultado do 2º turno de 2026</h1>
+        <p class="el-lead">${pres ? `${escapeHtml(nomeProprio(pres.nome))} (${escapeHtml(pres.partido)}) foi eleito presidente da República com ${fmtPct(pres.pct)} dos votos válidos, em 25 de outubro. ` : ''}Também houve 2º turno para governador em 6 estados. Toque no nome para ver histórico, patrimônio, dinheiro de campanha e como acompanhar o mandato.</p>
+        <p class="el-lead" style="margin-top:12px;font-size:14.5px;color:#9FB0E0">${escapeHtml(NOTA_RJ)}</p>
       </div>
     </section>
     ${bloco || `<div class="vc-wrap" style="padding:40px 0"><div class="bx-vazio">Resultado do 2º turno ainda não carregado.</div></div>`}
-    <div class="vc-wrap" style="padding-bottom:48px"><p class="el-fonte"><a href="/eleitos">Ver todos os eleitos no 1º turno →</a></p></div>`;
+    <div class="vc-wrap" style="padding-bottom:48px"><p class="el-fonte"><a href="/eleitos">Ver todos os eleitos de 2026 por estado →</a></p></div>`;
   return pagina({
-    titulo: '2º turno 2026: quem disputa presidente e governador — VotoCheck',
-    descricao: 'Quem disputa o 2º turno de 25 de outubro de 2026 para presidente e governador, com os votos do 1º turno e a ficha de cada candidato. Fonte: TSE.',
+    titulo: 'Resultado do 2º turno 2026: presidente e governadores eleitos — VotoCheck',
+    descricao: `Resultado oficial do 2º turno de 25 de outubro de 2026${pres ? `: ${nomeProprio(pres.nome)} (${pres.partido}) eleito presidente com ${fmtPct(pres.pct)} dos votos válidos` : ''}, e os governadores eleitos em AC, AM, DF, ES, RN e TO. Votos e ficha de cada um. Fonte: TSE.`,
     caminho: '/segundo-turno',
     larga: true,
     corpo,
@@ -298,6 +315,10 @@ export const ESTILO_ELEITOS = `
   .el2-pct { text-align: right; }
   .el2-pct b { display: block; font-family: var(--font-display); font-size: 20px; line-height: 1.1; color: var(--ink); }
   .el2-pct small { font-size: 12px; color: var(--muted); }
+  .el2-eleito { font-weight: 800; color: #00735F; }
+  .el2-card--pres .el2-eleito { color: #5FE3C8; }
+  .el2-cand--eleito .el2-barra i { background: var(--teal, #00B495); }
+  .el2-card--pres .el2-cand--eleito .el2-barra i { background: #5FE3C8; }
   .el2-barra { grid-column: 2 / -1; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
   .el2-barra i { display: block; height: 100%; border-radius: 99px; background: var(--blue); }
   .el2-card--pres .el2-barra { background: rgba(255,255,255,.12); }

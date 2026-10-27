@@ -1,9 +1,9 @@
 // Gerado por scripts/importar_resultados_2026.py — NÃO editar à mão.
-// Metadados do resultado oficial de 2026 (1º turno). O detalhe por candidatura está no D1
-// (candidatura.situacao_totalizacao_turno, votos_t1, pct_t1, eleito — migration 0014).
+// Metadados do resultado oficial de 2026 (1º e 2º turno). O detalhe por candidatura está no D1
+// (candidatura.situacao_totalizacao_turno, votos_t1/t2, pct_t1/t2, eleito — migration 0014).
 export const RESULTADO_2026 = {
  "fonte": "TSE — resultados.tse.jus.br (divulgação oficial)",
- "totalizacao_t1": "07/10/2026 14:33",
+ "totalizacao_t1": "24/10/2026 12:42",
  "segundo_turno": [
   {
    "uf": "BR",
@@ -104,26 +104,6 @@ export const RESULTADO_2026 = {
    "numero": "15",
    "votos": 719397,
    "pct": 34.06
-  },
-  {
-   "uf": "RJ",
-   "cargo": "governador",
-   "sq": "190002542887",
-   "nome": "DOUGLAS RUAS",
-   "partido": "PL",
-   "numero": "22",
-   "votos": 4271199,
-   "pct": 49.27
-  },
-  {
-   "uf": "RJ",
-   "cargo": "governador",
-   "sq": "190002543380",
-   "nome": "EDUARDO PAES",
-   "partido": "PSD",
-   "numero": "55",
-   "votos": 3706984,
-   "pct": 42.76
   },
   {
    "uf": "RN",
@@ -235,6 +215,7 @@ export const RESULTADO_2026 = {
   "PR|senador": 2,
   "PR|deputado_federal": 30,
   "PR|deputado_estadual": 54,
+  "RJ|governador": 1,
   "RJ|senador": 2,
   "RJ|deputado_federal": 46,
   "RJ|deputado_estadual": 70,
@@ -275,15 +256,8 @@ export const RESULTADO_2026 = {
     "sq": "10002544107",
     "nome": "MAILZA ASSIS",
     "partido": "PP",
-    "situacao": "2º turno",
-    "pct": 49.76
-   },
-   {
-    "sq": "10002532492",
-    "nome": "ALAN RICK",
-    "partido": "REPUBLICANOS",
-    "situacao": "2º turno",
-    "pct": 32.27
+    "situacao": "Eleito no 2º turno",
+    "pct": 66.21
    }
   ],
   "AL": [
@@ -300,15 +274,8 @@ export const RESULTADO_2026 = {
     "sq": "40002532272",
     "nome": "OMAR AZIZ",
     "partido": "PSD",
-    "situacao": "2º turno",
-    "pct": 40.63
-   },
-   {
-    "sq": "40002541626",
-    "nome": "PROFESSORA MARIA DO CARMO",
-    "partido": "PL",
-    "situacao": "2º turno",
-    "pct": 24.49
+    "situacao": "Eleito no 2º turno",
+    "pct": 61.42
    }
   ],
   "AP": [
@@ -343,15 +310,8 @@ export const RESULTADO_2026 = {
     "sq": "70002553055",
     "nome": "CELINA LEÃO",
     "partido": "PP",
-    "situacao": "2º turno",
-    "pct": 49.93
-   },
-   {
-    "sq": "70002552496",
-    "nome": "LEANDRO GRASS",
-    "partido": "PT",
-    "situacao": "2º turno",
-    "pct": 34.47
+    "situacao": "Eleito no 2º turno",
+    "pct": 57.18
    }
   ],
   "ES": [
@@ -359,15 +319,8 @@ export const RESULTADO_2026 = {
     "sq": "80002552682",
     "nome": "LORENZO PAZOLINI",
     "partido": "REPUBLICANOS",
-    "situacao": "2º turno",
-    "pct": 49.65
-   },
-   {
-    "sq": "80002552172",
-    "nome": "RICARDO FERRAÇO",
-    "partido": "MDB",
-    "situacao": "2º turno",
-    "pct": 34.06
+    "situacao": "Eleito no 2º turno",
+    "pct": 52.17
    }
   ],
   "GO": [
@@ -465,31 +418,17 @@ export const RESULTADO_2026 = {
     "sq": "190002542887",
     "nome": "DOUGLAS RUAS",
     "partido": "PL",
-    "situacao": "2º turno",
-    "pct": 49.27
-   },
-   {
-    "sq": "190002543380",
-    "nome": "EDUARDO PAES",
-    "partido": "PSD",
-    "situacao": "2º turno",
-    "pct": 42.76
+    "situacao": "Eleito",
+    "pct": 50.88
    }
   ],
   "RN": [
    {
-    "sq": "200002535255",
-    "nome": "ALLYSON",
-    "partido": "UNIÃO",
-    "situacao": "2º turno",
-    "pct": 36.94
-   },
-   {
     "sq": "200002534001",
     "nome": "CADU DE LULA",
     "partido": "PT",
-    "situacao": "2º turno",
-    "pct": 36.16
+    "situacao": "Eleito no 2º turno",
+    "pct": 50.77
    }
   ],
   "RO": [
@@ -548,20 +487,170 @@ export const RESULTADO_2026 = {
   ],
   "TO": [
    {
-    "sq": "270002544599",
-    "nome": "PROFESSORA DORINHA",
-    "partido": "UNIÃO",
-    "situacao": "2º turno",
-    "pct": 45.52
-   },
-   {
     "sq": "270002544544",
     "nome": "VICENTINHO JÚNIOR",
     "partido": "PSDB",
-    "situacao": "2º turno",
-    "pct": 43.94
+    "situacao": "Eleito no 2º turno",
+    "pct": 64.52
    }
   ]
  },
- "candidaturas_totalizadas": 18851
+ "candidaturas_totalizadas": 18842,
+ "totalizacao_t2": "25/10/2026 23:27",
+ "resultado_t2": [
+  {
+   "uf": "BR",
+   "cargo": "presidente",
+   "sq": "280002542548",
+   "nome": "LULA",
+   "partido": "PT",
+   "numero": "13",
+   "votos": 64256232,
+   "pct": 51.79,
+   "eleito": 1
+  },
+  {
+   "uf": "BR",
+   "cargo": "presidente",
+   "sq": "280002551544",
+   "nome": "FLAVIO BOLSONARO",
+   "partido": "PL",
+   "numero": "22",
+   "votos": 59826041,
+   "pct": 48.21,
+   "eleito": 0
+  },
+  {
+   "uf": "AC",
+   "cargo": "governador",
+   "sq": "10002544107",
+   "nome": "MAILZA ASSIS",
+   "partido": "PP",
+   "numero": "11",
+   "votos": 272635,
+   "pct": 66.21,
+   "eleito": 1
+  },
+  {
+   "uf": "AC",
+   "cargo": "governador",
+   "sq": "10002532492",
+   "nome": "ALAN RICK",
+   "partido": "REPUBLICANOS",
+   "numero": "10",
+   "votos": 139108,
+   "pct": 33.79,
+   "eleito": 0
+  },
+  {
+   "uf": "AM",
+   "cargo": "governador",
+   "sq": "40002532272",
+   "nome": "OMAR AZIZ",
+   "partido": "PSD",
+   "numero": "55",
+   "votos": 1273975,
+   "pct": 61.42,
+   "eleito": 1
+  },
+  {
+   "uf": "AM",
+   "cargo": "governador",
+   "sq": "40002541626",
+   "nome": "PROFESSORA MARIA DO CARMO",
+   "partido": "PL",
+   "numero": "22",
+   "votos": 800328,
+   "pct": 38.58,
+   "eleito": 0
+  },
+  {
+   "uf": "DF",
+   "cargo": "governador",
+   "sq": "70002553055",
+   "nome": "CELINA LEÃO",
+   "partido": "PP",
+   "numero": "11",
+   "votos": 987142,
+   "pct": 57.18,
+   "eleito": 1
+  },
+  {
+   "uf": "DF",
+   "cargo": "governador",
+   "sq": "70002552496",
+   "nome": "LEANDRO GRASS",
+   "partido": "PT",
+   "numero": "13",
+   "votos": 739130,
+   "pct": 42.82,
+   "eleito": 0
+  },
+  {
+   "uf": "ES",
+   "cargo": "governador",
+   "sq": "80002552682",
+   "nome": "LORENZO PAZOLINI",
+   "partido": "REPUBLICANOS",
+   "numero": "10",
+   "votos": 1151818,
+   "pct": 52.17,
+   "eleito": 1
+  },
+  {
+   "uf": "ES",
+   "cargo": "governador",
+   "sq": "80002552172",
+   "nome": "RICARDO FERRAÇO",
+   "partido": "MDB",
+   "numero": "15",
+   "votos": 1056119,
+   "pct": 47.83,
+   "eleito": 0
+  },
+  {
+   "uf": "RN",
+   "cargo": "governador",
+   "sq": "200002534001",
+   "nome": "CADU DE LULA",
+   "partido": "PT",
+   "numero": "13",
+   "votos": 1073024,
+   "pct": 50.77,
+   "eleito": 1
+  },
+  {
+   "uf": "RN",
+   "cargo": "governador",
+   "sq": "200002535255",
+   "nome": "ALLYSON",
+   "partido": "UNIÃO",
+   "numero": "44",
+   "votos": 1040399,
+   "pct": 49.23,
+   "eleito": 0
+  },
+  {
+   "uf": "TO",
+   "cargo": "governador",
+   "sq": "270002544544",
+   "nome": "VICENTINHO JÚNIOR",
+   "partido": "PSDB",
+   "numero": "45",
+   "votos": 562083,
+   "pct": 64.52,
+   "eleito": 1
+  },
+  {
+   "uf": "TO",
+   "cargo": "governador",
+   "sq": "270002544599",
+   "nome": "PROFESSORA DORINHA",
+   "partido": "UNIÃO",
+   "numero": "44",
+   "votos": 309076,
+   "pct": 35.48,
+   "eleito": 0
+  }
+ ]
 };

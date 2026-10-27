@@ -17,7 +17,7 @@ import { Icone } from './icones.js';
 import { renderMapaBrasil } from './mapa_brasil.js';
 import { renderPublicidade } from './publicidade.js';
 import { renderCtaTriplo } from './apoio_html.js';
-import { totaisEleitos, governadorUf, antesDo2T, disputas2T } from './eleitos_html.js';
+import { totaisEleitos, governadorUf, presidenteEleito, fonteResultado } from './eleitos_html.js';
 import { RESULTADO_2026 } from './resultado_2026.js';
 import { nomeProprio } from './perfil_html.js';
 import { renderBlocoBoletim } from './boletim.js';
@@ -67,27 +67,26 @@ export function seisVotos(uf) {
 }
 
 
-/** Painel do hero (08/10/2026): eleitos do estado do visitante, ou do Brasil. Dado estático do TSE. */
+/** Painel do hero (27/10/2026): quem representa o visitante a partir de 2027 — presidente, governador
+ *  e as bancadas do estado. Dado estático do TSE (RESULTADO_2026), sem D1. */
 function renderPainel(uf) {
   const t = totaisEleitos(uf);
   const base = uf ? `/eleitos/${uf.toLowerCase()}` : '/eleitos';
-  const pres = disputas2T().find((d) => d.cargo === 'presidente');
-  const nomes = (lista) => lista.map((c) => nomeProprio(c.nome)).join(' × ');
+  const pres = presidenteEleito();
   const linhas = [];
-  if (pres && antesDo2T()) linhas.push({ n: '2T', cargo: 'Presidente', det: `2º turno: ${nomes(pres.cands)}`, href: '/segundo-turno' });
+  if (pres) linhas.push({ n: '1', cargo: 'Presidente', det: `${nomeProprio(pres.nome)} (${pres.partido}) · posse em 5/1/2027`, href: '/segundo-turno' });
   if (uf) {
     const g = governadorUf(uf);
-    linhas.push({ n: g.segundo ? '2T' : t.governador, cargo: 'Governador', det: g.eleito ? `${nomeProprio(g.eleito.nome)} (${g.eleito.partido}), eleito no 1º turno` : g.segundo ? `2º turno: ${nomes(g.segundo)}` : 'resultado em carga', href: `${base}#governador` });
+    linhas.push({ n: '1', cargo: 'Governador', det: g.eleito ? `${nomeProprio(g.eleito.nome)} (${g.eleito.partido}) · posse em 6/1/2027` : 'resultado em carga', href: `${base}#governador` });
   } else {
-    const n2 = disputas2T().filter((d) => d.cargo === 'governador').length;
-    linhas.push({ n: t.governador, cargo: 'Governadores', det: `eleitos no 1º turno${n2 ? ` · ${n2} estados no 2º turno` : ''}`, href: '/eleitos' });
+    linhas.push({ n: t.governador, cargo: 'Governadores', det: 'posse em 6/1/2027', href: '/eleitos' });
   }
-  linhas.push({ n: t.senador, cargo: 'Senadores', det: 'eleitos · mandato até 2035', href: `${base}#senado` });
-  linhas.push({ n: t.deputado_federal, cargo: 'Deputados federais', det: 'eleitos · mandato até 2031', href: `${base}#camara` });
-  linhas.push({ n: t.deputado_estadual, cargo: uf === 'DF' ? 'Deputados distritais' : 'Deputados estaduais', det: 'eleitos · mandato até 2031', href: `${base}#assembleia` });
+  linhas.push({ n: t.senador, cargo: uf ? 'Senadores eleitos' : 'Senadores', det: 'mandato até 2035', href: `${base}#senado` });
+  linhas.push({ n: t.deputado_federal, cargo: 'Deputados federais', det: 'posse em 1º/2/2027', href: `${base}#camara` });
+  linhas.push({ n: t.deputado_estadual, cargo: uf === 'DF' ? 'Deputados distritais' : 'Deputados estaduais', det: 'mandato até 2031', href: `${base}#assembleia` });
   return `
-  <div class="vc-urna vc-painel" aria-label="Eleitos em 2026${uf ? ` em ${escapeHtml(UF_NOMES[uf] || uf)}` : ' no Brasil'}">
-    <div class="vc-urna-topo"><span>Eleitos em 2026</span><strong>${uf ? escapeHtml(UF_NOMES[uf] || uf) : 'Brasil'}</strong></div>
+  <div class="vc-urna vc-painel" aria-label="Quem representa ${uf ? escapeHtml(UF_NOMES[uf] || uf) : 'o Brasil'} a partir de 2027">
+    <div class="vc-urna-topo"><span>Quem te representa em 2027</span><strong>${uf ? escapeHtml(UF_NOMES[uf] || uf) : 'Brasil'}</strong></div>
     ${linhas
       .map(
         (l) => `
@@ -98,23 +97,25 @@ function renderPainel(uf) {
       </a>`
       )
       .join('')}
-    <div class="vc-urna-rodape"><span>Resultado oficial do TSE · ${escapeHtml((RESULTADO_2026.totalizacao_t1 || '').replace(' ', ', '))}</span><a href="${base}">Ver todos os eleitos →</a></div>
+    <div class="vc-urna-rodape"><span>Resultado oficial do TSE · 1º e 2º turno</span><a href="${base}">Ver todos →</a></div>
   </div>`;
 }
 
-function renderHero(uf, contagemUf, atualizadoEm) {
-  const base = uf ? `/eleitos/${uf.toLowerCase()}` : '/eleitos';
+function renderHero(uf) {
   return `
   <section class="vc-hero">
     <div class="vc-wrap vc-hero-grid">
       <div class="vc-reveal">
-        <span class="vc-eyebrow" style="color:#7FB0FF">Eleições 2026 · Resultado oficial com fonte</span>
-        <h1>As urnas falaram.<br><em>Agora começa a cobrança.</em></h1>
-        <p class="vc-hero-sub">Veja quem foi eleito no seu estado, com votos, partido, patrimônio e o dinheiro público que cada um recebeu. E acompanhe o que cada um faz com o mandato.</p>
+        <span class="vc-eyebrow" style="color:#7FB0FF">Acompanhamento e cobrança · com fonte oficial</span>
+        <h1>A eleição durou um dia.<br><em>O mandato dura quatro anos.</em></h1>
+        <p class="vc-hero-sub">Descubra quem te representa, veja o que cada um faz com o seu voto e cobre direto no gabinete, sempre com o fato e a fonte na mão.</p>
+        <style>${ESTILO_MUNICIPIO} .vc-hero .cep-label{font-size:15px} .vc-hero-ou{margin:18px 0 8px;font-size:14px;color:#9FB0E0;font-weight:600}</style>
+        ${formCep({ tema: 'navy', id: 'cep-hero' }).replace('Seu CEP', 'Digite seu CEP e veja quem te representa').replace('Ver minha cidade', 'Ver meus representantes')}
+        <p class="vc-hero-ou">ou busque pelo nome de quem você quer acompanhar</p>
         <form class="vc-busca" method="GET" action="/buscar" role="search">
           <span class="vc-busca-ico">${Icone.busca(20)}</span>
-          <label class="sr-only" for="q-home">Nome ou número do eleito ou candidato</label>
-          <input id="q-home" type="search" name="q" placeholder="Nome ou número do eleito ou candidato" autocomplete="off" />
+          <label class="sr-only" for="q-home">Nome ou número do eleito</label>
+          <input id="q-home" type="search" name="q" placeholder="Nome ou número do eleito" autocomplete="off" />
           <label class="sr-only" for="uf-home">Estado</label>
           <select id="uf-home" name="uf" aria-label="Estado">
             <option value="">Todos</option>
@@ -122,14 +123,50 @@ function renderHero(uf, contagemUf, atualizadoEm) {
           </select>
           <button class="vc-btn vc-btn--pri" type="submit">Buscar</button>
         </form>
-        <p class="vc-busca-dica">Digite o nome do seu deputado ou o número em que você votou.</p>
-        <div class="vc-hero-acoes">
-          <a class="vc-btn vc-btn--claro" href="${base}" data-ev="cta_home" data-ev-chave="eleitos">${Icone.pessoas(18)} Ver os eleitos ${uf ? `de ${escapeHtml(uf)}` : 'por estado'}</a>
-          ${antesDo2T() ? `<a class="vc-btn vc-btn--claro" href="/segundo-turno" data-ev="cta_home" data-ev-chave="2turno">${Icone.calendario(18)} Quem disputa o 2º turno</a>` : ''}
-        </div>
         <div class="vc-selo-fontes"><span class="ponto"></span><span>Fontes: <b>TSE</b> · <b>Câmara dos Deputados</b> · <b>Senado Federal</b></span></div>
       </div>
       <div class="vc-reveal" style="animation-delay:.08s">${renderPainel(uf)}</div>
+    </div>
+  </section>`;
+}
+
+/** 27/10/2026: o "porquê" do acompanhamento — três fatos com fonte e o caminho para cobrar. */
+function renderPorQue() {
+  return `
+  <section class="vc-sec vc-sec--branca" id="por-que">
+    <style>
+      .vc-pq-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 8px; }
+      .vc-pq { background: var(--navy); color: #fff; border-radius: 20px; padding: 24px 22px; display: flex; flex-direction: column; gap: 8px; }
+      .vc-pq b { font-family: var(--font-display); font-size: clamp(34px, 4vw, 46px); line-height: 1; color: #5FE3C8; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+      .vc-pq strong { font-size: 17px; line-height: 1.3; color: #fff; }
+      .vc-pq span { font-size: 14.5px; line-height: 1.5; color: #C3CDF0; }
+      .vc-pq small { margin-top: auto; padding-top: 8px; font-size: 12px; color: #93A2D8; }
+      .vc-pq a { color: #9EC0FF; }
+      .vc-pq-passos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; counter-reset: pq; }
+      .vc-pq-passo { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+      .vc-pq-passo h3 { display: flex; gap: 10px; align-items: center; font-size: 17px; margin: 0 0 6px; }
+      .vc-pq-passo h3::before { counter-increment: pq; content: counter(pq); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--blue); color: #fff; font-size: 15px; flex: none; }
+      .vc-pq-passo p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+      @media (max-width: 860px) { .vc-pq-grid, .vc-pq-passos { grid-template-columns: 1fr; } }
+    </style>
+    <div class="vc-wrap">
+      <span class="vc-eyebrow">${Icone.megafone(16)} Por que acompanhar</span>
+      <h2 class="vc-h2">Quem não é acompanhado decide sozinho</h2>
+      <p class="vc-lead">Você não precisa concordar com ninguém para acompanhar. Precisa saber o que foi feito em seu nome, e perguntar. Opinião, cada um tem a sua. Os fatos são os mesmos para todos.</p>
+      <div class="vc-pq-grid">
+        <div class="vc-pq"><b>1.461</b><strong>dias de mandato de deputado</strong><span>Seu voto levou segundos na urna. O que ele autorizou dura de 1º de fevereiro de 2027 a 31 de janeiro de 2031.</span><small>Fonte: Constituição, art. 44</small></div>
+        <div class="vc-pq"><b>R$ 51 mi</b><strong>da cota parlamentar em "divulgação do mandato"</strong><span>Só em 2026, deputados federais usaram dinheiro público para divulgar o próprio trabalho. <a href="/dinheiro-publico/cota">Veja o do seu deputado</a>.</span><small>Fonte: Câmara dos Deputados, dados abertos</small></div>
+        <div class="vc-pq"><b>R$ 4,9 bi</b><strong>de fundo eleitoral em 2026</strong><span>O valor das próximas eleições será votado pelos eleitos de agora. Saiba como cada um vai votar antes que vote.</span><small>Fonte: Congresso Nacional, LOA 2026</small></div>
+      </div>
+      <div class="vc-pq-passos">
+        <div class="vc-pq-passo"><h3>Encontre</h3><p>Pelo CEP ou pelo nome: quem te representa, com votos, partido, patrimônio e contatos oficiais.</p></div>
+        <div class="vc-pq-passo"><h3>Acompanhe</h3><p>Como votou, quanto gastou da cota e quanto dinheiro público recebeu, com a fonte de cada dado.</p></div>
+        <div class="vc-pq-passo"><h3>Cobre</h3><p>Escolha um fato e mande a pergunta pronta ao gabinete. Cada cobrança entra no contador público do eleito.</p></div>
+      </div>
+      <div style="margin-top:22px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="vc-btn vc-btn--pri" href="#cep-hero" data-ev="cta_home" data-ev-chave="porque_cep">${Icone.mapa(18)} Achar os meus pelo CEP</a>
+        <a class="vc-btn vc-btn--sec" href="/meus-representantes" data-ev="cta_home" data-ev-chave="porque_meus">${Icone.coracao(18)} Meus representantes <b data-fav-count hidden class="nav-fav-n"></b></a>
+      </div>
     </div>
   </section>`;
 }
@@ -145,8 +182,8 @@ function renderMapa(uf) {
     <div class="vc-wrap vc-mapa-grid">
       <div>
         <span class="vc-eyebrow">${Icone.mapa(16)} Por estado</span>
-        <h2 class="vc-h2">Escolha seu estado e veja quem foi eleito</h2>
-        <p class="vc-lead">Deputados federais e estaduais, senadores e governador são eleitos por estado. Toque na sigla para ver todos os eleitos, com votos, partido e a ficha completa de cada um.</p>
+        <h2 class="vc-h2">Escolha seu estado e veja quem te representa</h2>
+        <p class="vc-lead">Deputados, senadores e governador representam o estado inteiro. Toque na sigla para ver todos os eleitos, com votos, partido, contatos oficiais e o botão para cobrar cada um.</p>
         <div class="vc-ufs">${Object.keys(UF_NOMES)
           .sort()
           .map((u) => `<a href="/eleitos/${u.toLowerCase()}" class="${u === uf ? 'ativo' : ''}" data-ev="uf" data-ev-chave="${u}" title="${escapeHtml(UF_NOMES[u])}">${u}</a>`)
@@ -344,21 +381,20 @@ function renderMetodo() {
 
 function renderNumeros() {
   const t = totaisEleitos();
-  const n2 = disputas2T().filter((d) => d.cargo === 'governador').length;
   const total = Number(RESULTADO_2026.candidaturas_totalizadas) || 0;
   return `
   <section class="vc-sec">
     <div class="vc-wrap">
       <span class="vc-eyebrow">${Icone.grafico(16)} O resultado</span>
       <h2 class="vc-h2">${t.total.toLocaleString('pt-BR')} eleitos entre ${total.toLocaleString('pt-BR')} candidaturas</h2>
-      <p class="vc-lead">Cerca de 1 em cada ${Math.round(total / Math.max(1, t.total))} candidaturas virou mandato no 1º turno. ${n2 ? `Presidente e governador em ${n2} estados ainda vão ao 2º turno.` : ''}</p>
+      <p class="vc-lead">Cerca de 1 em cada ${Math.round(total / Math.max(1, t.total))} candidaturas virou mandato, além do presidente da República. Agora começa o que vale mais: acompanhar o que cada um faz.</p>
       <div class="vc-stats">
         <div class="vc-stat"><b>${t.deputado_federal.toLocaleString('pt-BR')}</b><span>deputados federais</span></div>
         <div class="vc-stat"><b>${t.deputado_estadual.toLocaleString('pt-BR')}</b><span>deputados estaduais e distritais</span></div>
         <div class="vc-stat"><b>${t.senador}</b><span>senadores</span></div>
-        <div class="vc-stat"><b>${t.governador}</b><span>governadores no 1º turno</span></div>
+        <div class="vc-stat"><b>${t.governador}</b><span>governadores</span></div>
       </div>
-      <p class="el-fonte" style="font-size:12.5px;color:var(--muted);margin-top:16px">Fonte: TSE, resultado oficial do 1º turno (totalização de ${escapeHtml((RESULTADO_2026.totalizacao_t1 || '').replace(' ', ', '))}).</p>
+      <p class="el-fonte" style="font-size:12.5px;color:var(--muted);margin-top:16px">${escapeHtml(fonteResultado())}</p>
     </div>
   </section>`;
 }
@@ -368,7 +404,8 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
   // deputado" (e ganha o destaque navy que era do quociente), com a publicidade A1 continuando
   // logo depois do bloco do VotoCheck, como já era.
   const corpo = `
-    ${renderHero(uf, contagemUf, atualizadoEm)}
+    ${renderHero(uf)}
+    ${renderPorQue()}
     ${renderVitrine(uf)}
     ${renderMapa(uf)}
     ${renderMeuVotoCheck(uf)}
@@ -380,8 +417,8 @@ export function renderHomeV2({ uf = '', contagemUf = null, totalCandidaturas, to
     ${renderCtaTriplo({ contexto: 'home' })}
   `;
   return pagina({
-    titulo: 'VotoCheck — Quem foi eleito em 2026 e o que faz com o mandato',
-    descricao: 'Veja os eleitos de 2026 no seu estado (deputados, senadores e governador), com votos, partido, patrimônio e dinheiro público de campanha. Dado oficial do TSE, Câmara e Senado, com fonte.',
+    titulo: 'VotoCheck — Quem te representa e o que faz com o seu voto',
+    descricao: 'Descubra pelo CEP quem te representa, acompanhe votações, cota parlamentar e dinheiro público de cada eleito de 2026 e cobre direto no gabinete, com fato e fonte. Dados do TSE, Câmara e Senado.',
     caminho: '/',
     larga: true,
     ogImagem: 'https://votocheck.com.br/og/pagina/home.jpg',

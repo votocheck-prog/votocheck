@@ -1079,7 +1079,7 @@ export function rodape() {
             <li><a href="/#estados">Os mais votados na sua cidade</a></li>
             <li><a href="/quiz">Meu VotoCheck</a></li>
             <li><a href="/meus-representantes">Meus representantes</a></li>
-            <li><a href="/segundo-turno">2º turno</a></li>
+            <li><a href="/segundo-turno">Resultado do 2º turno</a></li>
             <li><a href="/boletim">Boletim mensal</a></li>
             <li><a href="/buscar">Buscar por nome</a></li>
           </ul>

@@ -77,6 +77,7 @@ import { renderHomeV2, UF_NOMES } from './lib/home_html.js';
 import { renderEleitosUf, renderEleitosIndex, renderPaginaSegundoTurno } from './lib/eleitos_html.js';
 import { renderMeusRepresentantes } from './lib/meus_html.js';
 import { renderCota } from './lib/cota_html.js';
+import { renderCobrar, temasCobranca } from './lib/cobranca_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
@@ -633,7 +634,7 @@ const TTL_ELEITOS = 43200;
 
 /** sq do TSE → { pessoa_id, foto_url } para quem está no 2º turno (16 pessoas). */
 async function pessoas2TComCache(env, ctx) {
-  const chave = new Request('https://cache.interno.votocheck/pessoas-2t-v1');
+  const chave = new Request('https://cache.interno.votocheck/pessoas-2t-v2');
   const cache = caches.default;
   const hit = await cache.match(chave);
   if (hit) return hit.json();
@@ -651,13 +652,13 @@ async function pessoas2TComCache(env, ctx) {
 
 /** Eleitos (e quem vai ao 2º turno) de uma UF, ordenados por votos dentro do cargo. */
 async function eleitosUfComCache(env, ctx, uf) {
-  const chave = new Request(`https://cache.interno.votocheck/eleitos-v1-${uf}`);
+  const chave = new Request(`https://cache.interno.votocheck/eleitos-v2-${uf}`);
   const cache = caches.default;
   const hit = await cache.match(chave);
   if (hit) return hit.json();
   const { results } = await env.DB.prepare(
     `SELECT c.pessoa_id, p.nome_urna_atual, p.nome_completo, p.foto_url, ca.slug AS cargo_slug, c.numero_urna,
-            pa.sigla AS partido_sigla, c.situacao_totalizacao_turno AS st, c.votos_t1, c.eleito
+            pa.sigla AS partido_sigla, c.situacao_totalizacao_turno AS st, c.votos_t1, c.votos_t2, c.pct_t2, c.eleito
      FROM candidatura c
      JOIN pessoa p ON p.id = c.pessoa_id
      JOIN cargo ca ON ca.id = c.cargo_id
@@ -1381,6 +1382,60 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       return imagemPng(OG_IMAGE_B64, { cacheSegundos: 604800 });
     }
 
+    // ===== 27/10/2026: cobrança estruturada (plano pós-eleição §8) =====
+    const cobrarMatch = url.pathname.match(/^\/cobrar\/(\d+)$/);
+    if (cobrarMatch && request.method === 'GET') {
+      const db = env.DB;
+      const pessoaId = Number(cobrarMatch[1]);
+      const pessoa = await db.prepare(`SELECT id, nome_urna_atual, nome_completo, foto_url, genero, id_camara FROM pessoa WHERE id = ?`).bind(pessoaId).first();
+      if (!pessoa) return html404(renderNaoEncontrado(url.pathname));
+      const cand = await db.prepare(
+        `SELECT c.id, c.sg_uf, c.eleito, ca.slug AS cargo_slug, ca.nome AS cargo_nome FROM candidatura c JOIN cargo ca ON ca.id = c.cargo_id
+         WHERE c.pessoa_id = ? AND c.ano_eleicao = ? ORDER BY c.eleito DESC LIMIT 1`
+      ).bind(pessoaId, ANO_ATUAL).first();
+      const temMandato = await db.prepare(`SELECT 1 AS ok FROM mandato WHERE pessoa_id = ? AND data_fim IS NULL LIMIT 1`).bind(pessoaId).first();
+      // Só quem tem (ou vai ter) mandato pode ser cobrado: eleito em 2026 ou mandato em curso.
+      if (!(cand && cand.eleito) && !temMandato) return Response.redirect(`${SITE_URL}/candidato/${pessoaId}`, 302);
+      const [votosR, cotaR, finR, ctR, totR] = await Promise.all([
+        db.prepare(
+          `SELECT vt.id, v.voto, vt.data_votacao, vt.descricao, vt.url_origem, vt.casa, ex.projeto AS ex_projeto, ex.resumo AS ex_resumo
+           FROM voto_parlamentar v JOIN votacao vt ON vt.id = v.votacao_id LEFT JOIN votacao_explicacao ex ON ex.votacao_id = vt.id
+           WHERE v.pessoa_id = ? ORDER BY vt.data_votacao DESC, vt.id DESC LIMIT 12`
+        ).bind(pessoaId).all().catch(() => ({ results: [] })),
+        pessoa.id_camara ? db.prepare(`SELECT total, divulgacao FROM cota_resumo WHERE id_camara = ? AND ano = ?`).bind(String(pessoa.id_camara), ANO_ATUAL).first().catch(() => null) : null,
+        cand ? db.prepare(`SELECT fefc, fundo_partidario FROM financiamento_campanha WHERE candidatura_id = ?`).bind(cand.id).first().catch(() => null) : null,
+        db.prepare(
+          `SELECT (SELECT co.valor FROM contato_oficial co WHERE co.pessoa_id = ?1 AND co.tipo = 'email' AND co.invalido = 0 LIMIT 1) AS email,
+                  (SELECT co.valor FROM contato_oficial co WHERE co.pessoa_id = ?1 AND co.tipo = 'telefone' AND co.invalido = 0 LIMIT 1) AS telefone,
+                  (SELECT r.url FROM rede_social_candidato r JOIN candidatura c2 ON c2.id = r.candidatura_id WHERE c2.pessoa_id = ?1 AND r.url LIKE '%instagram.com%' ORDER BY c2.ano_eleicao DESC, r.ordem LIMIT 1) AS instagram`
+        ).bind(pessoaId).first().catch(() => ({})),
+        db.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first().catch(() => ({ n: 0 })),
+      ]);
+      const temas = temasCobranca({ cargoSlug: cand?.cargo_slug, uf: cand?.sg_uf, votos: votosR.results || [], cota: cotaR, fin: finR });
+      return html(renderCobrar({ pessoa, cand, contatos: ctR || {}, temas, total: totR?.n || 0, temaInicial: url.searchParams.get('tema') || '' }));
+    }
+    if (url.pathname === '/api/cobranca' && request.method === 'POST') {
+      let corpo = {};
+      try { corpo = await request.json(); } catch (e) { /* corpo inválido */ }
+      const pessoaId = Number(corpo.pessoa_id);
+      const tema = String(corpo.tema || '').slice(0, 40);
+      const canal = ['email', 'instagram', 'telefone', 'copiar'].includes(corpo.canal) ? corpo.canal : 'outro';
+      if (!pessoaId || !/^[a-z0-9-]{3,40}$/.test(tema)) return new Response('{"ok":false}', { status: 400, headers: { 'Content-Type': 'application/json' } });
+      // 1 por pessoa/tema/dia por aparelho: hash de IP + navegador + data (não guardamos IP).
+      const base = `${request.headers.get('CF-Connecting-IP') || ''}|${request.headers.get('User-Agent') || ''}|${dataSP()}`;
+      const dig = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base));
+      const chave = [...new Uint8Array(dig)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
+      try {
+        await env.DB.prepare(`INSERT OR IGNORE INTO cobranca (pessoa_id, tema, canal, uf_origem, chave_dia) VALUES (?, ?, ?, ?, ?)`)
+          .bind(pessoaId, tema, canal, String(request.cf?.regionCode || '').slice(0, 2), chave).run();
+        const t = await env.DB.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first();
+        return new Response(JSON.stringify({ ok: true, total: t?.n || 0 }), { headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        console.error('cobranca:', e);
+        return new Response('{"ok":false}', { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
     const perfilMatch = url.pathname.match(/^\/candidato\/(\d+)$/);
     if (perfilMatch && request.method === 'GET') {
       const db = env.DB;
@@ -1556,8 +1611,15 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         }
       }
 
+      let cobrancas = 0;
+      try {
+        cobrancas = (await db.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first())?.n || 0;
+      } catch (e) { /* migration 0019 ausente: sem contador */ }
+      const temMandatoAtivo = (mandatosRes.results || []).some((m) => !m.data_fim);
       return html(
         renderPerfil({
+          cobrancas,
+          podeCobrar: temMandatoAtivo || (candidaturasRes.results || []).some((c) => c.ano_eleicao === ANO_ATUAL && Number(c.eleito) === 1),
           cota,
           cotaCats,
           plano,

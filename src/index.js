@@ -1000,7 +1000,7 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
       const uf = UF_NOMES[ufParam] ? ufParam : 'SP';
       const versao = await obterVersaoDados(env);
-      const chave = new Request(`https://cache.interno.votocheck/dinheiro-v1?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
+      const chave = new Request(`https://cache.interno.votocheck/dinheiro-v2?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
       let dados = null;
       const emCache = await caches.default.match(chave);
       if (emCache) dados = await emCache.json();

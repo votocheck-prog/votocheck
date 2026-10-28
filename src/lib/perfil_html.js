@@ -361,7 +361,7 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
     const votosT1 = Number(res.t2 ? principal.votos_t2 : principal.votos_t1);
     const pctBase = res.t2 ? principal.pct_t2 : principal.pct_t1;
     const pctT1 = pctBase != null ? Number(pctBase).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
-    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · ${res.t2 ? '2º' : '1º'} turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras'))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
+    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · ${res.t2 ? '2º' : '1º'} turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras').replace(/^Eleito /, pessoa.genero === 'F' ? 'Eleita ' : 'Eleito '))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
   }
   kpis.push(`<div class="fx-kpi"><small>${Icone.usuario(14)} Perfil</small><b>${idade ? `${idade} anos` : '—'}</b><span>${escapeHtml(nomeProprio(pessoa.grau_instrucao || '')) || 'escolaridade não informada'}</span></div>`);
 
@@ -541,7 +541,7 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
 
   const corpo = `
     <style>${ESTILO_FICHA}</style>
-    <nav class="fx-migalha" aria-label="Você está em"><a href="/buscar">Candidatos</a>${principal ? ` › <a href="/buscar?uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.sg_uf)}</a> › <a href="/buscar?cargo=${escapeHtml(cargoSlug)}&uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.cargo_nome)}</a>` : ''}</nav>
+    <nav class="fx-migalha" aria-label="Você está em"><a href="${res && res.eleito ? '/eleitos' : '/buscar'}">${res && res.eleito ? 'Eleitos 2026' : 'Candidatos'}</a>${principal ? ` › <a href="/buscar?uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.sg_uf)}</a> › <a href="/buscar?cargo=${escapeHtml(cargoSlug)}&uf=${escapeHtml(principal.sg_uf)}">${escapeHtml(principal.cargo_nome)}</a>` : ''}</nav>
 
     <div class="fx-topo">
       <div class="fx-foto-wrap"><div class="fx-foto">${pessoa.foto_url ? `<img src="${escapeHtml(pessoa.foto_url)}" alt="Foto de ${escapeHtml(nomeExibicao)}" loading="eager">` : inicial}</div>${pessoa.foto_url ? '' : '<small class="fx-sem-foto" title="Ainda não importamos as fotos da Justiça Eleitoral. Por enquanto só aparecem fotos oficiais de quem já tem mandato no Congresso.">Foto oficial ainda não carregada</small>'}</div>
@@ -555,7 +555,7 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
           ${res ? `<span class="vc-chip ${res.classe}">${escapeHtml(res.rotulo)}</span>` : reeleicao ? `<span class="vc-chip vc-chip--teal">Tenta a reeleição</span>` : ''}
         </div>
       </div>
-      ${principal?.numero_urna ? `<div class="fx-numero"><small>Número na urna</small><b>${escapeHtml(principal.numero_urna)}</b><a href="#" data-copiar="${escapeHtml(principal.numero_urna)}" data-ev-chave="numero">Copiar número</a></div>` : ''}
+      ${principal?.numero_urna && !(res && res.decidido) ? `<div class="fx-numero"><small>Número na urna</small><b>${escapeHtml(principal.numero_urna)}</b><a href="#" data-copiar="${escapeHtml(principal.numero_urna)}" data-ev-chave="numero">Copiar número</a></div>` : ''}
     </div>
 
     <div class="fx-acoes">
@@ -563,25 +563,29 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
       ${slot && principal?.numero_urna ? `<button class="vc-btn vc-btn--pri" type="button" id="add-cola" data-slot="${slot}" data-cargo="${escapeHtml(cargoSlug)}" data-nome="${escapeHtml(nomeExibicao)}" data-numero="${escapeHtml(principal.numero_urna)}" data-partido="${escapeHtml(principal.partido_sigla || '')}">${Icone.impressora(18)} Adicionar à minha cola</button>` : ''}
       ${res && res.eleito ? botaoFav({ id: pessoa.id, cargo: cargoSlug, nome: nomeExibicao, partido: principal?.partido_sigla || '', uf: principal?.sg_uf || '' }, 'vc-fav--grande') : ''}
       <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(textoShare, urlFicha)}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoShare)}" data-share-url="${urlFicha}">${Icone.whatsapp(18)} Compartilhar</a>
-      <a class="vc-btn vc-btn--sec" href="#acompanhar">${Icone.sino(18)} Acompanhar</a>
+      <a class="vc-btn vc-btn--sec" href="#acompanhar">${Icone.sino(18)} Avisos por e-mail</a>
     </div>
 
     <div class="fx-resumo">${kpis.join('')}</div>
 
-    ${blocoSelos(selos, principal ? principal.cargo_nome : '')}
-
-    ${blocoPlano}
-
-    ${blocoTemas}
-
+    ${res && res.decidido
+      // 27/10/2026: depois da eleição a ficha é de acompanhamento: primeiro o que o eleito faz
+      // (votos, cota, dinheiro público), depois patrimônio e o resto; a "lista do partido" vai para o fim.
+      ? `${blocoVotos}
+    ${blocoCotaPerfil({ cota, categorias: cotaCats, uf: principal?.sg_uf || '', ano: 2026 })}
+    ${blocoCampanha}
     ${blocoBens}
-
+    ${blocoTemas}
+    ${blocoPlano}
+    ${blocoSelos(selos, principal ? principal.cargo_nome : '')}`
+      : `${blocoSelos(selos, principal ? principal.cargo_nome : '')}
+    ${blocoPlano}
+    ${blocoTemas}
+    ${blocoBens}
     ${blocoCampanha}
     ${blocoCotaPerfil({ cota, categorias: cotaCats, uf: principal?.sg_uf || '', ano: 2026 })}
-
     ${blocoVotos}
-
-    ${blocoLista}
+    ${blocoLista}`}
 
     <section class="fx-sec">
       <h2>Dados do registro de candidatura</h2>
@@ -601,6 +605,8 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
       </section>` : ''}
 
     ${blocoAtributos(atributos)}
+
+    ${res && res.decidido ? blocoLista : ''}
 
     <div id="acompanhar">${blocoAcompanhar(pessoa.id, acompanhar, nomeExibicao)}</div>
 

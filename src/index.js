@@ -178,7 +178,7 @@ async function estatisticasHomepageComCache(env, ctx) {
 // candidaturas por partido, o que não é barato, então não deve rodar a cada visita da página
 // de partidos. Nunca foi testada contra o D1 de produção (cota travada nesta sessão — ver
 // CONTINUIDADE_INFRA_UPDATE_2026-09-18.md seção 19); testada só localmente com dados simulados.
-const CACHE_KEY_PARTIDOS = new Request('https://cache.interno.votocheck/partidos-representantes');
+const CACHE_KEY_PARTIDOS = new Request('https://cache.interno.votocheck/partidos-representantes-v2');
 
 /**
  * Pra cada sigla em PARTIDOS_INFO, busca até 10 candidaturas de 2026, ordenadas por hierarquia
@@ -206,12 +206,12 @@ async function carregarRepresentantesPorPartido(env, ctx) {
     .prepare(
       `SELECT pessoa_id, nome_urna_atual, cargo_nome, sg_uf, numero FROM (
          SELECT c.pessoa_id, p.nome_urna_atual, ca.nome as cargo_nome, c.sg_uf, pa.numero,
-                ROW_NUMBER() OVER (PARTITION BY pa.numero ORDER BY ca.id ASC, p.nome_urna_atual ASC) as rn
+                ROW_NUMBER() OVER (PARTITION BY pa.numero ORDER BY ca.id ASC, COALESCE(c.votos_t2, c.votos_t1, 0) DESC, p.nome_urna_atual ASC) as rn
          FROM candidatura c
          JOIN pessoa p ON p.id = c.pessoa_id
          JOIN cargo ca ON ca.id = c.cargo_id
          JOIN partido pa ON pa.id = c.partido_id
-         WHERE c.ano_eleicao = ? AND pa.numero IN (${placeholders})
+         WHERE c.ano_eleicao = ? AND c.eleito = 1 AND pa.numero IN (${placeholders})
        ) WHERE rn <= 10
        ORDER BY numero, rn`
     )
@@ -1000,7 +1000,7 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       const ufParam = (url.searchParams.get('uf') || request.cf?.regionCode || 'SP').toUpperCase();
       const uf = UF_NOMES[ufParam] ? ufParam : 'SP';
       const versao = await obterVersaoDados(env);
-      const chave = new Request(`https://cache.interno.votocheck/dinheiro-v1?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
+      const chave = new Request(`https://cache.interno.votocheck/dinheiro-v2?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
       let dados = null;
       const emCache = await caches.default.match(chave);
       if (emCache) dados = await emCache.json();
@@ -1342,7 +1342,9 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
     }
 
     // ===== Cola eleitoral (F7) — 100% no aparelho, nada é enviado ao servidor =====
-    if (url.pathname === '/cola' && request.method === 'GET') {
+    // 27/10/2026: depois do 2º turno a cola perdeu o sentido; "Meus representantes" é a cola do mandato.
+    if (url.pathname === '/cola' && request.method === 'GET') return Response.redirect(`${SITE_URL}/meus-representantes`, 301);
+    if (url.pathname === '/cola-arquivo-2026' && request.method === 'GET') {
       const ufParam = (url.searchParams.get('uf') || '').toUpperCase();
       const ufCf = request.cf?.country === 'BR' ? String(request.cf?.regionCode || '').toUpperCase() : '';
       const uf = UF_NOMES[ufParam] ? ufParam : UF_NOMES[ufCf] ? ufCf : '';

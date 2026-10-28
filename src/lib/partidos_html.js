@@ -415,7 +415,7 @@ export function renderBancada2027() {
     </div>
     <div class="b27-grid">
       ${painelCasa('Câmara dos Deputados', 'camara', m.camara_total_2027, 'A partir de 2027: os 513 eleitos em 2026 (TSE). Hoje: deputados em exercício (Câmara), que já inclui trocas de partido desde 2022.')}
-      ${painelCasa('Senado Federal', 'senado', m.senado_total_2027, `A partir de 2027: os 54 eleitos em 2026 (TSE) + os ${m.senado_continuam} senadores com mandato até 2031 (Senado). Pode mudar se um senador for eleito governador no 2º turno e o suplente for de outro partido.`)}
+      ${painelCasa('Senado Federal', 'senado', m.senado_total_2027, `A partir de 2027: os 54 eleitos em 2026 (TSE) + os ${m.senado_continuam} senadores com mandato até 2031 (Senado). Já considera os suplentes que assumem no lugar de senadores eleitos governador: ${(m.suplentes_assumem || []).map((x) => `${x.suplente} (${x.partido}) no lugar de ${x.titular}`).join('; ')}. Fontes: Senado, TSE e imprensa (filiações).`)}
     </div>
   </section>`;
 }
@@ -470,9 +470,9 @@ export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla =
           ${filHtml}
         </div>
         <div class="pt-cands">
-          <div class="pt-cands-tit"><span>Candidaturas em 2026</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
+          <div class="pt-cands-tit"><span>Candidaturas em 2026 (eleitos e não eleitos)</span><b>${cont.total ? Number(cont.total).toLocaleString('pt-BR') : '—'}</b></div>
           ${mini ? `<div class="pt-mini">${mini}</div>` : ''}
-          ${reps.length ? `<details class="pt-cands-toggle"><summary>Clique para conhecer os principais candidatos</summary><div class="pt-reps">${reps.map((r) => `<a href="/candidato/${r.pessoa_id}">${escapeHtml(nomeProprio(r.nome_urna_atual))} · ${escapeHtml(r.cargo_nome)}${r.sg_uf && r.sg_uf !== 'BR' ? `-${escapeHtml(r.sg_uf)}` : ''}</a>`).join('')}</div></details>` : ''}
+          ${reps.length ? `<details class="pt-cands-toggle"><summary>Ver os eleitos em 2026</summary><div class="pt-reps">${reps.map((r) => `<a href="/candidato/${r.pessoa_id}">${escapeHtml(nomeProprio(r.nome_urna_atual))} · ${escapeHtml(r.cargo_nome)}${r.sg_uf && r.sg_uf !== 'BR' ? `-${escapeHtml(r.sg_uf)}` : ''}</a>`).join('')}</div></details>` : ''}
         </div>
       </article>`;
     })

@@ -1066,7 +1066,7 @@ export function rodape() {
       <div class="rod-grid">
         <div class="rod-marca">
           <img src="/static/logo-h-branco.png" alt="VotoCheck" width="141" height="34" />
-          <p>Informação oficial sobre candidatos e eleitos, com a fonte de cada dado. Sem ranking, sem nota, sem torcida. Você decide.</p>
+          <p>Quem te representa e o que faz com o seu voto, com a fonte de cada dado. Sem ranking, sem nota, sem torcida. Você decide.</p>
           <div class="rod-redes">
             <a href="${REDES.instagram}" target="_blank" rel="noopener" aria-label="Instagram" data-ev="seguir" data-ev-chave="instagram:rodape">${Icone.instagram(18)}</a>
             <a href="${REDES.tiktok}" target="_blank" rel="noopener" aria-label="TikTok" data-ev="seguir" data-ev-chave="tiktok:rodape">${Icone.tiktok(18)}</a>

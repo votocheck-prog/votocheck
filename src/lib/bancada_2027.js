@@ -1,4 +1,4 @@
-// Gerado por scripts/gerar_bancada_2027.py — NÃO editar à mão.
+// Gerado por scripts/gerar_bancada_2027.py (+ suplentes que assumem, 27/10/2026) — NÃO editar à mão.
 export const BANCADA_2027 = {
  "meta": {
   "gerado_em": "2026-10-08",
@@ -11,7 +11,28 @@ export const BANCADA_2027 = {
    "senado": 1
   },
   "senado_continuam": 27,
-  "estaduais_total_2027": 1059
+  "estaduais_total_2027": 1059,
+  "suplentes_assumem": [
+   {
+    "titular": "Cleitinho (REPUBLICANOS-MG)",
+    "motivo": "eleito governador de MG",
+    "suplente": "Alex Diniz",
+    "partido": "PL"
+   },
+   {
+    "titular": "Omar Aziz (PSD-AM)",
+    "motivo": "eleito governador do AM no 2º turno",
+    "suplente": "Cheila Moreira",
+    "partido": "PT"
+   },
+   {
+    "titular": "Sergio Moro (PL-PR)",
+    "motivo": "eleito governador do PR",
+    "suplente": "Luis Felipe Cunha",
+    "partido": "PL"
+   }
+  ],
+  "atualizado_em": "2026-10-27"
  },
  "partidos": {
   "13": {
@@ -19,7 +40,7 @@ export const BANCADA_2027 = {
    "camara_hoje": 65,
    "camara_2027": 70,
    "senado_hoje": 9,
-   "senado_2027": 9,
+   "senado_2027": 10,
    "senado_eleitos_2026": 6,
    "estaduais_2027": 141
   },
@@ -28,7 +49,7 @@ export const BANCADA_2027 = {
    "camara_hoje": 98,
    "camara_2027": 121,
    "senado_hoje": 15,
-   "senado_2027": 28,
+   "senado_2027": 29,
    "senado_eleitos_2026": 19,
    "estaduais_2027": 212
   },
@@ -73,7 +94,7 @@ export const BANCADA_2027 = {
    "camara_hoje": 48,
    "camara_2027": 43,
    "senado_hoje": 14,
-   "senado_2027": 5,
+   "senado_2027": 4,
    "senado_eleitos_2026": 2,
    "estaduais_2027": 103
   },
@@ -82,7 +103,7 @@ export const BANCADA_2027 = {
    "camara_hoje": 42,
    "camara_2027": 41,
    "senado_hoje": 6,
-   "senado_2027": 6,
+   "senado_2027": 5,
    "senado_eleitos_2026": 2,
    "estaduais_2027": 78
   },

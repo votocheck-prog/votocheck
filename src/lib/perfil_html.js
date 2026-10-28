@@ -35,6 +35,28 @@ function calcularIdade(dataNascimento) {
 }
 
 /** Resultado oficial de 2026 (TSE, migration 0014) → { rotulo, classe, decidido }. 08/10/2026. */
+/** 27/10/2026: resumo de acompanhamento ("Nos últimos 30 dias") para quem tem mandato. */
+function blocoUltimos30(u, nome, id, cota) {
+  if (!u) return '';
+  const casa = u.casa === 'senado' ? 'o Senado' : 'a Câmara';
+  const primeiro = escapeHtml(String(nome).split(' ')[0]);
+  const vot = u.total
+    ? `<b class="tabnum">${u.votou} de ${u.total}</b><span>votações nominais no Plenário em que ${primeiro} registrou voto</span>`
+    : `<b>Nenhuma</b><span>votação nominal no Plenário d${u.casa === 'senado' ? 'o Senado' : 'a Câmara'} nesse período</span>`;
+  const ct = cota && Number(cota.total) ? `<div class="fx-u30-item"><b class="tabnum">${Number(cota.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</b><span>de cota parlamentar usados em 2026 (atualizado toda semana)</span></div>` : '';
+  return `
+    <section class="fx-sec fx-u30" aria-labelledby="t-u30">
+      <h2 id="t-u30">Nos últimos 30 dias</h2>
+      <p class="fx-sub">O que ficou registrado sobre o mandato. Votar ou não em uma votação nominal pode ter vários motivos (missão oficial, licença, obstrução); aqui só mostramos o registro.</p>
+      <div class="fx-u30-grid">
+        <div class="fx-u30-item">${vot}</div>
+        ${ct}
+        <a class="fx-u30-item fx-u30-cta" href="/cobrar/${id}"><b>Perguntar sobre isso</b><span>Texto pronto, com a fonte, direto ao gabinete →</span></a>
+      </div>
+      <div class="vc-fonte">${Icone.documento(14)} Fonte: ${u.casa === 'senado' ? 'Senado Federal' : 'Câmara dos Deputados'} (dados abertos)${u.ultima ? `, última votação nominal coletada em ${escapeHtml(u.ultima.split('-').reverse().join('/'))}` : ''}</div>
+    </section>`;
+}
+
 export function resultado2026(c, genero) {
   const st = c && c.situacao_totalizacao_turno;
   if (!st || Number(c.ano_eleicao) !== 2026 || /^#|nulo/i.test(st)) return null;
@@ -249,6 +271,14 @@ const ESTILO_FICHA = `
   .fx-numero a { font-size: 12.5px; color: #9EC0FF; font-weight: 600; text-decoration: none; }
   @media (max-width: 720px) { .fx-topo { grid-template-columns: auto 1fr; } .fx-numero { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; } .fx-foto { width: 76px; height: 76px; font-size: 28px; border-radius: 16px; } }
   .fx-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 28px; }
+  .fx-u30-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .fx-u30-item { display: flex; flex-direction: column; gap: 4px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; text-decoration: none; color: var(--ink); }
+  .fx-u30-item b { font-family: var(--font-display); font-size: 22px; }
+  .fx-u30-item span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+  .fx-u30-cta { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .fx-u30-cta b { color: #fff; } .fx-u30-cta span { color: #C3CDF0; }
+  .fx-u30-cta:hover { background: #12206b; }
+  @media (max-width: 720px) { .fx-u30-grid { grid-template-columns: 1fr; } }
   .fx-cob-n { font-size: 13.5px; color: var(--muted); margin-right: 6px; }
   .fx-cob-n b { color: var(--ink); font-family: var(--font-display); font-size: 16px; }
   .fx-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 32px; }
@@ -327,7 +357,7 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
+export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = false, pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -571,7 +601,8 @@ export function renderPerfil({ cobrancas = 0, podeCobrar = false, pessoa, candid
     ${res && res.decidido
       // 27/10/2026: depois da eleição a ficha é de acompanhamento: primeiro o que o eleito faz
       // (votos, cota, dinheiro público), depois patrimônio e o resto; a "lista do partido" vai para o fim.
-      ? `${blocoVotos}
+      ? `${blocoUltimos30(ultimos30, nomeExibicao, pessoa.id, cota)}
+    ${blocoVotos}
     ${blocoCotaPerfil({ cota, categorias: cotaCats, uf: principal?.sg_uf || '', ano: 2026 })}
     ${blocoCampanha}
     ${blocoBens}

@@ -78,6 +78,7 @@ import { renderEleitosUf, renderEleitosIndex, renderPaginaSegundoTurno } from '.
 import { renderMeusRepresentantes } from './lib/meus_html.js';
 import { renderCota } from './lib/cota_html.js';
 import { renderCobrar, temasCobranca } from './lib/cobranca_html.js';
+import { atualizarCota, atualizarContatos } from './lib/rotinas_semanais.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
@@ -1384,6 +1385,19 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       return imagemPng(OG_IMAGE_B64, { cacheSegundos: 604800 });
     }
 
+    // 27/10/2026: disparo manual das rotinas semanais (admin).
+    if (url.pathname === '/admin/rotina' && request.method === 'POST') {
+      if (!env.ADMIN_TOKEN || !requireAdminToken(request, env)) return new Response('não autorizado', { status: 401 });
+      const nome = url.searchParams.get('nome');
+      const ini = url.searchParams.get('inicio') || ymd(new Date(Date.now() - 8 * 86400000));
+      const fn = nome === 'cota' ? atualizarCota : nome === 'contatos' ? atualizarContatos
+        : nome === 'votacoes' ? (e) => coletarVotacoes(e, ini, url.searchParams.get('fim') || ymd(new Date()))
+        : nome === 'votacoes_senado' ? (e) => coletarVotacoesSenado(e) : null;
+      if (!fn) return new Response('nome = cota | contatos', { status: 400 });
+      const res = await fn(env).catch((e) => ({ ok: false, erro: String(e?.message || e) }));
+      return new Response(JSON.stringify(res), { headers: { 'Content-Type': 'application/json' } });
+    }
+
     // ===== 27/10/2026: Workers AI — capas ilustrativas da mídia (só admin) =====
     // Regra: nunca rosto ou cena de político real; só metáfora (urna, Congresso, dinheiro). A peça
     // leva o rótulo "imagem ilustrativa gerada por IA". Cache no KV por hash do prompt: nunca gera 2x.
@@ -1647,9 +1661,26 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         cobrancas = (await db.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first())?.n || 0;
       } catch (e) { /* migration 0019 ausente: sem contador */ }
       const temMandatoAtivo = (mandatosRes.results || []).some((m) => !m.data_fim);
+      // 27/10/2026: "Nos últimos 30 dias" — votações nominais da casa e em quantas o parlamentar registrou voto.
+      let ultimos30 = null;
+      if (temMandatoAtivo) {
+        try {
+          const m = (mandatosRes.results || []).find((x) => !x.data_fim);
+          const casa = /senad/i.test(m?.cargo_nome || '') ? 'senado' : 'camara';
+          const r30 = await db.prepare(
+            `SELECT COUNT(*) AS total, SUM(EXISTS (SELECT 1 FROM voto_parlamentar v WHERE v.votacao_id = vt.id AND v.pessoa_id = ?)) AS votou, MAX(vt.data_votacao) AS ultima
+             FROM votacao vt WHERE vt.casa = ? AND vt.data_votacao >= date('now', '-30 day')
+               AND EXISTS (SELECT 1 FROM voto_parlamentar v2 WHERE v2.votacao_id = vt.id)`
+          ).bind(pessoaId, casa).first();
+          ultimos30 = { casa, total: r30?.total || 0, votou: r30?.votou || 0, ultima: r30?.ultima || null };
+        } catch (e) {
+          console.error('perfil: falha em ultimos30', e);
+        }
+      }
       return html(
         renderPerfil({
           cobrancas,
+          ultimos30,
           podeCobrar: temMandatoAtivo || (candidaturasRes.results || []).some((c) => c.ano_eleicao === ANO_ATUAL && Number(c.eleito) === 1),
           cota,
           cotaCats,
@@ -1964,7 +1995,13 @@ export default {
         // 08/10/2026: fila de publicação nas redes (fila_social.js) — cron diário 09:00 UTC só agenda
         // no Buffer o que vence em 48 h; o cron semanal (segunda 07:00 UTC) segue com os coletores.
         await rodar('processarFila', () => processarFila(env));
-        if (event.cron === '0 9 * * *') return;
+        if (event.cron === '0 9 * * *') {
+          // 27/10/2026: rotinas que eram manuais, cada uma num dia (invocação própria, sem somar limites).
+          const dow = new Date().getUTCDay();
+          if (dow === 3) await rodar('atualizarCota', () => atualizarCota(env));
+          if (dow === 4) await rodar('atualizarContatos', () => atualizarContatos(env));
+          return;
+        }
 
         // TSE: DESLIGADO no cron em 26/09/2026. O CDN do TSE recusa (403) as requisições vindas da
         // Cloudflare, então isso só gerava falha diária. Os arquivos do TSE são baixados pelo Rodrigo
@@ -1979,7 +2016,8 @@ export default {
         await rodar('coletarProposicoes', () => coletarProposicoes(env, 2026));
 
         const fim = ymd(new Date());
-        const inicio = ymd(new Date(Date.now() - 3 * 24 * 3600 * 1000));
+        // 27/10/2026: o cron é semanal; a janela de 3 dias deixava 4 dias de votações sem coletar.
+        const inicio = ymd(new Date(Date.now() - 8 * 24 * 3600 * 1000));
         await rodar('coletarVotacoes (Câmara)', () => coletarVotacoes(env, inicio, fim));
         await rodar('coletarVotacoesSenado', () => coletarVotacoesSenado(env));
 

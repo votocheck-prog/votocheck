@@ -119,7 +119,27 @@ function ymd(date) {
 // Cache API do Workers (por colo/edge, não é um KV global, mas já corta a esmagadora maioria
 // das leituras repetidas no D1 vindas de visitas na homepage).
 const CACHE_KEY_STATS_HOMEPAGE = new Request('https://cache.interno.votocheck/homepage-stats');
-const TTL_CACHE_STATS_SEGUNDOS = 600; // 10 min — homepage não precisa de número em tempo real
+const TTL_CACHE_STATS_SEGUNDOS = 21600; // 6 h (01/11/2026: dados de 2026 não mudam mais; era 10 min)
+
+/** Cache em duas camadas (01/11/2026): o cache da borda é por data center e quase sempre erra com
+ * tráfego espalhado; isso fazia contagens de tabela inteira rodarem ~1.000 vezes por dia no D1
+ * (100–180 milhões de linhas lidas/dia). Agora: borda → KV global (`cg:<url>`) → D1. */
+function cacheDuplo(env) {
+  const borda = caches.default;
+  return {
+    async match(req) {
+      const h = await borda.match(req);
+      if (h) return h;
+      const v = await env.OG.get('cg:' + req.url).catch(() => null);
+      return v === null ? undefined : new Response(v, { headers: { 'Content-Type': 'application/json' } });
+    },
+    async put(req, resp) {
+      const ttl = Math.max(60, Number((resp.headers.get('Cache-Control') || '').match(/max-age=(\d+)/)?.[1] || 600));
+      const corpo = await resp.clone().text();
+      await Promise.all([borda.put(req, resp), env.OG.put('cg:' + req.url, corpo, { expirationTtl: ttl }).catch(() => {})]);
+    },
+  };
+}
 
 /**
  * Estatísticas da homepage (totais + cobertura por cargo), com cache de 10 min via Cache API
@@ -133,7 +153,7 @@ const TTL_CACHE_STATS_SEGUNDOS = 600; // 10 min — homepage não precisa de nú
  * decidido.
  */
 async function estatisticasHomepageComCache(env, ctx) {
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const cacheado = await cache.match(CACHE_KEY_STATS_HOMEPAGE);
   if (cacheado) return cacheado.json();
 
@@ -194,7 +214,7 @@ const CACHE_KEY_PARTIDOS = new Request('https://cache.interno.votocheck/partidos
  * Retorna um objeto { [sigla]: [{pessoa_id, nome_urna_atual, cargo_nome, sg_uf}, ...] }.
  */
 async function carregarRepresentantesPorPartido(env, ctx) {
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const cacheado = await cache.match(CACHE_KEY_PARTIDOS);
   if (cacheado) return cacheado.json();
 
@@ -243,7 +263,7 @@ async function carregarRepresentantesPorPartido(env, ctx) {
 const CACHE_KEY_BANCADA_OFICIAL = new Request('https://cache.interno.votocheck/partidos-bancada-oficial-v1');
 
 async function carregarBancadaOficial(env, ctx) {
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const cacheado = await cache.match(CACHE_KEY_BANCADA_OFICIAL);
   if (cacheado) return cacheado.json();
   const dados = await montarBancadaOficial(env, PARTIDOS_INFO);
@@ -595,7 +615,7 @@ function idadeDe(dn) {
 /** Candidaturas 2026 por partido (ligado pelo número) e por cargo, com cache de 10 min. */
 async function contagemPorPartidoComCache(env, ctx) {
   const chave = new Request('https://cache.interno.votocheck/contagem-partido-v1');
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const cacheado = await cache.match(chave);
   if (cacheado) return cacheado.json();
   const { results } = await env.DB.prepare(
@@ -617,7 +637,7 @@ async function contagemPorPartidoComCache(env, ctx) {
 
 async function contagemPorUfComCache(env, ctx, uf) {
   const chave = new Request(`https://cache.interno.votocheck/contagem-uf-${uf || 'BR'}`);
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const cacheado = await cache.match(chave);
   if (cacheado) return cacheado.json();
   const { results } = await env.DB.prepare(
@@ -638,7 +658,7 @@ const TTL_ELEITOS = 43200;
 /** sq do TSE → { pessoa_id, foto_url } para quem está no 2º turno (16 pessoas). */
 async function pessoas2TComCache(env, ctx) {
   const chave = new Request('https://cache.interno.votocheck/pessoas-2t-v2');
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const hit = await cache.match(chave);
   if (hit) return hit.json();
   const sqs = (RESULTADO_2026.segundo_turno || []).map((c) => c.sq);
@@ -656,7 +676,7 @@ async function pessoas2TComCache(env, ctx) {
 /** Eleitos (e quem vai ao 2º turno) de uma UF, ordenados por votos dentro do cargo. */
 async function eleitosUfComCache(env, ctx, uf) {
   const chave = new Request(`https://cache.interno.votocheck/eleitos-v2-${uf}`);
-  const cache = caches.default;
+  const cache = cacheDuplo(env);
   const hit = await cache.match(chave);
   if (hit) return hit.json();
   const { results } = await env.DB.prepare(
@@ -1005,7 +1025,7 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
       const versao = await obterVersaoDados(env);
       const chave = new Request(`https://cache.interno.votocheck/dinheiro-v2?uf=${uf}&cargo=${cargo}&v=${encodeURIComponent(versao)}`);
       let dados = null;
-      const emCache = await caches.default.match(chave);
+      const emCache = await cacheDuplo(env).match(chave);
       if (emCache) dados = await emCache.json();
       else {
         const semUf = cargo === 'presidente';
@@ -1021,7 +1041,7 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
           env.DB.prepare(`SELECT COUNT(*) n FROM financiamento_campanha f JOIN candidatura c ON c.id = f.candidatura_id JOIN cargo ca ON ca.id = c.cargo_id WHERE ${filtro}`).bind(...params).first(),
         ]);
         dados = { nacional: { fefc: nac.fefc || 0, fp: nac.fp || 0, total: nac.total || 0, com: nac.com || 0 }, dataRef: nac.data_ref, lista: lista.results || [], partidos: partidos.results || [], totalLista: tot?.n || 0 };
-        ctx.waitUntil(caches.default.put(chave, new Response(JSON.stringify(dados), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=86400' } })));
+        ctx.waitUntil(cacheDuplo(env).put(chave, new Response(JSON.stringify(dados), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=86400' } })));
       }
       return html(renderDinheiroPublico({ uf, cargo, ...dados }));
     }

@@ -18,17 +18,20 @@ RAIZ = Path(__file__).resolve().parent
 SONS = '/tmp/claude-0/sons'
 CSS2 = '''
 .full{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
-.full::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,64,.05) 0%,rgba(10,20,64,.25) 40%,rgba(10,20,64,.92) 78%,#0A1440 100%)}
-.s.cena{justify-content:flex-end;padding-bottom:360px}
-.gancho{font-family:"Plus Jakarta Sans";font-weight:800;font-size:132px;line-height:.98;letter-spacing:-.045em;text-shadow:0 6px 30px rgba(0,0,0,.45)}
-.lema{font:800 104px "Plus Jakarta Sans";line-height:1.1;letter-spacing:-.02em}
+.full::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,64,.15) 0%,rgba(10,20,64,.62) 28%,rgba(10,20,64,.78) 50%,rgba(10,20,64,.55) 75%,rgba(10,20,64,.35) 100%)}
+/* Zona segura Reels/TikTok: topo 0-210 (abas), base 1440-1920 (legenda, @, música), direita 930-1080 (botões) */
+body.story .s{padding:250px 180px 580px 84px}
+body.story .rod{bottom:500px;right:180px}
+.s.cena{justify-content:center}
+.gancho{font-family:"Plus Jakarta Sans";font-weight:800;font-size:116px;line-height:1;letter-spacing:-.045em;text-shadow:0 6px 30px rgba(0,0,0,.45)}
+.lema{font:800 92px "Plus Jakarta Sans";line-height:1.1;letter-spacing:-.02em}
 .selo{display:inline-block;font:800 30px Inter;letter-spacing:.05em;text-transform:uppercase;color:#0A1440;background:#3FE0C0;border-radius:999px;padding:12px 26px;margin-bottom:34px;align-self:flex-start}
 .print2{border-radius:34px;overflow:hidden;border:8px solid #1B2A6B;box-shadow:0 40px 80px -30px rgba(0,0,0,.7);background:#fff;margin-top:36px}
 .print2 img{display:block;width:100%}
 .big2{font:800 260px "Plus Jakarta Sans";letter-spacing:-.05em;line-height:.9}
 .vs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:30px}
 .vs div{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.14);border-radius:28px;padding:30px}
-.vs b{display:block;font:800 120px "Plus Jakarta Sans";letter-spacing:-.04em;line-height:1}
+.vs b{display:block;font:800 100px "Plus Jakarta Sans";letter-spacing:-.04em;line-height:1}
 .vs span{display:block;font:600 38px Inter;color:#C3CDF0;margin-top:8px}
 .ranking div{display:flex;justify-content:space-between;align-items:baseline;font:700 46px "Plus Jakarta Sans";padding:20px 0;border-top:2px solid rgba(255,255,255,.12)}
 .ranking div b{font-size:60px;color:#FFB067}
@@ -50,26 +53,26 @@ F_SITE = 'votocheck.com.br'
 LEMA = '<div class="lema">Ele precisou do seu voto.<br><em>Agora você precisa dele.</em></div>'
 
 REELS = {
- 'reel_sus': {'voz': 'yara', 'musica': 'Hypnotized', 'zoom1': 0.14, 'falas': [
+ 'reel_sus': {'voz': 'yara', 'musica': 'Hypnotized', 'zoom1': 0.08, 'falas': [
   ('Quantas horas você esperou da última vez que precisou do posto de saúde?',
    tela(full('sus') + '<div class="gancho">Quantas horas<br>você <em>esperou?</em></div>' + R(''), 'cena')),
   ('Seu deputado precisou do seu voto. Agora quem precisa é você.',
    tela(full('sus') + LEMA + R(''), 'cena')),
   ('O dinheiro da saúde passa todo ano pelo orçamento, votado por quem você elegeu.',
-   tela('<div class="selo">Orçamento</div><h2 style="font-size:100px">O dinheiro da saúde é <em>votado</em> por quem você elegeu.</h2>' + R('Lei orçamentária anual: Congresso Nacional e Assembleias Legislativas'))),
+   tela('<div class="selo">Orçamento</div><h2 style="font-size:90px">O dinheiro da saúde é <em>votado</em> por quem você elegeu.</h2>' + R('Lei orçamentária anual: Congresso Nacional e Assembleias Legislativas'))),
   ('No VotoCheck, você pede o posicionamento dele sobre as filas do SUS.',
-   tela('<h2 style="font-size:92px">Peça o posicionamento <em>dele.</em></h2>' + f'<div class="print2"><img src="{shot("pos_saude.png", 0, 594, "c2a")}"></div>' + R('Tela real do votocheck.com.br'))),
+   tela('<h2 style="font-size:84px">Peça o posicionamento <em>dele.</em></h2>' + f'<div class="print2"><img src="{shot("pos_saude.png", 0, 594, "c2a")}"></div>' + R('Tela real do votocheck.com.br'))),
   ('Se ele responder, fica público. Se não responder, também fica.',
-   tela('<div class="mega" style="font-size:140px">Respondeu?<br><em>Fica público.</em></div><p class="lead" style="font-size:56px;margin-top:30px;color:#fff">Não respondeu? Também.</p>' + R(''))),
+   tela('<div class="mega" style="font-size:124px">Respondeu?<br><em>Fica público.</em></div><p class="lead" style="font-size:56px;margin-top:30px;color:#fff">Não respondeu? Também.</p>' + R(''))),
   ('Digite seu CEP no VotoCheck e cobre. O link está na bio.',
-   tela('<div class="mega" style="font-size:150px">Digite seu CEP.<br><em>Cobre.</em></div><div style="margin-top:56px"><span class="btn" style="font-size:50px">votocheck.com.br</span></div>' + R('@votocheck · fatos com fonte, sem partido'))),
+   tela('<div class="mega" style="font-size:124px">Digite seu CEP.<br><em>Cobre.</em></div><div style="margin-top:56px"><span class="btn" style="font-size:50px">votocheck.com.br</span></div>' + R('@votocheck · fatos com fonte, sem partido'))),
  ], 'legenda': ('Quantas horas você esperou da última vez que precisou do posto de saúde?\n\n'
    'Seu deputado precisou do seu voto. Agora quem precisa é você. O dinheiro da saúde passa todo ano pelo orçamento, votado por quem você elegeu.\n\n'
    'No votocheck.com.br você pede o posicionamento dele sobre as filas do SUS. Se ele responder, fica público na ficha. Se não responder, também fica.\n\n'
    'Digite seu CEP e cobre: link na bio. Comente quantas horas você já esperou.\n#sus #saude #deputadofederal #cobrança #votocheck'),
   'titulo': 'Quantas horas você esperou no posto de saúde?'},
 
- 'reel_maioridade': {'voz': 'ava', 'musica': 'Big_Leagues', 'zoom1': 0.12, 'falas': [
+ 'reel_maioridade': {'voz': 'ava', 'musica': 'Big_Leagues', 'zoom1': 0.07, 'falas': [
   ('Reduzir a maioridade penal para dezesseis anos. Seu deputado é a favor ou contra?',
    tela(full('tribunal') + '<div class="gancho">Maioridade penal:<br>ele é <em>a favor</em><br>ou <em>contra?</em></div>' + R(''), 'cena')),
   ('Em dois mil e quinze, a Câmara aprovou a redução. No Senado, a proposta foi arquivada sem votação.',
@@ -77,9 +80,9 @@ REELS = {
   ('Uns dizem que reduz a violência. Outros, que só lota os presídios. Você decide o que pensa.',
    tela('<div class="vs"><div><b style="font-size:84px">Reduz a violência</b><span>argumento de quem é a favor</span></div><div><b style="font-size:84px">Lota os presídios</b><span>argumento de quem é contra</span></div></div><p class="lead" style="margin-top:40px;font-size:54px;color:#fff">O VotoCheck não escolhe lado.</p>' + R(''))),
   ('A pergunta é outra: o que o seu deputado pensa? A maioria nunca disse.',
-   tela('<h2 style="font-size:110px">O que o <em>seu</em> deputado pensa?</h2>' + f'<div class="print2"><img src="{shot("pos_seguranca.png", 0, 723, "c2b")}"></div>' + R('Tela real do votocheck.com.br'))),
+   tela('<h2 style="font-size:88px">O que o <em>seu</em> deputado pensa?</h2>' + f'<div class="print2"><img src="{shot("pos_seguranca.png", 0, 723, "c2b")}"></div>' + R('Tela real do votocheck.com.br'))),
   ('Peça o posicionamento dele no VotoCheck. A resposta fica na ficha, ao lado de todos os outros.',
-   tela('<div class="mega" style="font-size:140px">Peça o posicionamento <em>dele.</em></div><div style="margin-top:56px"><span class="btn" style="font-size:50px">votocheck.com.br</span></div>' + R('@votocheck · fatos com fonte, sem partido'))),
+   tela('<div class="mega" style="font-size:100px">Peça o posicionamento <em>dele.</em></div><div style="margin-top:56px"><span class="btn" style="font-size:50px">votocheck.com.br</span></div>' + R('@votocheck · fatos com fonte, sem partido'))),
  ], 'legenda': ('Reduzir a maioridade penal para 16 anos: seu deputado é a favor ou contra?\n\n'
    'Em 2015 a Câmara aprovou a PEC 171/1993. No Senado, ela foi arquivada sem votação. Uns dizem que reduz a violência; outros, que só lota os presídios. O VotoCheck não escolhe lado.\n\n'
    'A pergunta é outra: o que o SEU deputado pensa? No votocheck.com.br você pede o posicionamento dele. A resposta fica pública na ficha, ao lado de todos os outros (link na bio).\n\n'
@@ -138,6 +141,9 @@ async def render_telas(nome, htmls, story):
             f.write_text(h, encoding='utf-8')
             await pg.goto(f.as_uri()); await pg.wait_for_load_state('networkidle'); await pg.wait_for_timeout(250)
             png = out / f'{nome}_{i:02d}.png'
+            if story:
+                fora = await pg.evaluate('''() => { const r = []; for (const e of document.querySelectorAll('.s *')) { if (e.closest('.full') || !e.getClientRects().length) continue; const temTexto = [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) || e.tagName === 'IMG'; if (!temTexto) continue; let b = e.getBoundingClientRect(); if (e.tagName !== 'IMG') { const rg = document.createRange(); rg.selectNodeContents(e); b = rg.getBoundingClientRect(); } if (b.right > 932 || b.bottom > 1430 || b.top < 215 || b.left < 40) r.push(`${e.tagName}.${e.className} "${(e.innerText||'img').slice(0,30)}" ${Math.round(b.left)},${Math.round(b.top)}-${Math.round(b.right)},${Math.round(b.bottom)}`); } return r; }''')
+                for f_ in fora: print(f'  ZONA {nome}_{i:02d}: {f_}')
             await pg.screenshot(path=str(png)); arqs.append(str(png)); f.unlink()
         await b.close()
     return arqs
@@ -154,7 +160,7 @@ def montar_reel(nome, r):
     clipes = []
     for i, (t, d) in enumerate(zip(telas, durs)):
         fr = int(round(d * 30))
-        z = r.get('zoom1', 0.12) if i == 0 else 0.05
+        z = r.get('zoom1', 0.07) if i == 0 else 0.03
         # 1º quadro: zoom rápido nos primeiros 1,2 s (movimento desde o frame 0), depois lento.
         expr = f"if(lt(on,36),1+{z}*on/36*0.7,1+{z}*0.7+{z}*0.3*(on-36)/{max(fr - 36, 1)})" if i == 0 else f"1+{z}*on/{fr}"
         c = tmp / f'c{i:02d}.mp4'

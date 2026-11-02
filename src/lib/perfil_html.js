@@ -5,7 +5,7 @@
  * de onde veio (fonte oficial) — nunca uma afirmação solta sem origem rastreável.
  */
 import { EXECUTIVO_FEDERAL } from './bancada_oficial.js';
-import { pagina, escapeHtml, statusPill } from './estilo_html.js';
+import { pagina, escapeHtml, statusPill, ehFeminino, cargoGenero } from './estilo_html.js';
 // Seção 34 (24/09/2026): CTA de apoio também no fim da página de perfil, por pedido do
 // Rodrigo ("depois de cada página de esclarecimento e na home") — mesmo componente da home,
 // só troca a frase de abertura via `contexto: 'perfil'`.
@@ -60,7 +60,7 @@ function blocoUltimos30(u, nome, id, cota) {
 export function resultado2026(c, genero) {
   const st = c && c.situacao_totalizacao_turno;
   if (!st || Number(c.ano_eleicao) !== 2026 || /^#|nulo/i.test(st)) return null;
-  const a = genero === 'F' ? 'a' : 'o';
+  const a = ehFeminino(genero) ? 'a' : 'o';
   // 27/10/2026: quem foi ao 2º turno tem votos_t2 — o detalhe diz em qual turno.
   const t2 = c.votos_t2 != null && Number(c.votos_t2) > 0;
   if (/^eleit/i.test(st)) return { rotulo: `Eleit${a} em 2026`, detalhe: t2 ? `Eleit${a} no 2º turno` : st, classe: 'vc-chip--teal', decidido: true, eleito: true, t2 };
@@ -357,7 +357,10 @@ const ESTILO_FICHA = `
   .fx-toast a { color: #9EC0FF; margin-left: 8px; }
 `;
 
-export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = false, pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
+export function renderPerfil({ posicoesHtml = '', statsCob = { enviadas: 0, respondidas: 0 }, ultimos30 = null, cobrancas = 0, podeCobrar = false, pessoa, candidaturas, mandatos, filiacoes, atributos = [], acompanhar, selos = null, votos = [], totalVotos = 0, mesmaLista = null, bens = [], redes = [], temas = null, fin = null, plano = null, cota = null, cotaCats = [] }) {
+  // 01/11/2026: cargos no feminino para mulheres ("Deputada Federal", "Senadora").
+  candidaturas = (candidaturas || []).map((c) => ({ ...c, cargo_nome: cargoGenero(c.cargo_nome, pessoa.genero) }));
+  mandatos = (mandatos || []).map((m) => ({ ...m, cargo_nome: cargoGenero(m.cargo_nome, pessoa.genero) }));
   const nomeExibicao = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const nomeCompleto = nomeProprio(pessoa.nome_completo);
   const idade = calcularIdade(pessoa.data_nascimento);
@@ -367,7 +370,7 @@ export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = fal
   const inicial = escapeHtml((nomeExibicao || '?').slice(0, 1));
   const urlFicha = `https://votocheck.com.br/candidato/${pessoa.id}`;
   const res = resultado2026(principal, pessoa.genero);
-  const textoShare = `${nomeExibicao}${principal?.numero_urna ? ` (${principal.numero_urna})` : ''}, ${res && res.eleito ? `eleito(a) para ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}` : `candidato(a) a ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}`}: veja o que o VotoCheck reuniu, com dado oficial e fonte.`;
+  const textoShare = `${nomeExibicao}${principal?.numero_urna ? ` (${principal.numero_urna})` : ''}, ${res && res.eleito ? `${ehFeminino(pessoa.genero) ? 'eleita' : 'eleito'} para ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}` : `candidato(a) a ${principal?.cargo_nome || ''} ${principal?.sg_uf || ''}`}: veja o que o VotoCheck reuniu, com dado oficial e fonte.`;
   // 08/10/2026: depois do 1º turno, a cola só faz sentido para quem ainda está no 2º turno.
   const slot = res && res.decidido ? 0 : SLOT_COLA[cargoSlug] || 0;
 
@@ -391,7 +394,7 @@ export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = fal
     const votosT1 = Number(res.t2 ? principal.votos_t2 : principal.votos_t1);
     const pctBase = res.t2 ? principal.pct_t2 : principal.pct_t1;
     const pctT1 = pctBase != null ? Number(pctBase).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
-    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · ${res.t2 ? '2º' : '1º'} turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras').replace(/^Eleito /, pessoa.genero === 'F' ? 'Eleita ' : 'Eleito '))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
+    kpis.unshift(`<div class="fx-kpi fx-kpi--res"><small>${Icone.votoCaixa(14)} Resultado 2026 · ${res.t2 ? '2º' : '1º'} turno</small><b>${escapeHtml(res.detalhe === '2º turno' ? 'Vai ao 2º turno' : res.detalhe.replace(/por QP$/i, 'pelo quociente').replace(/por média$/i, 'pelas sobras').replace(/^Eleito /, ehFeminino(pessoa.genero) ? 'Eleita ' : 'Eleito '))}</b><span>${votosT1 ? `<span class="tabnum">${votosT1.toLocaleString('pt-BR')}</span> votos${pctT1 ? ` · ${pctT1}% dos válidos` : ''}` : 'votos não informados'} · fonte: TSE</span></div>`);
   }
   kpis.push(`<div class="fx-kpi"><small>${Icone.usuario(14)} Perfil</small><b>${idade ? `${idade} anos` : '—'}</b><span>${escapeHtml(nomeProprio(pessoa.grau_instrucao || '')) || 'escolaridade não informada'}</span></div>`);
 
@@ -565,7 +568,7 @@ export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = fal
     principal?.nome_coligacao ? ['Federação / coligação', principal.nome_coligacao === 'PARTIDO ISOLADO' ? 'Nenhuma (partido isolado)' : principal.nome_coligacao] : null,
     idade ? ['Idade', `${idade} anos`] : null,
     pessoa.grau_instrucao ? ['Escolaridade', nomeProprio(pessoa.grau_instrucao)] : null,
-    pessoa.genero ? ['Gênero declarado', nomeProprio(pessoa.genero === 'F' ? 'FEMININO' : pessoa.genero === 'M' ? 'MASCULINO' : pessoa.genero)] : null,
+    pessoa.genero ? ['Gênero declarado', nomeProprio(ehFeminino(pessoa.genero) ? 'FEMININO' : /^M/i.test(pessoa.genero) ? 'MASCULINO' : pessoa.genero)] : null,
     pessoa.cor_raca ? ['Cor/raça declarada', nomeProprio(pessoa.cor_raca)] : null,
   ].filter(Boolean);
 
@@ -589,7 +592,7 @@ export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = fal
     </div>
 
     <div class="fx-acoes">
-      ${podeCobrar ? blocoCobrarFicha({ pessoaId: pessoa.id, nome: nomeExibicao, total: cobrancas }) : ''}
+      ${podeCobrar ? blocoCobrarFicha({ pessoaId: pessoa.id, nome: nomeExibicao, total: cobrancas, stats: statsCob }) : ''}
       ${slot && principal?.numero_urna ? `<button class="vc-btn vc-btn--pri" type="button" id="add-cola" data-slot="${slot}" data-cargo="${escapeHtml(cargoSlug)}" data-nome="${escapeHtml(nomeExibicao)}" data-numero="${escapeHtml(principal.numero_urna)}" data-partido="${escapeHtml(principal.partido_sigla || '')}">${Icone.impressora(18)} Adicionar à minha cola</button>` : ''}
       ${res && res.eleito ? botaoFav({ id: pessoa.id, cargo: cargoSlug, nome: nomeExibicao, partido: principal?.partido_sigla || '', uf: principal?.sg_uf || '' }, 'vc-fav--grande') : ''}
       <a class="vc-btn vc-btn--sec" href="${linkWhatsApp(textoShare, urlFicha)}" target="_blank" rel="noopener" data-share data-share-texto="${escapeHtml(textoShare)}" data-share-url="${urlFicha}">${Icone.whatsapp(18)} Compartilhar</a>
@@ -602,6 +605,7 @@ export function renderPerfil({ ultimos30 = null, cobrancas = 0, podeCobrar = fal
       // 27/10/2026: depois da eleição a ficha é de acompanhamento: primeiro o que o eleito faz
       // (votos, cota, dinheiro público), depois patrimônio e o resto; a "lista do partido" vai para o fim.
       ? `${blocoUltimos30(ultimos30, nomeExibicao, pessoa.id, cota)}
+    ${posicoesHtml}
     ${blocoVotos}
     ${blocoCotaPerfil({ cota, categorias: cotaCats, uf: principal?.sg_uf || '', ano: 2026 })}
     ${blocoCampanha}

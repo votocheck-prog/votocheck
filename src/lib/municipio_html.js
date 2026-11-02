@@ -55,7 +55,7 @@ function contatos(c, nome) {
 function linha(c, modo) {
   const nome = nomeProprio(c.nome_urna_atual || c.nome_completo);
   const foto = c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1));
-  const ele = c.genero === 'F' ? 'dela' : 'dele';
+  const ele = /^F/i.test(String(c.genero || '')) ? 'dela' : 'dele';
   const destaque = modo === 'abs'
     ? `<b class="tabnum">${fmt(c.votos)}</b><small>votos aqui · ${pct(c.pct_cand)} dos votos ${ele}</small>`
     : `<b class="tabnum">${pct(c.pct_cand)}</b><small>dos votos ${ele} · ${fmt(c.votos)} aqui</small>`;

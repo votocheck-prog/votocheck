@@ -8,7 +8,7 @@
  * Regra de marca: resultados SEMPRE em ordem alfabética (nome de urna) — nunca por "relevância"
  * ou qualquer critério que pareça ranking/pontuação de candidato.
  */
-import { pagina, escapeHtml, statusPill } from './estilo_html.js';
+import { pagina, escapeHtml, statusPill, cargoGenero } from './estilo_html.js';
 import { renderMapaBrasil } from './mapa_brasil.js';
 import { renderResumoCargos } from './cargos_guia.js';
 import { renderBanners } from './banners_html.js';
@@ -198,7 +198,7 @@ function linhaResultado(c) {
       <a class="bx-foto" href="/candidato/${c.pessoa_id}" tabindex="-1" aria-hidden="true"${c.foto_url ? '' : ' title="Foto oficial ainda não carregada"'}>${c.foto_url ? `<img src="${escapeHtml(c.foto_url)}" alt="" loading="lazy">` : escapeHtml(nome.slice(0, 1))}</a>
       <div class="bx-info">
         <a class="bx-nome" href="/candidato/${c.pessoa_id}">${escapeHtml(nome)}</a>${tag}
-        <div class="bx-meta">${escapeHtml(c.cargo_nome)} · ${escapeHtml(c.sg_uf)}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>
+        <div class="bx-meta">${escapeHtml(cargoGenero(c.cargo_nome, c.genero))} · ${escapeHtml(c.sg_uf)}${c.partido_sigla ? ` · ${escapeHtml(c.partido_sigla)}` : ''}${idade ? ` · ${idade} anos` : ''}</div>
       </div>
       <div class="bx-dir">
         ${c.numero_urna ? `<span class="bx-num">${escapeHtml(c.numero_urna)}</span>` : ''}

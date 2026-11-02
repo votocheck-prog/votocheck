@@ -68,7 +68,7 @@ import { criarAcompanhamento, cancelarPorToken } from './lib/acompanhamento.js';
 import { emailConfirmacaoAcompanhamento } from './lib/acompanhamento_email.js';
 import { enviarEmail } from './lib/email.js';
 import { renderAnuncie } from './lib/anuncie_html.js';
-import { render404, pagina, SITE_URL } from './lib/estilo_html.js';
+import { render404, pagina, SITE_URL, escapeHtml } from './lib/estilo_html.js';
 import { FAVICON_32_B64, FAVICON_180_B64, OG_IMAGE_B64 } from './lib/assets_data.js';
 import { LOGO_H_B64, LOGO_H_BRANCO_B64, ICONE_B64 } from './lib/marca_assets.js';
 import { LOGOS_ANUNCIANTES } from './lib/anunciantes_logos.js';
@@ -79,6 +79,8 @@ import { renderMeusRepresentantes } from './lib/meus_html.js';
 import { renderCota } from './lib/cota_html.js';
 import { renderCobrar, temasCobranca } from './lib/cobranca_html.js';
 import { atualizarCota, atualizarContatos } from './lib/rotinas_semanais.js';
+import { iniciarCobrancaEmail, confirmarCobrancaEmail, receberRespostaGabinete, estatisticaCobrancas } from './lib/cobranca_email.js';
+import { blocoPosicionamentos, pedirCodigo, validarCodigo, sessaoGabinete, cookieSessao, renderGabineteEntrar, renderGabineteEditor, salvarPosicionamentos } from './lib/gabinete_html.js';
 import { RESULTADO_2026 } from './lib/resultado_2026.js';
 import { processarFila } from './lib/fila_social.js';
 import { renderMunicipio, renderCepErro, slugCidade } from './lib/municipio_html.js';
@@ -858,7 +860,7 @@ ${(results || []).map((m) => `  <url><loc>${SITE_URL}/eleitos/${m.uf.toLowerCase
         const [{ results }, contagem] = await Promise.all([
           db
             .prepare(
-              `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento,
+              `SELECT c.pessoa_id, p.nome_completo, p.nome_urna_atual, p.foto_url, p.data_nascimento, p.genero,
                       ca.nome as cargo_nome, ca.slug as cargo_slug, c.sg_uf, c.numero_urna, c.situacao_candidatura, c.situacao_totalizacao_turno,
                       pa.sigla as partido_sigla
                FROM candidatura c
@@ -1427,6 +1429,55 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
       return new Response(bin, { headers: { 'Content-Type': 'image/jpeg', 'X-Cache-Key': chave } });
     }
 
+    // ===== 01/11/2026: cobrança por e-mail pelo VotoCheck + acesso do gabinete =====
+    const cobEmail = url.pathname.match(/^\/cobrar\/(\d+)\/email$/);
+    if (cobEmail && request.method === 'POST') {
+      const b = await request.json().catch(() => ({}));
+      const res = await iniciarCobrancaEmail(env, { pessoaId: Number(cobEmail[1]), email: b.email, texto: b.texto, tema: b.tema, cidade: b.cidade, mensal: b.mensal !== false, uf: String(request.cf?.regionCode || ''), origem: 'cobrar' })
+        .catch((e) => ({ ok: false, motivo: 'Erro inesperado. Tente de novo.', erro: String(e) }));
+      return new Response(JSON.stringify(res), { status: res.ok ? 200 : 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (url.pathname === '/cobrar/confirmar' && request.method === 'GET') {
+      const res = await confirmarCobrancaEmail(env, url.searchParams.get('t')).catch((e) => ({ ok: false, motivo: 'Erro inesperado: ' + String(e) }));
+      const corpo = res.ok
+        ? `<div class="vc-wrap" style="max-width:680px;padding:48px 0 72px"><h1>${res.jaEnviada ? 'Essa cobrança já foi enviada' : 'Cobrança enviada'}</h1>
+           <p style="font-size:17px;line-height:1.6">Sua mensagem foi entregue no e-mail oficial do gabinete de <b>${escapeHtml(res.nome)}</b>. Quando responderem, a resposta chega no seu e-mail.${res.mensal ? ' Você também vai receber o resumo mensal do mandato.' : ''}</p>
+           <p style="font-size:17px;line-height:1.6">Uma pergunta sozinha some. Várias iguais viram pauta. Chame mais gente:</p>
+           <p><a class="vc-btn vc-btn--pri" href="https://wa.me/?text=${encodeURIComponent(`Cobrei ${res.nome} pelo VotoCheck. Cobre também, leva 1 minuto: https://votocheck.com.br/cobrar/${res.pessoaId}`)}" target="_blank" rel="noopener">Chamar no WhatsApp</a> <a class="vc-btn vc-btn--sec" href="/candidato/${res.pessoaId}">Ver a ficha</a></p></div>`
+        : `<div class="vc-wrap" style="max-width:680px;padding:48px 0 72px"><h1>Não foi possível enviar</h1><p style="font-size:17px">${escapeHtml(res.motivo || '')}</p><p><a class="vc-btn vc-btn--sec" href="/">Voltar ao início</a></p></div>`;
+      return html(pagina({ titulo: 'Cobrança — VotoCheck', descricao: 'Confirmação de envio de cobrança.', caminho: '/cobrar/confirmar', noindex: true, corpo }));
+    }
+    if (url.pathname === '/gabinete' && request.method === 'GET') {
+      const sess = await sessaoGabinete(env, request);
+      if (sess) {
+        const { results } = await env.DB.prepare(`SELECT tema, texto FROM posicionamento WHERE pessoa_id = ?`).bind(sess.pessoa_id).all();
+        return html(renderGabineteEditor({ sessao: sess, posicionamentos: results || [], msg: url.searchParams.get('ok') ? 'Publicado. Já está na ficha.' : '' }));
+      }
+      return html(renderGabineteEntrar());
+    }
+    if (url.pathname === '/gabinete' && request.method === 'POST') {
+      const f = await request.formData();
+      const email = String(f.get('email') || '');
+      await pedirCodigo(env, email).catch(() => null);
+      return html(renderGabineteEntrar({ etapa: 'codigo', email, msg: 'Se este for um e-mail oficial de mandato, o código chegou nele. Vale por 15 minutos.' }));
+    }
+    if (url.pathname === '/gabinete/codigo' && request.method === 'POST') {
+      const f = await request.formData();
+      const email = String(f.get('email') || '');
+      const r = await validarCodigo(env, email, f.get('codigo'));
+      if (!r.ok) return html(renderGabineteEntrar({ etapa: 'codigo', email, msg: r.motivo, erro: true }));
+      return new Response(null, { status: 303, headers: { Location: '/gabinete', 'Set-Cookie': cookieSessao(r.sessao) } });
+    }
+    if (url.pathname === '/gabinete/salvar' && request.method === 'POST') {
+      const sess = await sessaoGabinete(env, request);
+      if (!sess) return Response.redirect(`${SITE_URL}/gabinete`, 303);
+      await salvarPosicionamentos(env, sess, await request.formData());
+      return Response.redirect(`${SITE_URL}/gabinete?ok=1`, 303);
+    }
+    if (url.pathname === '/gabinete/sair' && request.method === 'GET') {
+      return new Response(null, { status: 303, headers: { Location: '/gabinete', 'Set-Cookie': cookieSessao('', 0) } });
+    }
+
     // ===== 27/10/2026: cobrança estruturada (plano pós-eleição §8) =====
     const cobrarMatch = url.pathname.match(/^\/cobrar\/(\d+)$/);
     if (cobrarMatch && request.method === 'GET') {
@@ -1456,8 +1507,9 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         ).bind(pessoaId).first().catch(() => ({})),
         db.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first().catch(() => ({ n: 0 })),
       ]);
-      const temas = temasCobranca({ cargoSlug: cand?.cargo_slug, uf: cand?.sg_uf, votos: votosR.results || [], cota: cotaR, fin: finR });
-      return html(renderCobrar({ pessoa, cand, contatos: ctR || {}, temas, total: totR?.n || 0, temaInicial: url.searchParams.get('tema') || '' }));
+      const temas = temasCobranca({ genero: pessoa.genero, cargoSlug: cand?.cargo_slug, uf: cand?.sg_uf, votos: votosR.results || [], cota: cotaR, fin: finR });
+      const stats = await estatisticaCobrancas(env, pessoaId).catch(() => ({ enviadas: 0, respondidas: 0 }));
+      return html(renderCobrar({ pessoa, cand, contatos: ctR || {}, temas, total: totR?.n || 0, temaInicial: url.searchParams.get('tema') || '', stats }));
     }
     if (url.pathname === '/api/cobranca' && request.method === 'POST') {
       let corpo = {};
@@ -1656,6 +1708,21 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         }
       }
 
+      let posicoesHtml = '';
+      let statsCob = { enviadas: 0, respondidas: 0 };
+      try {
+        const eleitoOuMandato = (mandatosRes.results || []).some((m) => !m.data_fim) || (candidaturasRes.results || []).some((c) => c.ano_eleicao === ANO_ATUAL && Number(c.eleito) === 1);
+        if (eleitoOuMandato) {
+          const [posR, pedR] = await Promise.all([
+            db.prepare(`SELECT tema, texto, atualizado_em FROM posicionamento WHERE pessoa_id = ?`).bind(pessoaId).all(),
+            db.prepare(`SELECT tema, COUNT(*) AS n FROM cobranca WHERE pessoa_id = ? AND tema LIKE 'pos-%' GROUP BY tema`).bind(pessoaId).all(),
+          ]);
+          posicoesHtml = blocoPosicionamentos({ pessoaId, nome: nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo), posicionamentos: posR.results || [], pedidos: Object.fromEntries((pedR.results || []).map((x) => [x.tema, x.n])) });
+          statsCob = await estatisticaCobrancas(env, pessoaId);
+        }
+      } catch (e) {
+        console.error('perfil: posicionamentos', e);
+      }
       let cobrancas = 0;
       try {
         cobrancas = (await db.prepare(`SELECT COUNT(*) AS n FROM cobranca WHERE pessoa_id = ?`).bind(pessoaId).first())?.n || 0;
@@ -1681,6 +1748,8 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
         renderPerfil({
           cobrancas,
           ultimos30,
+          posicoesHtml,
+          statsCob,
           podeCobrar: temMandatoAtivo || (candidaturasRes.results || []).some((c) => c.ano_eleicao === ANO_ATUAL && Number(c.eleito) === 1),
           cota,
           cotaCats,
@@ -1920,6 +1989,15 @@ ${urls.map((u) => `  <url><loc>${SITE_URL}${u.loc}</loc><priority>${u.prioridade
 }
 
 export default {
+  // 01/11/2026: Email Routing → resposta+<token>@votocheck.com.br (resposta do gabinete a uma cobrança).
+  async email(message, env, ctx) {
+    try {
+      await receberRespostaGabinete(message, env);
+    } catch (e) {
+      console.error('email handler:', e);
+      message.setReject('Erro ao processar');
+    }
+  },
   async fetch(request, env, ctx) {
     try {
       // HEAD = GET sem corpo (RFC 9110). Sem isso, monitores de uptime e alguns crawlers

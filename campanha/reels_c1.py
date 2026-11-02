@@ -1,6 +1,6 @@
 """Reels narrados do lote C1 (27/10/2026). Telas com o mesmo design do lote_c1.py."""
 import sys
-sys.path.insert(0, '.')
+sys.path.insert(0, '/home/claude/midia')
 import lote_c1 as L
 from reel_narrado import montar
 
@@ -62,7 +62,7 @@ LEGENDAS = {
 }
 if __name__ == '__main__':
     import json, os
-    os.chdir('.')
+    os.chdir('/home/claude/midia')
     meta = json.load(open('lote_c1.json', encoding='utf-8'))
     for k in sys.argv[1:] or REELS:
         mp4, capa, total = montar(k, REELS[k]['falas'], REELS[k]['musica'])

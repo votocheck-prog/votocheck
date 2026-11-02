@@ -1000,6 +1000,18 @@ export function statusPill(codigo, descricao) {
 }
 
 /** Escapa texto para uso seguro em HTML (evita XSS em dados vindos de fontes externas). */
+
+/** 01/11/2026: o TSE grava "FEMININO" e a Câmara/Senado "F". Use sempre esta função. */
+export const ehFeminino = (g) => /^F/i.test(String(g || '').trim());
+/** Cargo no feminino quando a pessoa é mulher: "Deputada Federal", "Senadora", "Governadora", "Prefeita". */
+export function cargoGenero(nome, genero) {
+  const n = String(nome || '');
+  if (!ehFeminino(genero)) return n;
+  return n.replace(/\bDeputado\b/g, 'Deputada').replace(/\bSenador\b/g, 'Senadora').replace(/\bGovernador\b/g, 'Governadora')
+    .replace(/\bPrefeito\b/g, 'Prefeita').replace(/\bVereador\b/g, 'Vereadora').replace(/\bVice-Governador\b/g, 'Vice-Governadora')
+    .replace(/\b1º Suplente\b/g, '1ª Suplente').replace(/\b2º Suplente\b/g, '2ª Suplente').replace(/\bdeputado\b/g, 'deputada').replace(/\bsenador\b/g, 'senadora').replace(/\bgovernador\b/g, 'governadora');
+}
+
 export function escapeHtml(value) {
   if (value === null || value === undefined) return '';
   return String(value)

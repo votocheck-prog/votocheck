@@ -59,7 +59,7 @@ def doc(corpo, story=False, cls=''):
     return f'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>{CSS}</style></head><body class="{"story" if story else ""}"><div class="s {cls}">{corpo}</div></body></html>'
 
 def foto(nome):
-    return f'<div class="foto" style="background-image:url({uri(IA / (nome + ".jpg"))})"></div><div class="ia">Imagem ilustrativa gerada por IA</div>'
+    return f'<div class="foto" style="background-image:url({uri(IA / (nome + ".jpg"))})"></div>'
 
 def pag(i, n):
     return f'<div class="pag">{i}/{n}</div>'

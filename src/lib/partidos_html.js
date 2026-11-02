@@ -95,6 +95,15 @@ import { nomeProprio } from './perfil_html.js';
 import { FILIADOS_POR_NUMERO, FILIADOS_REF } from './filiados_perfil.js';
 import { pagina, escapeHtml } from './estilo_html.js';
 import { LOGOS_PARTIDOS, LOGOS_COMMONS } from './partidos_logos.js';
+import { RESULTADO_2026 } from './resultado_2026.js';
+
+// 01/11/2026: governadores eleitos em 2026 (1º e 2º turno, TSE) por número de partido.
+const _ALIAS_GOV = { PODE: 20, UNIAO: 44, 'UNIÃO': 44, REPUBLICANOS: 10, PL: 22, PSD: 55, PP: 11, PT: 13, PSDB: 45, MDB: 15, PSB: 40, PDT: 12, NOVO: 30, PSOL: 50, AVANTE: 70, SOLIDARIEDADE: 77, CIDADANIA: 23, PCDOB: 65, PV: 43, REDE: 18, PRD: 25 };
+const GOV_2027 = {};
+for (const g of Object.values(RESULTADO_2026.governadores || {})) {
+  const n = _ALIAS_GOV[String(g[0]?.partido || '').toUpperCase()];
+  if (n) GOV_2027[n] = (GOV_2027[n] || 0) + 1;
+}
 import { Icone } from './icones.js';
 
 export const LINK_LIDERANCAS_CAMARA = 'https://www.camara.leg.br/deputados/liderancas-e-bancadas/liderancas';
@@ -464,7 +473,7 @@ export function renderPartidos({ representantesPorSigla = {}, contagemPorSigla =
         ${presidencia}
         ${liderHtml}
         <div class="pt-cands">
-          ${(() => { const b = BANCADA_2027.partidos[p.numero]; if (!b || !(b.camara_2027 || b.senado_2027 || b.camara_hoje || b.senado_hoje)) return ''; const dc = b.camara_2027 - b.camara_hoje, ds = b.senado_2027 - b.senado_hoje; return `<div class="pt-27"><span>A partir de 2027</span><b>${b.camara_2027}</b> dep. federais <em class="${dc > 0 ? 'b27-d--mais' : dc < 0 ? 'b27-d--menos' : ''}">(${sinal(dc)})</em> · <b>${b.senado_2027}</b> senadores <em class="${ds > 0 ? 'b27-d--mais' : ds < 0 ? 'b27-d--menos' : ''}">(${sinal(ds)})</em></div>`; })()}
+          ${(() => { const b = BANCADA_2027.partidos[p.numero]; if (!b || !(b.camara_2027 || b.senado_2027 || b.camara_hoje || b.senado_hoje)) return ''; const dc = b.camara_2027 - b.camara_hoje, ds = b.senado_2027 - b.senado_hoje; const ng = GOV_2027[p.numero] || 0; return `<div class="pt-27"><span>A partir de 2027</span><b>${b.camara_2027}</b> ${b.camara_2027 === 1 ? 'dep. federal' : 'dep. federais'} <em class="${dc > 0 ? 'b27-d--mais' : dc < 0 ? 'b27-d--menos' : ''}">(${sinal(dc)})</em> · <b>${b.senado_2027}</b> ${b.senado_2027 === 1 ? 'senador' : 'senadores'} <em class="${ds > 0 ? 'b27-d--mais' : ds < 0 ? 'b27-d--menos' : ''}">(${sinal(ds)})</em>${ng ? ` · <b>${ng}</b> ${ng === 1 ? 'governador' : 'governadores'}` : ''}</div>`; })()}
           <div class="pt-cands-tit"><span>No Congresso hoje (senadores + deputados federais)</span><b>${bancadaOficial ? Number(banc.congresso || 0).toLocaleString('pt-BR') : '—'}</b></div>
           ${miniBancada ? `<div class="pt-mini">${miniBancada}</div>` : `<p style="font-size:12.5px;color:var(--muted);margin:4px 0 0">${bancadaOficial ? 'Sem senador, deputado federal ou deputado estadual eleito.' : 'Bancada indisponível no momento.'}</p>`}
           ${filHtml}

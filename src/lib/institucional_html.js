@@ -71,6 +71,8 @@ export function renderTermos() {
         a qualquer momento em contato@votocheck.com.br.
       </p>
 
+      <h2 id="cobranca" style="font-size:19px; margin-top:32px;">Cobrança enviada pelo VotoCheck e posicionamentos</h2>
+      <p>Quando você envia uma cobrança pelo VotoCheck, guardamos seu e-mail, a mensagem, a cidade (se informada) e o eleito, para: confirmar que o e-mail é seu, entregar a mensagem no e-mail oficial do gabinete, repassar a você a resposta do gabinete e contar, de forma agregada, quantas cobranças foram enviadas e respondidas. O conteúdo das respostas não é publicado. A opção de resumo mensal vem marcada e pode ser desmarcada antes do envio ou cancelada a qualquer momento pelo link de cada e-mail. Os posicionamentos da ficha são escritos pelos próprios gabinetes, autenticados por código enviado ao e-mail oficial do mandato, e publicados sem edição.</p>
       <h2 id="cookies" style="font-size:19px; margin-top:32px;">Medição de audiência (Google Analytics)</h2>
       <p>
         Usamos o Google Analytics 4 para saber quantas pessoas visitam o site, quais páginas são mais

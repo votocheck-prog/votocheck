@@ -23,7 +23,7 @@ const dataBR = (iso) => {
 
 /** "Deputada", "Senador"... para a saudação. */
 export function tratamento(cargoSlug, genero) {
-  const f = genero === 'F';
+  const f = /^F/i.test(String(genero || ''));
   return {
     deputado_federal: f ? 'Deputada' : 'Deputado',
     deputado_estadual: f ? 'Deputada' : 'Deputado',
@@ -34,10 +34,21 @@ export function tratamento(cargoSlug, genero) {
   }[cargoSlug] || '';
 }
 
+/** 01/11/2026: temas do quadro de posicionamento (mesma pergunta neutra para todos os eleitos). */
+export const TEMAS_POSICIONAMENTO = [
+  { id: 'seguranca', titulo: 'Segurança pública', curta: 'Maioridade penal e violência', pergunta: 'Qual é a sua posição sobre a redução da maioridade penal e o que propõe, de forma concreta, para reduzir a violência no seu estado?' },
+  { id: 'saude', titulo: 'Saúde', curta: 'Filas do SUS', pergunta: 'O que propõe para reduzir as filas do SUS por consultas, exames e cirurgias?' },
+  { id: 'educacao', titulo: 'Educação', curta: 'Escola pública', pergunta: 'O que propõe para melhorar o aprendizado na escola pública e reduzir o abandono no ensino médio?' },
+  { id: 'economia', titulo: 'Economia e emprego', curta: 'Emprego e custo de vida', pergunta: 'O que vai defender para gerar emprego e reduzir o custo de vida: impostos, crédito, gasto público?' },
+  { id: 'fundo', titulo: 'Fundo eleitoral', curta: 'Fundo de campanha 2028', pergunta: 'Como vai votar o valor do fundo eleitoral das eleições de 2028: manter, reduzir ou aumentar? Por quê?' },
+  { id: 'ia', titulo: 'Inteligência artificial', curta: 'Regras para IA', pergunta: 'Qual é a sua posição sobre regras para a inteligência artificial no Brasil: uso de dados, deepfakes e impacto nos empregos?' },
+  { id: 'recursos', titulo: 'Recursos naturais', curta: 'Petróleo e terras raras', pergunta: 'Qual é a sua posição sobre a exploração de petróleo, inclusive na Margem Equatorial, e de minerais críticos como as terras raras?' },
+];
+
 const LEGISLATIVO = ['deputado_federal', 'deputado_estadual', 'deputado_distrital', 'senador'];
 
 /** Monta os temas possíveis a partir do que está registrado. Cada tema = { id, rotulo, fato, fonte, url, pergunta }. */
-export function temasCobranca({ cargoSlug, uf, votos = [], cota = null, fin = null }) {
+export function temasCobranca({ cargoSlug, uf, votos = [], cota = null, fin = null, genero = '' }) {
   const temas = [];
   const vistos = new Set();
   for (const v of votos) {
@@ -86,12 +97,24 @@ export function temasCobranca({ cargoSlug, uf, votos = [], cota = null, fin = nu
         : 'Como pretende prestar contas à população sobre o uso de recursos públicos ao longo do mandato?',
     });
   }
+  for (const t of TEMAS_POSICIONAMENTO) {
+    temas.push({
+      id: `pos-${t.id}`,
+      tipo: `Posição · ${t.titulo}`,
+      rotulo: t.curta,
+      resumo: 'A resposta oficial do gabinete aparece na ficha, ao lado dos outros eleitos',
+      fato: 'O VotoCheck publica, na ficha de cada eleito, o posicionamento oficial sobre os temas que mais preocupam a população.',
+      fonte: 'VotoCheck (quadro de posicionamentos, respondido pelos gabinetes)',
+      url: `${SITE_URL}/gabinete`,
+      pergunta: t.pergunta,
+    });
+  }
   temas.push({
     id: 'prioridades',
     tipo: 'Mandato 2027',
     rotulo: 'Quais são as suas prioridades?',
     resumo: 'Vale para quem acabou de ser eleito e ainda não tem histórico',
-    fato: cargoSlug === 'presidente' ? 'Você foi eleito para governar o país a partir de 2027.' : `Você foi eleito(a) em 2026 para representar a população ${uf ? `de ${uf}` : 'do seu estado'}.`,
+    fato: cargoSlug === 'presidente' ? 'Você foi eleito para governar o país a partir de 2027.' : `Você foi ${/^F/i.test(String(genero || '')) ? 'eleita' : 'eleito'} em 2026 para representar a população ${uf ? `de ${uf}` : 'do seu estado'}.`,
     fonte: 'TSE (resultado oficial de 2026)',
     url: `${SITE_URL}/eleitos`,
     pergunta: 'Quais são as 3 prioridades do seu mandato e como a população pode acompanhar o andamento de cada uma?',
@@ -109,7 +132,7 @@ function contatoLinks(ct, nome) {
   };
 }
 
-export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 0, temaInicial = '' }) {
+export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 0, temaInicial = '', stats = { enviadas: 0, respondidas: 0 } }) {
   const nome = nomeProprio(pessoa.nome_urna_atual || pessoa.nome_completo);
   const trat = tratamento(cand?.cargo_slug, pessoa.genero);
   const ct = contatoLinks(contatos, nome);
@@ -124,6 +147,17 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
     `<button type="button" class="cb-canal" data-canal="copiar">${Icone.copiar(18)}<span><b>Só copiar o texto</b><small>Para mandar onde você preferir</small></span></button>`,
   ].join('');
   const semOficial = !ct.email && !ct.telefone;
+  // 01/11/2026: envio pelo VotoCheck (confirmação do e-mail do eleitor + resposta do gabinete repassada).
+  const viaVc = ct.email ? `
+        <form class="cb-vc" id="cb-vc" novalidate>
+          <div class="cb-vc-topo"><span class="cb-vc-selo">Recomendado</span><b>Enviar pelo VotoCheck</b><small>A gente entrega no e-mail oficial do gabinete. Quando responderem, a resposta chega no seu e-mail e entra na estatística pública.</small></div>
+          <label class="cb-label" for="cb-email">Seu e-mail</label>
+          <div class="cb-vc-linha"><input class="cb-input" id="cb-email" type="email" autocomplete="email" inputmode="email" required placeholder="voce@exemplo.com"><button class="vc-btn vc-btn--pri" type="submit">Enviar cobrança</button></div>
+          <label class="cb-check"><input type="checkbox" id="cb-mensal" checked> <span>Quero receber, 1 vez por mês, o que ${escapeHtml(nome.split(' ')[0])} fez no mandato (cancele quando quiser)</span></label>
+          <p class="cb-vc-msg" id="cb-vc-msg" role="status" aria-live="polite"></p>
+          <p class="cb-vc-lgpd">Usamos seu e-mail só para confirmar o envio, repassar a resposta e, se marcado, mandar o resumo mensal. <a href="/termos#cobranca">Como tratamos seus dados</a>.</p>
+        </form>` : '';
+  const taxa = stats.enviadas ? Math.round((100 * stats.respondidas) / stats.enviadas) : 0;
   const corpo = `
   <style>${ESTILO_COBRAR}</style>
   <section class="cb-topo">
@@ -133,7 +167,10 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
         <nav class="cb-migalha" aria-label="Você está em"><a href="/candidato/${pessoa.id}">${escapeHtml(nome)}</a> › Cobrar</nav>
         <h1>Cobre ${escapeHtml(trat ? `${trat.toLowerCase() === 'presidente' ? 'o presidente' : trat.endsWith('a') ? 'a ' + trat.toLowerCase() : 'o ' + trat.toLowerCase()} ` : '')}${escapeHtml(nome)}</h1>
         <p class="cb-lead">Escolha um fato registrado, ajuste o texto se quiser e envie direto ao gabinete. Educado, com fonte e sem xingamento: é assim que a pergunta chega e é respondida.</p>
-        <p class="cb-contador" aria-live="polite"><b class="tabnum" data-cb-total>${Number(total).toLocaleString('pt-BR')}</b> ${total === 1 ? 'cobrança enviada' : 'cobranças enviadas'} pelo VotoCheck</p>
+        <div class="cb-contadores">
+          <p class="cb-contador" aria-live="polite"><b class="tabnum" data-cb-total>${Number(total).toLocaleString('pt-BR')}</b> ${total === 1 ? 'cobrança' : 'cobranças'} pelo VotoCheck</p>
+          <p class="cb-contador cb-contador--resp"><b class="tabnum">${Number(stats.respondidas).toLocaleString('pt-BR')}</b> de ${Number(stats.enviadas).toLocaleString('pt-BR')} e-mails respondidos pelo gabinete${stats.enviadas ? ` (${taxa}%)` : ''}</p>
+        </div>
       </div>
     </div>
   </section>
@@ -164,6 +201,8 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
       <li class="cb-passo">
         <h2><span>3</span> Envie</h2>
         ${semOficial ? `<p class="cb-aviso">${Icone.alerta(16)} Ainda não há e-mail ou telefone oficial de gabinete para ${escapeHtml(nome)}. Quem assume mandato novo recebe o contato oficial na posse (1º de fevereiro de 2027 para o Congresso). Até lá, use o perfil declarado ao TSE ou copie o texto.</p>` : ''}
+        ${viaVc}
+        ${viaVc ? '<p class="cb-ou">ou envie você mesmo</p>' : ''}
         <div class="cb-canais">${canais}</div>
         <div class="cb-ok" id="cb-ok" hidden>
           <b>${Icone.checkCirculo(18)} Cobrança registrada.</b>
@@ -180,7 +219,7 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
       <ul>
         <li>${Icone.checkCirculo(16)} Toda cobrança parte de um fato com fonte oficial.</li>
         <li>${Icone.checkCirculo(16)} O VotoCheck não diz se o voto ou o gasto foi certo ou errado.</li>
-        <li>${Icone.checkCirculo(16)} <span>A mensagem sai do <b>seu</b> e-mail ou perfil. Não guardamos o texto nem o seu contato.</span></li>
+        <li>${Icone.checkCirculo(16)} <span>Enviando pelo VotoCheck, você confirma o seu e-mail antes; a resposta do gabinete chega para você. Enviando por conta própria, não guardamos nada.</span></li>
         <li>${Icone.checkCirculo(16)} O contador soma quantas cobranças saíram por aqui, no máximo uma por fato por dia em cada aparelho.</li>
       </ul>
       <a class="cb-voltar" href="/candidato/${pessoa.id}">${Icone.usuario(16)} Ver a ficha completa de ${escapeHtml(nome)}</a>
@@ -225,10 +264,23 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
         else if(canal==='telefone'){ registrar('telefone'); }
       });
     });
+    var fv=document.getElementById('cb-vc');
+    if(fv) fv.addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var msg=document.getElementById('cb-vc-msg'), em=document.getElementById('cb-email'), bt=fv.querySelector('button');
+      if(!em.value||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value)){ msg.className='cb-vc-msg cb-vc-msg--erro'; msg.textContent='Confira o e-mail: parece incompleto.'; em.focus(); return; }
+      bt.disabled=true; bt.textContent='Enviando…';
+      var t=tema();
+      fetch('/cobrar/'+D.id+'/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value,texto:tx.value,tema:t.id,cidade:(cid.value||'').trim(),mensal:document.getElementById('cb-mensal').checked})})
+        .then(function(r){return r.json();}).then(function(j){
+          if(j.ok){ msg.className='cb-vc-msg cb-vc-msg--ok'; msg.textContent='Falta 1 passo: abra o e-mail que mandamos para '+em.value+' e toque em "Confirmar e enviar".'; registrar('email_votocheck'); bt.textContent='Enviado para confirmação'; }
+          else { msg.className='cb-vc-msg cb-vc-msg--erro'; msg.textContent=j.motivo||'Não deu certo agora. Tente de novo.'; bt.disabled=false; bt.textContent='Enviar cobrança'; }
+        }).catch(function(){ msg.className='cb-vc-msg cb-vc-msg--erro'; msg.textContent='Sem conexão. Tente de novo.'; bt.disabled=false; bt.textContent='Enviar cobrança'; });
+    });
   })();
   </script>`;
   return pagina({
-    titulo: `Cobrar ${nome}${cand?.cargo_nome ? ` (${cand.cargo_nome} ${cand.sg_uf})` : ''} com fato e fonte — VotoCheck`,
+    titulo: `Cobrar ${nome}${cand?.cargo_nome ? ` (${/^F/i.test(String(pessoa.genero || '')) ? String(cand.cargo_nome).replace(/Deputado/, 'Deputada').replace(/Senador/, 'Senadora').replace(/Governador/, 'Governadora') : cand.cargo_nome} ${cand.sg_uf})` : ''} com fato e fonte — VotoCheck`,
     descricao: `Mande uma pergunta para ${nome} a partir de um fato registrado: votações, cota parlamentar e dinheiro público da campanha. Texto pronto, educado e com fonte, enviado ao gabinete.`,
     caminho: `/cobrar/${pessoa.id}`,
     larga: true,
@@ -237,11 +289,27 @@ export function renderCobrar({ pessoa, cand, contatos = {}, temas = [], total = 
 }
 
 /** Botão + contador para a ficha. */
-export function blocoCobrarFicha({ pessoaId, nome, total = 0 }) {
-  return `<a class="vc-btn vc-btn--pri" href="/cobrar/${pessoaId}" data-ev="cobrar_ficha">${Icone.megafone(18)} Cobrar ${escapeHtml(nome.split(' ')[0])}</a>${total ? `<span class="fx-cob-n"><b class="tabnum">${Number(total).toLocaleString('pt-BR')}</b> ${total === 1 ? 'cobrança' : 'cobranças'} pelo VotoCheck</span>` : ''}`;
+export function blocoCobrarFicha({ pessoaId, nome, total = 0, stats = { enviadas: 0, respondidas: 0 } }) {
+  return `<a class="vc-btn vc-btn--pri" href="/cobrar/${pessoaId}" data-ev="cobrar_ficha">${Icone.megafone(18)} Cobrar ${escapeHtml(nome.split(' ')[0])}</a>${total ? `<span class="fx-cob-n"><b class="tabnum">${Number(total).toLocaleString('pt-BR')}</b> ${total === 1 ? 'cobrança' : 'cobranças'} pelo VotoCheck${stats.enviadas ? ` · <b class="tabnum">${stats.respondidas}</b> de ${stats.enviadas} e-mails respondidos` : ''}</span>` : ''}`;
 }
 
 export const ESTILO_COBRAR = `
+  .cb-contadores { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cb-contador--resp { background: rgba(127,176,255,.14); color: #DCE6FF; }
+  .cb-contador--resp b { color: #9EC0FF; }
+  .cb-vc { background: #F5F8FF; border: 1.5px solid #CFDDFF; border-radius: 18px; padding: 18px 20px; margin-bottom: 8px; }
+  .cb-vc-topo b { display: block; font-family: var(--font-display); font-size: 19px; margin: 6px 0 4px; }
+  .cb-vc-topo small { display: block; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .cb-vc-selo { display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--blue); border-radius: 999px; padding: 3px 10px; }
+  .cb-vc-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cb-vc-linha .cb-input { flex: 1 1 240px; max-width: none; }
+  .cb-check { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 4px; font-size: 14.5px; color: var(--ink); cursor: pointer; line-height: 1.45; }
+  .cb-check input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--blue); flex: none; }
+  .cb-vc-msg { margin: 10px 0 0; font-size: 14.5px; font-weight: 600; min-height: 1em; }
+  .cb-vc-msg--ok { color: #00735F; } .cb-vc-msg--erro { color: #B42318; }
+  .cb-vc-lgpd { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+  .cb-ou { text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 10px; }
+
   .cb-topo { background: var(--navy); color: #fff; padding: 36px 0 32px; }
   .cb-topo-grid { display: grid; grid-template-columns: 72px 1fr; gap: 20px; align-items: start; }
   .cb-foto { width: 72px; height: 72px; border-radius: 18px; overflow: hidden; background: rgba(255,255,255,.1); display: grid; place-items: center; color: #fff; font: 800 28px var(--font-display); text-decoration: none; }
